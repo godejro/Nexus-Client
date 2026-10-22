@@ -13,10 +13,10 @@ try {
         $name=$file.FullName.Substring($clientRoot.Length+1).Replace('\','/')
         if(!(Test-NexusProgramPath $name)){continue}
         $null=Get-NexusChildPath $clientRoot $name
-        $files+=@{path=$name;size=$file.Length;sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
+        $files+=@{path=$name;size=$file.Length;sha256=(Get-NexusSHA256 $file.FullName)}
         $null=[IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,$file.FullName,$name,[IO.Compression.CompressionLevel]::Optimal)
     }
 } finally {$archive.Dispose()}
-$manifest=@{schema=1;version=$Version;sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant();files=$files}
+$manifest=@{schema=1;version=$Version;sha256=(Get-NexusSHA256 $zip);files=$files}
 [IO.File]::WriteAllText((Join-Path $Output 'update.json'),($manifest|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 Write-Output "Prepared $($files.Count) program files. No server assets or player configurations."

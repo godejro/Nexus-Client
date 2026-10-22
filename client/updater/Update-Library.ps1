@@ -1,4 +1,10 @@
 Set-StrictMode -Version Latest
+function Get-NexusSHA256([string]$Path) {
+    $stream=[IO.File]::OpenRead($Path)
+    $hash=[Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($hash.ComputeHash($stream)).Replace('-','').ToLowerInvariant() }
+    finally { $hash.Dispose(); $stream.Dispose() }
+}
 function Test-NexusProgramPath([string]$Name) {
     if (!$Name -or $Name.Contains('\') -or $Name -match '(^/|:|(^|/)\.\.?(/|$)|[<>|?*\x00-\x1f])' -or $Name -match '(^|/)[^/]*[. ](/|$)') { return $false }
     if ($Name -match '//|(?i)(^|/)(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])([.]|/|$)') { return $false }
@@ -19,8 +25,10 @@ function Get-NexusChildPath([string]$Root,[string]$Name) {
     if (!$path.StartsWith($base,[StringComparison]::OrdinalIgnoreCase)) { throw 'Update path escaped client directory.' }
     $check=$path
     while ($check.Length -ge $base.TrimEnd('\').Length) {
-        if ((Test-Path -LiteralPath $check) -and ((Get-Item -LiteralPath $check -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Junction/symlink not allowed: $check" }
-        $check=Split-Path -Parent $check
+        try {
+            if ([IO.File]::GetAttributes($check) -band [IO.FileAttributes]::ReparsePoint) { throw "Junction/symlink not allowed: $check" }
+        } catch [IO.FileNotFoundException] {} catch [IO.DirectoryNotFoundException] {}
+        $check=[IO.Path]::GetDirectoryName($check)
         if (!$check) { break }
     }
     return $path
@@ -28,7 +36,7 @@ function Get-NexusChildPath([string]$Root,[string]$Name) {
 function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest,[string]$BackupRoot) {
     $ErrorActionPreference='Stop'
     if ($Manifest.schema -ne 1 -or @($Manifest.files).Count -eq 0 -or @($Manifest.files).Count -gt 20000) { throw 'Unsupported/empty manifest.' }
-    if ($Manifest.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or (Get-FileHash -LiteralPath $Zip -Algorithm SHA256).Hash -ne $Manifest.sha256) { throw 'Package SHA256 mismatch.' }
+    if ($Manifest.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or (Get-NexusSHA256 $Zip) -ne $Manifest.sha256) { throw 'Package SHA256 mismatch.' }
     $expected=@{}; [long]$size=0
     foreach($file in $Manifest.files) {
         $null=Get-NexusChildPath $ClientRoot $file.path
@@ -37,7 +45,7 @@ function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest
     }
     if ($size -gt 536870912) { throw 'Update exceeds 512 MB.' }
     $stage=Join-Path $BackupRoot 'stage'
-    New-Item -ItemType Directory -Path $stage -Force | Out-Null
+    $null=[IO.Directory]::CreateDirectory($stage)
     Add-Type -AssemblyName System.IO.Compression,System.IO.Compression.FileSystem
     $archive=[IO.Compression.ZipFile]::OpenRead($Zip)
     try {
@@ -47,9 +55,9 @@ function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest
             $file=$expected[$entry.FullName]; $seen[$entry.FullName]=$true
             if ($entry.Length -ne $file.size) { throw 'ZIP length mismatch.' }
             $dest=Get-NexusChildPath $stage $file.path
-            New-Item -ItemType Directory -Path (Split-Path -Parent $dest) -Force | Out-Null
+            $null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($dest))
             [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$dest,$false)
-            if ((Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash -ne $file.sha256) { throw "File SHA256 mismatch: $($file.path)" }
+            if ((Get-NexusSHA256 $dest) -ne $file.sha256) { throw "File SHA256 mismatch: $($file.path)" }
         }
         if ($seen.Count -ne $expected.Count) { throw 'Incomplete package.' }
     } finally { $archive.Dispose() }
@@ -60,14 +68,15 @@ function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest
     try {
         foreach($file in $Manifest.files) {
             $dest=Get-NexusChildPath $ClientRoot $file.path
-            if ((Test-Path -LiteralPath $dest) -and (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash -eq $file.sha256) { continue }
+            if ([IO.File]::Exists($dest) -and (Get-NexusSHA256 $dest) -eq $file.sha256) { continue }
             $old=Get-NexusChildPath (Join-Path $BackupRoot 'previous') $file.path
-            $existed=Test-Path -LiteralPath $dest
-            if ($existed) { New-Item -ItemType Directory -Path (Split-Path -Parent $old) -Force | Out-Null; Copy-Item -LiteralPath $dest -Destination $old }
+            if ([IO.Directory]::Exists($dest)) { throw "A directory occupies the update file path: $($file.path)" }
+            $existed=[IO.File]::Exists($dest)
+            if ($existed) { $null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($old)); [IO.File]::Copy($dest,$old,$false) }
             $done.Add(@{Path=$file.path;Existed=$existed})
-            New-Item -ItemType Directory -Path (Split-Path -Parent $dest) -Force | Out-Null
-            Copy-Item -LiteralPath (Get-NexusChildPath $stage $file.path) -Destination $dest -Force
-            if ((Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash -ne $file.sha256) { throw "Installed hash mismatch: $($file.path)" }
+            $null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($dest))
+            [IO.File]::Copy((Get-NexusChildPath $stage $file.path),$dest,$true)
+            if ((Get-NexusSHA256 $dest) -ne $file.sha256) { throw "Installed hash mismatch: $($file.path)" }
         }
         # Archive, never delete, the retired bot and its private configuration.
         if(Test-Path -LiteralPath $legacy) {
@@ -80,7 +89,7 @@ function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest
                 $entry=$done[$i]; $dest=Get-NexusChildPath $ClientRoot $entry.Path
                 if($entry.Existed) {
                     $old=Get-NexusChildPath (Join-Path $BackupRoot 'previous') $entry.Path
-                    if(!(Test-Path -LiteralPath $dest) -or (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash) {
+                    if(!(Test-Path -LiteralPath $dest) -or (Get-NexusSHA256 $dest) -ne (Get-NexusSHA256 $old)) {
                         Copy-Item -LiteralPath $old -Destination $dest -Force
                     }
                 } elseif(Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest }
