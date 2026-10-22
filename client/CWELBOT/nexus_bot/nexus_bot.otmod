@@ -1,0 +1,11 @@
+Module
+  name: nexus_bot
+  description: CWELBOT — profiles, healing, targeting, PvP and CaveBot tools
+  author: NexusBot
+  autoload: true
+  autoload-priority: 1003
+  sandboxed: false
+  dependencies: [ game_interface, gamelib, client_topmenu ]
+  scripts: [core/bootstrap, metadata, core/logger, core/event_bus, core/scheduler, core/validation, core/storage, core/registry, core/profiles, core/spell_registry, core/spell_geometry, core/item_registry, core/asset_registry, core/condition_engine, core/action_engine, core/window_manager, core/automation, core/navigation, ui/ui, ui/rule_workspace, ui/selectors, ui/inspector, ui/fields, core/categories, core/runtime, core/legacy_windows, healer, support, alarms, cavebot, targeting, extras, magic_shooter, equipment_manager, heal_friends, pvp, scripter, settings, bot_config, account_info, hud, delays, ui/launcher, nexus_bot]
+  @onLoad: init()
+  @onUnload: terminate()

@@ -1,0 +1,144 @@
+NexusWindow
+  id: nexusWorkspace
+  size: 1020 570
+  text: NexusBot
+
+  NexusIconButton
+    id: closeButton
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: -32
+    text: X
+    color: #fa6275
+
+  NexusPanel
+    id: profiles
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.left: parent.left
+    width: 150
+    NexusSectionLabel
+      id: heading
+      anchors.top: parent.top
+      anchors.left: parent.left
+      text: PROFILES
+    NexusIconButton
+      id: add
+      anchors.top: parent.top
+      anchors.right: parent.right
+      text: +
+    NexusSearchBox
+      id: search
+      anchors.top: heading.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 10
+    NexusMutedLabel
+      id: current
+      anchors.top: search.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 8
+      height: 30
+      text-wrap: true
+    NexusToggle
+      id: master
+      visible: false
+      height: 0
+      anchors.top: current.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 4
+    NexusScrollPanel
+      id: list
+      anchors.top: master.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-top: 12
+      layout:
+        type: verticalBox
+        spacing: 6
+
+  NexusPanel
+    id: actions
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.left: profiles.right
+    anchors.right: inspector.left
+    margin-left: 10
+    margin-right: 10
+    NexusSearchBox
+      id: search
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+    NexusMutedLabel
+      id: hint
+      anchors.top: search.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 8
+      height: 34
+      text: Click: edit. Double-click: ON/OFF. Right-click: rule actions.
+      text-wrap: true
+    NexusScrollPanel
+      id: list
+      anchors.top: hint.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: add.top
+      margin-top: 8
+      margin-bottom: 10
+      layout:
+        type: verticalBox
+        spacing: 6
+    NexusAccentButton
+      id: add
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      text: + New Rule
+
+  NexusPanel
+    id: inspector
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.right: parent.right
+    width: 480
+    NexusSectionLabel
+      id: heading
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      text: RULE CONFIGURATION
+    NexusScrollPanel
+      id: actionFields
+      anchors.top: heading.bottom
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      width: 215
+      margin-top: 8
+      padding-right: 3
+      layout:
+        type: verticalBox
+        spacing: 5
+    UIWidget
+      id: divider
+      anchors.top: actionFields.top
+      anchors.bottom: parent.bottom
+      anchors.left: actionFields.right
+      margin-left: 10
+      width: 1
+      background-color: #263954
+      phantom: true
+    NexusScrollPanel
+      id: conditionFields
+      anchors.top: actionFields.top
+      anchors.left: divider.right
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-left: 10
+      layout:
+        type: verticalBox
+        spacing: 5

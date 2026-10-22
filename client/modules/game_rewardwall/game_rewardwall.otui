@@ -1,0 +1,292 @@
+RewardWallDay < Panel
+  size: 68 98
+  RewardButton3
+    id: button
+    size: 68 68
+    anchors.top: parent.top
+    anchors.left: parent.left
+  GoldLabel2
+    id: reward
+    size: 68 22
+    anchors.top: button.bottom
+    anchors.left: parent.left
+    margin-top: 4
+
+MainWindow
+  id: rewardWallWindow
+  text: Reward Wall
+  size: 590 560
+  Panel
+    id: historyPanel
+    visible: false
+    TextListWithScroll
+      id: historyList
+      anchors.fill: parent
+  FlatPanel
+    id: restingAreaPanel
+    text: Resting Area Bonuses
+    text-align: top
+    padding-top: 22
+    Panel
+      id: restingAreaInfo
+      UIWidget
+        id: rewardStreakIcon
+        anchors.top: parent.top
+        anchors.left: parent.left
+        margin-left: 12
+        size: 70 44
+        image-source: /game_rewardwall/images/icon-rewardstreak-default
+        text: 0
+      Label
+        id: timeLeft
+        anchors.top: rewardStreakIcon.bottom
+        anchors.left: parent.left
+        size: 90 24
+        text-align: center
+      GoldLabel2
+        id: restingAreaGold
+        anchors.top: timeLeft.bottom
+        anchors.left: parent.left
+        size: 90 20
+    Panel
+      id: bonusIcons
+      layout:
+        type: horizontalBox
+        spacing: 4
+      imgBonuses
+        id: bonusIcon1
+        icon-clip: 0 0 64 64
+      imgBonuses
+        id: bonusIcon2
+        icon-clip: 64 0 64 64
+      imgBonuses
+        id: bonusIcon3
+        icon-clip: 128 0 64 64
+      imgBonuses
+        id: bonusIcon4
+        icon-clip: 192 0 64 64
+      imgBonuses
+        id: bonusIcon5
+        icon-clip: 256 0 64 64
+      imgBonuses
+        id: bonusIcon6
+        icon-clip: 320 0 64 64
+    Label
+      id: streakWarning
+      text-wrap: true
+  FlatPanel
+    id: dailyRewardsPanel
+    text: Daily Rewards
+    text-align: top
+    padding-top: 22
+    Panel
+      id: reward1
+      size: 68 98
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 0
+      RewardButton3
+        id: rewardButton1
+        size: 68 68
+        anchors.top: parent.top
+        anchors.left: parent.left
+      GoldLabel2
+        id: rewardGold1
+        size: 68 22
+        anchors.top: rewardButton1.bottom
+        anchors.left: parent.left
+        margin-top: 4
+    UIWidget
+      id: arrow1
+      size: 5 7
+      anchors.left: reward1.right
+      anchors.top: parent.top
+      margin-left: 1
+      margin-top: 28
+      image-source: /game_rewardwall/images/icon-rewardarrow
+      image-clip: 0 0 5 7
+    Panel
+      id: reward2
+      size: 68 98
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 75
+      RewardButton3
+        id: rewardButton2
+        size: 68 68
+        anchors.top: parent.top
+        anchors.left: parent.left
+      GoldLabel2
+        id: rewardGold2
+        size: 68 22
+        anchors.top: rewardButton2.bottom
+        anchors.left: parent.left
+        margin-top: 4
+    UIWidget
+      id: arrow2
+      size: 5 7
+      anchors.left: reward2.right
+      anchors.top: parent.top
+      margin-left: 1
+      margin-top: 28
+      image-source: /game_rewardwall/images/icon-rewardarrow
+      image-clip: 0 0 5 7
+    Panel
+      id: reward3
+      size: 68 98
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 150
+      RewardButton3
+        id: rewardButton3
+        size: 68 68
+        anchors.top: parent.top
+        anchors.left: parent.left
+      GoldLabel2
+        id: rewardGold3
+        size: 68 22
+        anchors.top: rewardButton3.bottom
+        anchors.left: parent.left
+        margin-top: 4
+    UIWidget
+      id: arrow3
+      size: 5 7
+      anchors.left: reward3.right
+      anchors.top: parent.top
+      margin-left: 1
+      margin-top: 28
+      image-source: /game_rewardwall/images/icon-rewardarrow
+      image-clip: 0 0 5 7
+    Panel
+      id: reward4
+      size: 68 98
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 225
+      RewardButton3
+        id: rewardButton4
+        size: 68 68
+        anchors.top: parent.top
+        anchors.left: parent.left
+      GoldLabel2
+        id: rewardGold4
+        size: 68 22
+        anchors.top: rewardButton4.bottom
+        anchors.left: parent.left
+        margin-top: 4
+    UIWidget
+      id: arrow4
+      size: 5 7
+      anchors.left: reward4.right
+      anchors.top: parent.top
+      margin-left: 1
+      margin-top: 28
+      image-source: /game_rewardwall/images/icon-rewardarrow
+      image-clip: 0 0 5 7
+    Panel
+      id: reward5
+      size: 68 98
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 300
+      RewardButton3
+        id: rewardButton5
+        size: 68 68
+        anchors.top: parent.top
+        anchors.left: parent.left
+      GoldLabel2
+        id: rewardGold5
+        size: 68 22
+        anchors.top: rewardButton5.bottom
+        anchors.left: parent.left
+        margin-top: 4
+    UIWidget
+      id: arrow5
+      size: 5 7
+      anchors.left: reward5.right
+      anchors.top: parent.top
+      margin-left: 1
+      margin-top: 28
+      image-source: /game_rewardwall/images/icon-rewardarrow
+      image-clip: 0 0 5 7
+    Panel
+      id: reward6
+      size: 68 98
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 375
+      RewardButton3
+        id: rewardButton6
+        size: 68 68
+        anchors.top: parent.top
+        anchors.left: parent.left
+      GoldLabel2
+        id: rewardGold6
+        size: 68 22
+        anchors.top: rewardButton6.bottom
+        anchors.left: parent.left
+        margin-top: 4
+    UIWidget
+      id: arrow6
+      size: 5 7
+      anchors.left: reward6.right
+      anchors.top: parent.top
+      margin-left: 1
+      margin-top: 28
+      image-source: /game_rewardwall/images/icon-rewardarrow
+      image-clip: 0 0 5 7
+    Panel
+      id: reward7
+      size: 68 98
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 450
+      RewardButton3
+        id: rewardButton7
+        size: 68 68
+        anchors.top: parent.top
+        anchors.left: parent.left
+      GoldLabel2
+        id: rewardGold7
+        size: 68 22
+        anchors.top: rewardButton7.bottom
+        anchors.left: parent.left
+        margin-top: 4
+    UIWidget
+      id: arrowLoop
+      visible: false
+  FlatPanel
+    id: premiumStatus
+    padding: 8
+    Label
+      id: premiumMessage
+      text-wrap: true
+    BigPremiumButton
+      id: premiumButton
+  FlatPanel
+    id: infoPanel
+    padding: 4
+    text-wrap: true
+    text-align: topLeft
+    Label
+      id: free
+      text-wrap: true
+    Label
+      id: premium
+      text-wrap: true
+  HorizontalSeparator
+    id: footerSeparator
+  Panel
+    id: footerPanel
+    GoldLabel2
+      id: footerGold1
+    GoldLabel2
+      id: footerGold2
+    MiniPremiumButton
+      id: instantRewardButton
+    Button
+      id: closeButton
+      text: Close
+    Button
+      id: historyButton
+      text: History

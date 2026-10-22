@@ -1,0 +1,66 @@
+NexusWindow
+  id: nexusLauncher
+  size: 296 642
+  padding-top: 16
+  text:
+  Panel
+    id: brand
+    anchors.left: parent.left
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-right: 78
+    height: 34
+    phantom: true
+    Label
+      id: primary
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 0
+      font: verdana-11px-antialised
+      width: 40
+      height: 24
+      text: CWEL
+      text-align: left-center
+      color: #eef5ff
+      phantom: true
+    Label
+      id: accent
+      anchors.left: primary.right
+      anchors.verticalCenter: parent.verticalCenter
+      width: 34
+      height: 24
+      text: BOT
+      text-align: left-center
+      font: verdana-11px-antialised
+      color: #ef4353
+      phantom: true
+  NexusIconButton
+    id: closeButton
+    anchors.right: parent.right
+    anchors.verticalCenter: brand.verticalCenter
+    text: x
+    color: #ef6575
+  NexusToggle
+    id: power
+    anchors.right: closeButton.left
+    anchors.verticalCenter: brand.verticalCenter
+    margin-right: 4
+    size: 42 26
+  UIWidget
+    id: line
+    anchors.top: brand.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 0
+    margin-top: 0
+    phantom: true
+  Panel
+    id: entries
+    anchors.top: line.bottom
+    anchors.bottom: parent.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    layout:
+      type: verticalBox
+      spacing: 4

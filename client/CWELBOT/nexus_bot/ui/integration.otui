@@ -1,0 +1,42 @@
+NexusWindow
+  id: nexusIntegration
+  size: 470 360
+  !text: tr('NexusBot')
+
+  NexusIconButton
+    id: closeButton
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: -32
+    text: X
+    color: #fa6275
+
+  NexusPanel
+    id: content
+    anchors.fill: parent
+
+    NexusSectionLabel
+      id: heading
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-right: 6
+
+    NexusMutedLabel
+      id: status
+      anchors.top: heading.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 4
+      height: 18
+
+    NexusScrollPanel
+      id: list
+      anchors.top: status.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-top: 5
+      layout:
+        type: verticalBox
+        spacing: 3

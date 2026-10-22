@@ -1,0 +1,93 @@
+// Textured OTC theme: original geometry, fonts and supplied grey textures.
+MainWindow < MainWindow
+  image-color: #909090
+
+MiniWindow < MiniWindow
+  image-color: #909090
+
+FlatPanel < FlatPanel
+  image-color: #909090
+
+TextList < TextList
+  image-color: #909090
+
+TextEdit < TextEdit
+  image-color: #909090
+  color: #dfdfdf
+
+Button < Button
+  image-source: /images/ui/test/button-verydarkgrey-up
+  image-clip: 0 0 98 40
+  image-border: 1
+  color: #dfdfdf
+  $hover !disabled:
+    image-source: /images/ui/test/button-verydarkgrey-up
+    image-clip: 0 0 98 40
+  $pressed:
+    image-source: /images/ui/test/button-verydarkgrey-down
+    image-clip: 0 0 98 40
+  $on:
+    image-source: /images/ui/test/button-verydarkgrey-down
+    image-clip: 0 0 98 40
+  $checked:
+    image-source: /images/ui/test/button-verydarkgrey-down
+    image-clip: 0 0 98 40
+  $disabled:
+    color: #7a828d
+
+QtButton < QtButton
+  image-source: /images/ui/test/button-verydarkgrey-up
+  image-clip: 0 0 98 40
+  image-border: 1
+  $hover !disabled:
+    image-source: /images/ui/test/button-verydarkgrey-up
+    image-clip: 0 0 98 40
+  $pressed:
+    image-source: /images/ui/test/button-verydarkgrey-down
+    image-clip: 0 0 98 40
+  $on:
+    image-source: /images/ui/test/button-verydarkgrey-down
+    image-clip: 0 0 98 40
+  $checked:
+    image-source: /images/ui/test/button-verydarkgrey-down
+    image-clip: 0 0 98 40
+
+Window < Window
+  image-color: #909090
+
+StaticMainWindow < StaticMainWindow
+  image-color: #909090
+
+HeadlessWindow < HeadlessWindow
+  image-color: #909090
+
+ScrollableFlatPanel < ScrollableFlatPanel
+  image-color: #909090
+
+LightFlatPanel < LightFlatPanel
+  image-color: #888888
+
+QtPanel < QtPanel
+  background-color: #292929
+
+SmallReversedQtPanel < SmallReversedQtPanel
+  background-color: #292929
+
+TextQtEdit < TextQtEdit
+  background-color: #272727
+  color: #dfdfdf
+
+HiddenTextQtEdit < HiddenTextQtEdit
+  background-color: #272727
+
+HiddenTextQtToggleEdit < HiddenTextQtToggleEdit
+  background-color: #272727
+
+ComboBox < ComboBox
+  image-color: #909090
+
+QtComboBox < QtComboBox
+  background-color: #292929
+
+PopupMenu < PopupMenu
+  image-color: #909090

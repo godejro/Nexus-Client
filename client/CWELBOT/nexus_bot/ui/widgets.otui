@@ -1,0 +1,403 @@
+NexusButton < UIButton
+  font: verdana-11px-antialised
+  height: 28
+  color: #c9d9ed
+  image-source: @NEXUS_ASSETS@/button
+  image-border: 10
+  text-align: center
+  focusable: false
+  $hover !disabled:
+    image-source: @NEXUS_ASSETS@/hover
+    color: #ffffff
+  $on:
+    image-source: @NEXUS_ASSETS@/selected
+  $disabled:
+    color: #536780
+
+NexusAccentButton < NexusButton
+  color: #90cbff
+
+NexusIconButton < NexusButton
+  size: 26 26
+
+NexusCloseButton < NexusIconButton
+  color: #fa6275
+  $hover !disabled:
+    color: #fa6275
+  $pressed:
+    color: #fa6275
+
+NexusToggle < NexusButton
+  size: 44 24
+  text: OFF
+  color: #8394ac
+  $on:
+    text: ON
+    color: #72e5c4
+    image-source: @NEXUS_ASSETS@/selected
+
+NexusTextInput < UITextEdit
+  font: verdana-11px-antialised
+  height: 28
+  color: #e2eeff
+  background-color: #091423
+  border-width: 1
+  border-color: #2a405b
+  padding: 5
+  focusable: true
+  $focus:
+    border-color: #5ba4ef
+
+NexusSearchBox < NexusTextInput
+
+NexusScrollPanel < UIScrollArea
+  phantom: false
+  auto-focus: first
+  @onSetup: |
+    self.onMouseWheel=function(self, pos, direction)
+      local offset=self:getVirtualOffset()
+      local maximum=math.max(0,self:getChildrenRect().height-self:getPaddingRect().height)
+      offset.y=math.max(0,math.min(maximum,offset.y+(direction==1 and -48 or 48)))
+      self:setVirtualOffset(offset)
+      return true
+    end
+
+NexusComboBox < UIComboBox
+  font: verdana-11px-antialised
+  height: 28
+  color: #d7e7fb
+  image-source: @NEXUS_ASSETS@/button
+  image-border: 10
+  padding-left: 5
+  padding-right: 10
+
+NexusComboBoxPopupMenu < PopupMenu
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 12
+  background-color: #0e192b
+  padding: 6
+
+NexusComboBoxPopupMenuButton < PopupMenuButton
+  image-source:
+  background-color: #0e192b
+  color: #d7e7fb
+  height: 24
+  $hover:
+    background-color: #193653
+
+NexusNumberInput < UITextEdit
+  font: verdana-11px-antialised
+  height: 28
+  focusable: true
+  background-color: #091423
+  border-width: 1
+  border-color: #2a405b
+  color: #e2eeff
+  padding: 4
+  @onSetup: |
+    NexusBot.UI.configureNumber(self)
+
+NexusScrollThumb < UIButton
+  id: sliderButton
+  anchors.centerIn: parent
+  size: 8 16
+  image-source: @NEXUS_ASSETS@/scroll-thumb
+  image-border: 4
+  image-color: #438fe3
+  $hover:
+    image-color: #73b6ff
+  $pressed:
+    image-color: #a2d1ff
+
+NexusVerticalScrollBar < UIScrollBar
+  orientation: vertical
+  size: 8 40
+  background-color: #091423
+  pixels-scroll: true
+  UIButton
+    id: decrementButton
+    anchors.top: parent.top
+    anchors.left: parent.left
+    size: 8 0
+    visible: false
+  UIButton
+    id: incrementButton
+    anchors.bottom: parent.bottom
+    anchors.right: parent.right
+    size: 8 0
+    visible: false
+  NexusScrollThumb
+
+NexusSlider < UIScrollBar
+  orientation: horizontal
+  height: 14
+  background-color: #091423
+  UIButton
+    id: decrementButton
+    anchors.top: parent.top
+    anchors.left: parent.left
+    size: 0 14
+    visible: false
+  UIButton
+    id: incrementButton
+    anchors.bottom: parent.bottom
+    anchors.right: parent.right
+    size: 0 14
+    visible: false
+  NexusScrollThumb
+    size: 14 14
+
+NexusTableHeader < UIWidget
+  height: 24
+
+NexusTableHeaderLabel < NexusMutedLabel
+
+NexusRuleRow < UIWidget
+  height: 54
+  focusable: true
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 12
+  $hover:
+    image-source: @NEXUS_ASSETS@/hover
+  $on:
+    image-source: @NEXUS_ASSETS@/selected
+  UIWidget
+    id: state
+    anchors.left: parent.left
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    width: 3
+    margin: 9 0 9 4
+    background-color: #536780
+    phantom: true
+  Label
+    id: actionLabel
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: parent.top
+    margin: 8 9 0 14
+    height: 18
+    color: #edf4ff
+    phantom: true
+  NexusMutedLabel
+    id: conditionLabel
+    anchors.left: actionLabel.left
+    anchors.right: parent.right
+    anchors.top: actionLabel.bottom
+    margin-right: 8
+    font: verdana-11px-antialised
+
+NexusProfileRow < UIWidget
+  height: 36
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 10
+  focusable: true
+  $hover:
+    image-source: @NEXUS_ASSETS@/hover
+  $on:
+    image-source: @NEXUS_ASSETS@/selected
+  Label
+    id: name
+    anchors.fill: parent
+    margin: 0 7 0 7
+    text-align: left
+    color: #dceaff
+    phantom: true
+
+NexusNavigationRow < UIWidget
+  height: 35
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 12
+  $hover:
+    image-source: @NEXUS_ASSETS@/hover
+  UIWidget
+    id: icon
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 12
+    size: 22 22
+    image-smooth: true
+    phantom: true
+  Label
+    id: title
+    anchors.left: icon.right
+    anchors.right: power.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 8
+    margin-right: 8
+    color: #d1e0f3
+    phantom: true
+  NexusToggle
+    id: power
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 6
+    size: 38 23
+
+NexusConditionRow < UIWidget
+  height: 60
+  NexusComboBox
+    id: type
+    anchors.left: parent.left
+    anchors.top: parent.top
+    anchors.right: remove.left
+    margin-right: 5
+  NexusIconButton
+    id: remove
+    anchors.right: parent.right
+    anchors.top: parent.top
+    text: x
+    color: #ef6575
+  NexusComboBox
+    id: operator
+    anchors.left: parent.left
+    anchors.top: type.bottom
+    margin-top: 3
+    width: 94
+  NexusNumberInput
+    id: value
+    anchors.left: operator.right
+    anchors.top: operator.top
+    margin-left: 4
+    width: 65
+  NexusNumberInput
+    id: value2
+    anchors.left: value.right
+    anchors.top: operator.top
+    anchors.right: parent.right
+    margin-left: 4
+
+NexusConditionGroup < UIWidget
+  padding: 6
+  border-width: 1
+  border-color: #2a405b
+  background-color: #0a1628
+  layout:
+    type: verticalBox
+    fit-children: true
+    spacing: 4
+
+NexusSpellPickerRow < UIWidget
+  height: 34
+  NexusTextInput
+    id: words
+    anchors.fill: parent
+
+NexusFieldRow < UIWidget
+  height: 34
+  NexusMutedLabel
+    id: label
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    width: 110
+    text-wrap: true
+    height: 32
+
+NexusIntegrationRow < UIWidget
+  height: 36
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 12
+  NexusButton
+    id: edit
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 5
+    size: 48 26
+    text: EDIT
+  NexusToggle
+    id: enabled
+    anchors.right: edit.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 5
+  NexusMutedLabel
+    id: name
+    anchors.left: parent.left
+    anchors.right: enabled.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 9
+    margin-right: 4
+    color: #dceaff
+
+NexusSelectorRow < UIWidget
+  height: 50
+  focusable: true
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 12
+  $focus:
+    image-source: @NEXUS_ASSETS@/selected
+  Item
+    id: item
+    virtual: true
+    size: 28 28
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    phantom: true
+  UIWidget
+    id: spellIcon
+    size: 28 28
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    phantom: true
+  NexusMutedLabel
+    id: title
+    anchors.left: item.right
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-left: 8
+    margin-top: 5
+  NexusMutedLabel
+    id: detail
+    anchors.left: title.left
+    anchors.top: title.bottom
+    anchors.right: parent.right
+
+NexusContextMenu < PopupMenu
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 12
+  padding: 6
+  minimum-width: 150
+  color: #edf4ff
+
+NexusContextMenuButton < NexusButton
+  height: 26
+  minimum-width: 138
+  text-align: center
+  padding-left: 12
+  padding-right: 12
+
+NexusContextMenuShortcutLabel < NexusMutedLabel
+
+NexusHotkeyInput < NexusTextInput
+NexusTextInputMulti < NexusTextInput
+  multiline: true
+  height: 120
+NexusDialog < NexusWindow
+  size: 440 220
+NexusTable < ScrollablePanel
+NexusProfileList < ScrollablePanel
+NexusInspector < NexusPanel
+NexusTabs < UITabBar
+NexusConditionChip < NexusMutedLabel
+NexusHPChip < NexusMutedLabel
+  color: #ef6575
+NexusManaChip < NexusMutedLabel
+  color: #67acff
+NexusPositionInput < UIWidget
+NexusRangeInput < UIWidget
+NexusCrownButton < NexusButton
+  size: 160 44
+  UIWidget
+    id: crown
+    size: 28 28
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 12
+    phantom: true
+  Label
+    id: label
+    anchors.left: crown.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 9
+    text: CWELBOT
+    color: #dbeaff
+    phantom: true

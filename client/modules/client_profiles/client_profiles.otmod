@@ -1,0 +1,8 @@
+Module
+  name: client_profiles
+  description: Isolated multi-server profile manager
+  author: OTClient team
+  website: https://github.com/opentibiabr/otclient
+  sandboxed: true
+  scripts: [ profilemanager ]
+  @onUnload: terminate()

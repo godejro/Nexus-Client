@@ -1,0 +1,10 @@
+Module
+  name: game_manualcombat
+  description: Manual combat without automatic monster chase
+  autoload: true
+  autoload-priority: 1004
+  sandboxed: true
+  dependencies: [ gamelib, game_inventory ]
+  scripts: [ manualcombat ]
+  @onLoad: init()
+  @onUnload: terminate()

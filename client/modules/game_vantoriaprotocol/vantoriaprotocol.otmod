@@ -1,0 +1,10 @@
+Module
+  name: game_vantoriaprotocol
+  description: Vantoria 15.25 vocation and combat packet compatibility
+  autoload: true
+  autoload-priority: 1004
+  sandboxed: true
+  dependencies: [ gamelib ]
+  scripts: [ vantoriaprotocol ]
+  @onLoad: init()
+  @onUnload: terminate()

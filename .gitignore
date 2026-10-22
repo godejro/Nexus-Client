@@ -1,0 +1,12 @@
+dist/
+*.log
+*.tmp
+**/storage.json
+**/setups/
+**/lua scripts/
+**/config.ini
+**/config.otml
+client/data/things/
+client/data/sounds/
+client/profiles/
+client/server_profiles/

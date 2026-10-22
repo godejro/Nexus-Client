@@ -1,0 +1,13 @@
+Module
+  name: client_botprofiles
+  description: Client profiles
+  author: Vithrax
+  website: discord_Vithrax#5814
+  autoload: true
+  autoload-priority: 1002
+  dependencies: [ client_options ]
+  reloadable: false
+  scripts: [ profiles ]
+  sandboxed: true
+  @onLoad: init()
+  @onUnload: terminate()

@@ -1,0 +1,10 @@
+Module
+  name: game_renderprobe
+  description: Opt-in bounded frame-time capture for the smooth renderer test
+  autoload: true
+  autoload-priority: 1006
+  sandboxed: true
+  dependencies: [ gamelib, client_options ]
+  scripts: [ renderprobe ]
+  @onLoad: init()
+  @onUnload: terminate()

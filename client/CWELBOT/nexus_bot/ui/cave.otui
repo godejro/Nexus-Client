@@ -1,0 +1,45 @@
+NexusWindow
+  id: nexusEngineWindow
+  size: 860 580
+  NexusIconButton
+    id: closeButton
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: -32
+    text: X
+    color: #fa6275
+  Panel
+    id: toolbar
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 30
+    layout:
+      type: horizontalBox
+      spacing: 6
+  NexusPanel
+    id: left
+    anchors.top: toolbar.bottom
+    anchors.left: parent.left
+    anchors.bottom: parent.bottom
+    width: 315
+    margin-top: 10
+    NexusScrollPanel
+      id: content
+      anchors.fill: parent
+      layout:
+        type: verticalBox
+        spacing: 6
+  NexusPanel
+    id: right
+    anchors.top: left.top
+    anchors.left: left.right
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-left: 10
+    NexusScrollPanel
+      id: content
+      anchors.fill: parent
+      layout:
+        type: verticalBox
+        spacing: 6

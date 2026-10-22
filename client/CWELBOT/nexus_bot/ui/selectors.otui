@@ -1,0 +1,58 @@
+NexusWindow
+  id: nexusSelector
+  size: 480 470
+  !text: tr('Select')
+  NexusIconButton
+    id: closeButton
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 2
+    margin-right: 2
+    text: X
+    color: #ef4353
+  NexusSearchBox
+    id: search
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-right: 26
+  Panel
+    id: filters
+    anchors.top: search.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 5
+    height: 24
+    layout:
+      type: horizontalBox
+      spacing: 3
+  NexusScrollPanel
+    id: list
+    anchors.top: filters.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: buttons.top
+    margin-top: 5
+    margin-bottom: 5
+    layout:
+      type: verticalBox
+      spacing: 2
+  Panel
+    id: buttons
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    height: 24
+    NexusAccentButton
+      id: apply
+      anchors.right: cancel.left
+      anchors.top: parent.top
+      margin-right: 7
+      width: 90
+      text: Apply
+    NexusButton
+      id: cancel
+      anchors.right: parent.right
+      anchors.top: parent.top
+      width: 90
+      text: Cancel

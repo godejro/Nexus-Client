@@ -1,0 +1,33 @@
+NexusWindow < UIWindow
+  font: verdana-11px-antialised
+  color: #edf4ff
+  image-source: @NEXUS_ASSETS@/window
+  image-border: 16
+  padding: 16
+  padding-top: 42
+  text-align: top
+  text-offset: 0 12
+  focusable: true
+  draggable: true
+  @onEscape: self:hide()
+
+NexusPanel < UIWidget
+  image-source: @NEXUS_ASSETS@/surface
+  image-border: 12
+  padding: 10
+
+NexusHeader < UILabel
+  font: verdana-11px-antialised
+  color: #edf4ff
+  height: 22
+  phantom: true
+
+NexusMutedLabel < UILabel
+  font: verdana-11px-antialised
+  color: #8fa6c2
+  height: 20
+  phantom: true
+
+NexusSectionLabel < NexusMutedLabel
+  color: #79bfff
+  height: 22

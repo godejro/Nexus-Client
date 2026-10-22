@@ -1,0 +1,47 @@
+NexusWindow
+  id: nexusPrompt
+  size: 360 175
+  !text: tr('Input')
+
+  NexusMutedLabel
+    id: message
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 8
+    margin-left: 10
+    margin-right: 10
+
+  NexusTextInput
+    id: value
+    anchors.top: message.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    margin-left: 10
+    margin-right: 10
+
+  Panel
+    id: buttons
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    height: 26
+    margin-left: 10
+    margin-right: 10
+    margin-bottom: 8
+
+    NexusButton
+      id: cancel
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      width: 76
+      text: Cancel
+
+    NexusAccentButton
+      id: ok
+      anchors.right: cancel.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-right: 6
+      width: 76
+      text: OK

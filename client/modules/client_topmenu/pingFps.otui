@@ -1,0 +1,38 @@
+Panel
+  id: nexusStatusOverlay
+  anchors.top: parent.top
+  anchors.left: parent.left
+  size: 180 48
+  margin-top: 5
+  margin-left: 5
+  phantom: true
+  UIWidget
+    id: pingImg
+    anchors.top: parent.top
+    anchors.left: parent.left
+    size: 17 17
+    phantom: true
+  Label
+    id: ping
+    anchors.top: parent.top
+    anchors.left: parent.left
+    margin-left: 21
+    size: 155 14
+    font: verdana-11px-rounded
+    phantom: true
+  Label
+    id: server
+    anchors.top: parent.top
+    anchors.left: ping.left
+    margin-top: 14
+    size: 155 14
+    font: verdana-11px-rounded
+    phantom: true
+  Label
+    id: fps
+    anchors.top: parent.top
+    anchors.left: ping.left
+    margin-top: 28
+    size: 155 14
+    font: verdana-11px-rounded
+    phantom: true
