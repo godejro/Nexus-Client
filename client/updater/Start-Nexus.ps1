@@ -1,6 +1,15 @@
-param([string]$Profile='', [switch]$CheckOnly)
+param([string]$Profile='', [switch]$CheckOnly,
+    [ValidateSet('','Check','Download','Apply')][string]$Mode='',
+    [ValidatePattern('^[a-zA-Z0-9-]{1,64}$')][string]$Session,
+    [ValidatePattern('^v?[0-9.]{1,40}$')][string]$CurrentVersion='v2026.10.23.2',
+    [int]$WaitPid=0)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'Update-Library.ps1')
+if($Mode) {
+    if($Profile -and $Profile -notmatch '^[a-zA-Z0-9_.-]+$'){throw 'Invalid profile name.'}
+    Invoke-NexusInClientUpdate -Mode $Mode -Session $Session -CurrentVersion $CurrentVersion -WaitPid $WaitPid -Profile $Profile
+    return
+}
 $clientRoot=Split-Path -Parent $PSScriptRoot
 $exe=Join-Path $clientRoot 'Nexus Client.exe'
 $repository='godejro/Nexus-Client'

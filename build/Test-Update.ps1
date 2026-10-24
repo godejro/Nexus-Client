@@ -1,5 +1,11 @@
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'Update-Library.ps1')
+# Older installed launchers accept only these updater filenames. Keep new modes
+# inside them; a new helper file would make the whole bootstrap update fail.
+foreach($path in @('updater/Start-Nexus.ps1','updater/Update-Library.ps1')) {
+    if(!(Test-NexusProgramPath $path)){throw "Legacy-compatible updater path rejected: $path"}
+}
+if(Test-NexusProgramPath 'updater/InClient-Update.ps1'){throw 'New helper path would break old launchers'}
 foreach($bad in @('../secret','modules/../../secret','C:/secret','/modules/x.lua','modules\x.lua','modules//x.lua','modules/CON.lua','CWELBOT/lua scripts/test.lua','CWELBOT/nexus_bot/storage.json','config.ini','profiles/server/profile.json','data/things/1525/assets.zip')) {
     if(Test-NexusProgramPath $bad){throw "Allowed private/traversal path: $bad"}
 }

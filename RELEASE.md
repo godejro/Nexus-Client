@@ -1,4 +1,6 @@
-# Nexus Client v2026.10.23.1
+# Nexus Client v2026.10.23.2
+
+Poprawiona zgodność aktualizatora ze starszym launcherem v2026.10.22.2: nowe tryby działają w istniejących plikach Start-Nexus.ps1 / Update-Library.ps1, bez nowej niedozwolonej ścieżki. Pozostałe poprawki są takie same jak w v2026.10.23.1.
 
 - Aktualizator w oknie klienta: Update, postęp pobierania/sprawdzania plików, Restart and install. Instalacja dopiero po wylogowaniu i zamknięciu procesu; backup i SHA256 pozostają aktywne.
 - 16 nowych czarów z tabeli 15.25, poprawiona obsługa łańcuchowych Forked Glacier/Thorns, czarów wokół celu oraz dosłownego Custom Spell.

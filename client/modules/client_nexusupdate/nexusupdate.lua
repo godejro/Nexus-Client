@@ -1,4 +1,4 @@
-local version='v2026.10.23.1'
+local version='v2026.10.23.2'
 local window,button,timer,session,state,pending,startedAt,restartRequested
 local function relative(file) return 'updater/sessions/'..session..'/'..file end
 local function read(file)
@@ -22,7 +22,7 @@ local function writeRequest(mode)
   if not g_platform.spawnProcess or not g_platform.getProcessId then return false end
   local root=g_resources.getWorkDir()
   local args={'-NoProfile','-NonInteractive','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',
-    root..'updater/InClient-Update.ps1','-Mode',mode,'-Session',session,'-CurrentVersion',version}
+    root..'updater/Start-Nexus.ps1','-Mode',mode,'-Session',session,'-CurrentVersion',version}
   if mode=='Apply' then
     args[#args+1]='-WaitPid' args[#args+1]=tostring(g_platform.getProcessId())
     local manager=modules.client_profiles
