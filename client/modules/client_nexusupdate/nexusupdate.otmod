@@ -1,0 +1,8 @@
+Module
+  name: client_nexusupdate
+  description: In-client Nexus release updates
+  sandboxed: true
+  dependencies: [ client_styles ]
+  scripts: [ nexusupdate ]
+  @onLoad: init()
+  @onUnload: terminate()

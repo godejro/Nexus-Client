@@ -55,6 +55,7 @@ NexusWindow
         spacing: 2
     NexusMutedLabel
       id: position
+      text-align: center
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.bottom: controls.top
@@ -140,15 +141,15 @@ function UI.create()
   local function selectedEntry() return type(selected)=='table' and not selected:isDestroyed() and selected or C.actionList:getFocusedChild() end
   local function move(delta)
     local entry=selectedEntry() if not entry then return end
-    C.setOff() local index=C.actionList:getChildIndex(entry) C.actionList:moveChildToIndex(entry,math.max(1,math.min(C.actionList:getChildCount(),index+delta))) C.save() refresh()
+    local index=C.actionList:getChildIndex(entry) C.actionList:moveChildToIndex(entry,math.max(1,math.min(C.actionList:getChildCount(),index+delta))) C.save() refresh()
   end
   local function remove()
     local entry=selectedEntry() if not entry then return end
-    C.setOff()
     local index=C.actionList:getChildIndex(entry)
+    local wasCurrent=entry==C.actionList:getFocusedChild()
     entry:destroy()
     selected=C.actionList.entries[math.min(index,#C.actionList.entries)]
-    C.actionList:focusChild(selected)
+    if not C.isOn() or wasCurrent then C.actionList:focusChild(selected) end
     C.save() refresh()
   end
   local function routeTo(label)
@@ -156,12 +157,13 @@ function UI.create()
     NexusBot.setEnabled(true) C.setOn(true) info('Following route from '..label)
   end
   for _,spec in ipairs({
-    {'Add',function() selected=nil edit(nil,'goto') end},{'Edit',function() edit(selectedEntry()) end},
+    {'Add',function() edit(nil,'goto') end},{'Edit',function() edit(selectedEntry()) end},
     {'Move up',function() move(-1) end},{'Move down',function() move(1) end},
     {'Remove',remove},{'Clear',function()
       C.setOff() C.Recorder.disable() C.actionList:clear() selected=nil C.save() refresh()
     end}
   }) do U.button(w.route.controls,spec[1],protected(spec[2])) end
+  U.button(w.route.controls,'Auto explore',function() NexusBot.Features.AutoExplore.open() end)
   local recorder=U.button(w.route.controls,'Auto record',function()
     if not C.Recorder.isOn() then NexusBot.setEnabled(true) C.Recorder.enable() else C.Recorder.disable() end
   end)
@@ -176,21 +178,25 @@ function UI.create()
   end
   local function actionPalette()
     local left,right=columns() local names={}
-    U.button(left,'Auto Explore',function() NexusBot.Features.AutoExplore.open() end)
     for name in pairs(C.Actions) do names[#names+1]=name end
     local order={'label','delay','gotolabel','goto','use','usewith','say','follow','npcsay','function','travel','buysupplies','rushlure','imbuing','supplycheck','poscheck','cleartile','inwithdraw','opendoors','tasker','withdraw','bank','depositor','lure','dpwithdraw','sellall','walk','stairs','rope','shovel','waitz','deposit','buy','sell','stop'}
     local known={} for _,name in ipairs(order) do known[name]=true end
     table.sort(names) for _,name in ipairs(names) do if not known[name] then order[#order+1]=name end end
     local captions={gotolabel='Go to label',usewith='Use with',npcsay='NPC say',buysupplies='Buy supplies',rushlure='Rush lure',supplycheck='Supply check',poscheck='Position check',cleartile='Clear tile',opendoors='Open doors',sellall='Sell all',inwithdraw='Inbox withdraw',dpwithdraw='Depot withdraw'}
     captions['goto']='Node'
-    for i,name in ipairs(order) do if C.Actions[name] then
-      local button=U.button(i%2==1 and left or right,captions[name] or name:gsub('^%l',string.upper),function() edit(nil,name) end)
+    local hidden={rushlure=true,cleartile=true,withdraw=true,walk=true,waitz=true,buy=true,stop=true,lure=true,stairs=true,depositor=true}
+    local visible=0
+    for _,name in ipairs(order) do if C.Actions[name] and not hidden[name] then
+      visible=visible+1
+      local button=U.button(visible%2==1 and left or right,captions[name] or name:gsub('^%l',string.upper),function() edit(nil,name) end)
       button:setHeight(22) U.actionColor(button,A.CaveExtensions.colors[name] or '#c9d9ed') button:setTooltip(nil)
     end end
     info('Choose an action. Double-click a waypoint to edit. No vBot required.')
   end
   edit=function(entry,action)
-    selected=entry draftAction=entry and entry.action or action or 'goto'
+    local insertionAnchor=selectedEntry()
+    if entry then selected=entry end
+    draftAction=entry and entry.action or action or 'goto'
     NexusBot.WindowManager.close('cavebot:edit')
     local meta=C.Editor.Actions[draftAction]
     local dialog,list=NexusBot.Features.Modern.shared.formWindow(draftAction=='goto' and 'NODE' or draftAction:upper(),260)
@@ -199,26 +205,26 @@ function UI.create()
     local coordinates=(draftAction=='goto' or draftAction=='walk' or draftAction=='stairs' or draftAction=='use' or draftAction=='rope' or draftAction=='shovel')
     local input
     if coordinates then
-      local p=A.parsePosition(value) or A.position() or {x=100,y=100,z=7}
+      local p=(entry and A.parsePosition(value)) or A.position() or {x=100,y=100,z=7}
       input=U.textInput(list,'Position:',entry and value or A.key(p),function() end)
       input:getParent().label:setWidth(70)
-      U.button(list,'Use current position',function()
-        local p=A.position() if p then input:setText(A.key(p)) end
-      end)
     elseif draftAction=='function' then
       dialog:setHeight(340)
       input=g_ui.createWidget('NexusTextInputMulti',list) input:setHeight(190) input:setText(value)
     else
-      input=U.textInput(list,draftAction=='label' and 'Label' or 'Value',value,function() end)
+      if not entry and draftAction=='poscheck' then value=A.key(A.position())..',hunt' end
+      if not entry and draftAction=='usewith' then value=C.Config.values.ropeId..','..A.key(A.position()) end
+      local caption=draftAction=='label' and 'Label' or draftAction=='follow' and 'Name' or draftAction=='supplycheck' and 'Label' or 'Value'
+      input=U.textInput(list,caption,value,function() end)
       input:getParent().label:setWidth(55)
     end
     U.button(list,entry and 'Save' or 'Add',protected(function()
       if entry and entry:isDestroyed() then return end
       local text=input:getText()
       local valid,err=W.validate(draftAction,text) if not valid then displayErrorBox('CaveBot',tostring(err)) return end
-      C.setOff()
       if entry then C.editAction(entry,draftAction,text) else
-        local current=selectedEntry() local index=current and C.actionList:getChildIndex(current)
+        local current=insertionAnchor
+        local index=current and not current:isDestroyed() and C.actionList:getChildIndex(current)
         entry=C.addAction(draftAction,text) if index then C.actionList:moveChildToIndex(entry,index+1) end
       end
       C.save() selected=entry refresh() dialog:destroy()
@@ -272,10 +278,9 @@ function UI.create()
         end)
         input:getParent().label:setWidth(135) input:getParent():setHeight(29)
       end
-      U.toggle(right,'Allow reviewed Lua',C.Config.values.allowLua,function(v) C.setOff() C.Config.values.allowLua=v C.save() end)
+      U.toggle(right,'Auto navigate',C.Config.values.autoNavigate==true,function(v) C.Config.values.autoNavigate=v C.save() end)
       U.toggle(left,'Debug Cave',C.Config.values.debugCave==true,function(v) C.Config.values.debugCave=v C.save() A.Walker.drawDebug() end)
       U.toggle(left,'Show shortest path',C.Config.values.debugPath==true,function(v) C.Config.values.debugPath=v C.save() A.Walker.drawDebug() end)
-      local hint=U.label(left,'Movement is acknowledged tile by tile. Fields and accidental floor changes are avoided.') hint:setTextWrap(true) hint:setHeight(90)
     end
   end
   U.section(w.settings.tabs,'ACTIONS')
@@ -283,6 +288,7 @@ function UI.create()
     local b=U.button(w.toolbar,name,function() show(name) end) b:setWidth(name=='Supplies' and 76 or 58) b:setHeight(25)
   end
   refresh=function()
+    local scroll=routeScroll:getValue()
     U.clear(w.route.list) rows={}
     for i,entry in ipairs(C.actionList:getChildren()) do
       local button=U.button(w.route.list,string.format('%02d  %s: %s',i,entry.action=='goto' and 'Node' or entry.action,entry.value:gsub('\n.*','')),function() selected=entry for _,r in ipairs(rows) do r.widget:setOn(r.entry==entry) end end)
@@ -292,6 +298,8 @@ function UI.create()
       button.onDoubleClick=function() edit(entry) return true end
       rows[#rows+1]={widget=button,entry=entry}
     end
+    w.route.list:updateScrollBars()
+    routeScroll:setValue(math.min(scroll,routeScroll:getMaximum()))
   end
   refresh() show('Actions')
   local previousProfile=C.getCurrentProfile()
@@ -761,7 +769,7 @@ local A=NexusBot.Automation
 local N=A.Navigation
 A.Walker={state=nil,recording=false,trade={}}
 local W=A.Walker
-W.defaults={loop=true,stepDelay=0,actionTimeout=15000,useDelay=900,maxUseRetries=4,recordDistance=3,ropeId=3003,shovelId=3457,allowLua=false,talkDelay=700,debugCave=false,debugPath=false}
+W.defaults={loop=true,stepDelay=0,actionTimeout=15000,useDelay=900,maxUseRetries=4,recordDistance=3,ropeId=3003,shovelId=3457,allowLua=false,talkDelay=700,debugCave=false,debugPath=false,autoNavigate=false}
 
 function W.clearDebug()
   for tile,text in pairs(W.debugTiles or {}) do if tile:getText()==text then tile:setText('') end end
@@ -835,6 +843,38 @@ function W.gotoLabel(name)
   for _,entry in ipairs(A.CaveBot.actionList.entries) do if entry.action=='label' and entry.value==name then A.CaveBot.actionList:focusChild(entry) return true end end
   return false
 end
+function W.nearestReachable(pos,exclude)
+  local candidates={}
+  for _,entry in ipairs(A.CaveBot.actionList.entries) do
+    if entry~=exclude and (entry.action=='goto' or entry.action=='walk' or entry.action=='stairs') then
+      local goal=A.parsePosition(entry.value)
+      if goal and goal.z==pos.z and A.distance(pos,goal)<=18 then
+        candidates[#candidates+1]={entry=entry,goal=goal,distance=A.distance(pos,goal)}
+      end
+    end
+  end
+  table.sort(candidates,function(a,b) return a.distance<b.distance end)
+  N.beginTick()
+  local best,bestCost
+  for _,candidate in ipairs(candidates) do
+    if N.budget and N.budget<=0 then break end
+    local path=N.path(pos,candidate.goal,candidate.goal.radius or 0,candidate.goal.radius==0)
+    if path then
+      local cost=0 for _,direction in ipairs(path) do cost=cost+(direction>=4 and 3 or 1) end
+      if not bestCost or cost<bestCost then best,bestCost=candidate.entry,cost end
+    end
+  end
+  return best
+end
+function W.pauseFailure(message,now)
+  local C=A.CaveBot
+  C.status='Waiting: '..tostring(message)
+  W.nextTick=now+math.max(1000,C.Config.values.useDelay)
+  -- Preserve action evidence (especially already-sent NPC words/item uses).
+  -- Clearing it here could repeat a purchase or close a door again.
+  if W.state then W.state.started=now end
+  N.reset()
+end
 function W.suppliesLow()
   local cfg=A.data().supplies local player=g_game.getLocalPlayer()
   if A.call(player,'getFreeCapacity',0)<(cfg.minCapacity or 0) then return true end
@@ -846,10 +886,13 @@ end
 function W.useAt(state,pos,itemId,transition,requireWalkable)
   local C=A.CaveBot local current=A.position()
   if state.uses and current.z~=state.startZ then return true end
-  if current.z~=pos.z then return false,'Wrong floor for item use.' end
-  if A.distance(current,pos)>1 then N.walk(pos,1,false) return 'retry' end
   local now=NexusBot.now()
   if state.nextUse and now<state.nextUse then return 'retry' end
+  -- A plain use is a one-shot action. Waiting for the top item's ID to change
+  -- re-closed doors and tried walking back after the player had passed them.
+  if state.uses and not transition and not requireWalkable then return true end
+  if current.z~=pos.z then return false,'Wrong floor for item use.' end
+  if A.distance(current,pos)>1 then N.walk(pos,1,false) return 'retry' end
   local tile=g_map.getTile(pos) local thing=A.call(tile,'getTopUseThing')
   if not thing then return false,'No usable object at waypoint.' end
   if state.uses and not transition then
@@ -857,10 +900,12 @@ function W.useAt(state,pos,itemId,transition,requireWalkable)
     if state.uses>=2 and not requireWalkable then return false,'Object did not change after use.' end
   end
   if (state.uses or 0)>=C.Config.values.maxUseRetries then return false,'Item use retry limit reached.' end
+  local sent
   if itemId then
     if A.countItem(itemId)==0 then return false,'Missing tool: '..itemId end
-    g_game.useInventoryItemWith(itemId,thing)
-  else g_game.use(thing) end
+    sent=g_game.useInventoryItemWith(itemId,thing)
+  else sent=g_game.use(thing) end
+  if sent==false then return false,'Client rejected item use.' end
   state.thingId=thing:getId() state.uses=(state.uses or 0)+1 state.nextUse=now+C.Config.values.useDelay
   return 'retry'
 end
@@ -889,12 +934,10 @@ function W.registerActions()
   end)
   register('use','Use door/ladder/object at x,y,z. Retries are bounded.','100,100,7',position,function(v,s) return W.useAt(s,A.parsePosition(v)) end)
   register('usewith','Use item on tile: itemId,x,y,z.','3003,100,100,7',function(v) local n=parseNumbers(v,4) return n and n[1]>=100 and n[4]<=15 end,function(v,s)
-    if s.uses then return true end
     local n=parseNumbers(v,4) return W.useAt(s,{x=n[2],y=n[3],z=n[4]},n[1],false)
   end)
   for _,tool in ipairs({'rope','shovel'}) do local kind=tool
     register(kind,'Use configured '..kind..' at x,y,z. Rope confirms floor change.','100,100,7',position,function(v,s)
-      if kind=='shovel' and s.uses then return true end
       return W.useAt(s,A.parsePosition(v),C.Config.values[kind..'Id'],kind=='rope')
     end)
   end
@@ -911,12 +954,16 @@ function W.registerActions()
     if not MessageModes or not MessageModes.NpcTo then return false,'NPC message mode unavailable.' end
     g_game.talkChannel(MessageModes.NpcTo,0,v) return true
   end)
-  register('supplycheck','Continue once configured supplies or capacity are below their minimum.','',function(v) return #v<=200 end,function(v)
-    return W.suppliesLow() or 'retry'
+  register('supplycheck','Enough supplies: jump to label. Low supplies: continue route.','hunt',function(v) return #v<=200 end,function(v)
+    if W.suppliesLow() or v=='' then return true end
+    if W.gotoLabel(v) then return 'jump' end
+    return false,'Supply check label not found: '..v
   end)
   for _,action in ipairs({'buy','sell'}) do local kind=action
-    register(kind,kind=='buy' and 'itemId,totalToKeep (0 = supply refill target). Requires open NPC trade.' or 'itemId,amountToKeep. Requires open NPC trade; equipped items stay.','3031,100',function(v) local n=parseNumbers(v,2) return n and n[1]>=100 end,function(v,s)
-      local n=parseNumbers(v,2) local id,limit=n[1],n[2]
+    register(kind,kind=='buy' and 'itemId,totalToKeep (0 = supply refill target). Requires open NPC trade.' or 'Item ID. Sell all unequipped items of this type in the open NPC trade.',kind=='sell' and '3031' or '3031,100',function(v)
+      local n=parseNumbers(v,2) or (kind=='sell' and parseNumbers(v,1)) return n and n[1]>=100
+    end,function(v,s)
+      local n=parseNumbers(v,2) or parseNumbers(v,1) local id,limit=n[1],n[2] or 0
       if kind=='buy' and limit==0 then
         local supply=A.data().supplies.items[tostring(id)]
         if not supply then return false,'No refill target configured for this item.' end limit=supply.max
@@ -951,8 +998,7 @@ function W.registerActions()
       s.attempts=(s.attempts or 0)+1 s.nextUse=NexusBot.now()+600 return 'retry'
     end end end end return true
   end)
-  register('function','Advanced Lua. Enable Allow Lua explicitly. Helpers: pos, countItem, suppliesLow, gotoLabel, delay, say; return true or "retry".','return true',function(v) return #v<=16000 end,function(v,s)
-    if not C.Config.values.allowLua then return false,'Lua actions disabled. Review code, then enable Allow Lua.' end
+  register('function','Sandboxed Lua. Helpers: pos, countItem, suppliesLow, gotoLabel, delay, say; return true or "retry".','return true',function(v) return #v<=16000 end,function(v,s)
     if not debug or not debug.sethook or not setfenv or not loadstring then return false,'Client cannot safely limit Lua actions.' end
     if NexusBot.now()<(s.nextUse or 0) then return 'retry' end
     local fn,err=loadstring(v,'CWELBOT route') if not fn then return false,err end
@@ -996,6 +1042,7 @@ function W.init()
         if distance<math.huge and (not best or distance<best) then nearest,best=entry,distance end
       end
     end
+    if C.Config.values.autoNavigate then nearest=W.nearestReachable(pos) or nearest end
     C.actionList:focusChild((fromCurrent and C.actionList:getFocusedChild()) or nearest or C.actionList:getFocusedChild() or C.actionList.entries[1])
   end
   C.actionList.onFocus=function() W.state=nil end
@@ -1008,7 +1055,8 @@ function W.init()
   end
   C.editAction=function(entry,action,value)
     local ok,err=W.validate(action,value) if not ok then error(err) end
-    entry.action=action entry.value=value W.state=nil
+    entry.action=action entry.value=value
+    if entry==C.actionList:getFocusedChild() then W.state=nil end
   end
   C.save=function() return A.saveProfile('cavebot_configs',C.getCurrentProfile(),NexusBot.Features.CaveTools.snapshot(C)) end
   C.setCurrentProfile=function(name)
@@ -1082,15 +1130,21 @@ function W.tick()
     local seconds=tonumber(entry.value:match('^[^,]+,([^,]+),')) or 0
     timeout=math.max(timeout,seconds*1000+2000)
   end
-  if entry.action~='delay' and entry.action~='supplycheck' and now-state.started>timeout then stop('Waypoint timed out: '..entry.action..' '..entry.value) return end
+  if entry.action~='delay' and now-state.started>timeout then
+    if C.Config.values.autoNavigate and (entry.action=='goto' or entry.action=='walk') then
+      local nearest=W.nearestReachable(pos,entry)
+      if nearest then N.reset() C.actionList:focusChild(nearest) C.status='Auto navigate' return end
+    end
+    W.pauseFailure('Waypoint timed out: '..entry.action..' '..entry.value,now) return
+  end
   if now<(W.nextTick or 0) then return end
   W.nextTick=now+math.max(0,C.Config.values.stepDelay)
   C.status='Waypoint '..(C.actionList:getChildIndex(entry) or 0)..': '..entry.action
   local ok,result,err=pcall(C.Actions[entry.action].callback,entry.value,state)
-  if not ok then stop('Action error: '..tostring(result)) return end
+  if not ok then W.pauseFailure('Action error: '..tostring(result),now) return end
   if result==true then W.next()
   elseif result=='retry' then state.retries=state.retries+1
-  elseif result~='jump' then stop(err or 'Action failed: '..entry.action) end
+  elseif result~='jump' then W.pauseFailure(err or 'Action failed: '..entry.action,now) end
 end
 function W.recordAppend(action,value)
   local C=A.CaveBot local last=C.actionList.entries[#C.actionList.entries]
@@ -1378,19 +1432,27 @@ function E.transfer(source,destination,id,needed,state)
   if #destination:getItems()>=destination:getCapacity() then return false,'Destination is full.' end
   for _,item in ipairs(source:getItems()) do if not id or item:getId()==id then
     local signature=A.key(item:getPosition())..':'..item:getId()..':'..A.call(item,'getCount',1)
-    if state.signature~=signature then state.signature=signature state.attempts=0 end
+    -- Removing the first stack shifts the next identical stack into the same
+    -- slot. Its signature is identical, but it is a NEW acknowledged transfer.
+    if state.signature~=signature or state.pendingItem~=item then state.signature=signature state.attempts=0 end
     if (state.attempts or 0)>=3 then return false,'Item transfer was not acknowledged.' end
     if NexusBot.now()<(state.nextMove or 0) then return 'retry' end
     g_game.move(item,destination:getSlotPosition(#destination:getItems()),math.min(needed or 100000,A.call(item,'getCount',1)))
-    state.attempts=(state.attempts or 0)+1 state.nextMove=NexusBot.now()+600 return 'retry'
+    state.pendingItem=item state.attempts=(state.attempts or 0)+1 state.nextMove=NexusBot.now()+600 return 'retry'
   end end
   return false,'Source has no matching items.'
 end
 function E.register()
   local reg=W.register local C=A.CaveBot
-  reg('follow','Follow visible creature: name,seconds,distance. Stops safely if target changes floor or disappears.','Friend,5,1',function(v) local d=E.split(v) return #d==3 and tonumber(d[2]) and tonumber(d[2])>=0 and tonumber(d[2])<=120 and tonumber(d[3]) and tonumber(d[3])>=1 and tonumber(d[3])<=5 end,function(v,s)
-    local d=E.split(v) if NexusBot.now()-s.started>=tonumber(d[2])*1000 then return true end
-    for _,c in ipairs(g_map.getSpectators(A.position(),false) or {}) do if c:getName():lower()==d[1]:lower() then N.walk(c:getPosition(),tonumber(d[3]),false) return 'retry' end end
+  reg('follow','Approach the named visible NPC/creature, then continue.','NPC name',function(v) local d=E.split(v) return (#d==1 and name(d[1])) or (#d==3 and tonumber(d[2]) and tonumber(d[3])) end,function(v,s)
+    local d=E.split(v)
+    -- Existing timed routes retain their format; new actions only take a name.
+    if #d==3 and NexusBot.now()-s.started>=tonumber(d[2])*1000 then return true end
+    for _,c in ipairs(g_map.getSpectators(A.position(),false) or {}) do if c:getName():lower()==d[1]:lower() then
+      local arrived=N.walk(c:getPosition(),tonumber(d[3]) or 1,false)
+      if #d==1 and arrived then return true end
+      return 'retry'
+    end end
     return false,'Follow target lost; no safe transition evidence.'
   end)
   reg('travel','NPC name,destination. Confirms travel by a position/floor change.','Captain,Thais',function(v) local d=E.split(v) return #d==2 end,function(v,s)
@@ -1431,10 +1493,17 @@ function E.register()
     s.arrived=s.arrived or NexusBot.now()
     if NexusBot.now()-s.arrived<tonumber(d[4]) then return 'retry' end A.TargetBot.setOn() return true
   end)
-  reg('poscheck','label,distance,x,y,z,maxRetries. Jumps back on mismatch; retries are bounded.','hunt,1,100,100,7,5',function(v)
-    local d=E.split(v) return #d==6 and tonumber(d[2]) and tonumber(d[2])>=0 and tonumber(d[2])<=30 and A.parsePosition(table.concat(d,',',3,5)) and tonumber(d[6]) and tonumber(d[6])>=1 and tonumber(d[6])<=100
+  reg('poscheck','x,y,z,label. Jump on an exact match; otherwise continue.','100,100,7,hunt',function(v)
+    local d=E.split(v)
+    if #d==4 then return A.parsePosition(table.concat(d,',',1,3)) and name(d[4]) end
+    return #d==6 and tonumber(d[2]) and tonumber(d[2])>=0 and tonumber(d[2])<=30 and A.parsePosition(table.concat(d,',',3,5)) and tonumber(d[6]) and tonumber(d[6])>=1 and tonumber(d[6])<=100
   end,function(v,s)
     local d=E.split(v) W.posRetries=W.posRetries or {}
+    if #d==4 then
+      if A.distance(A.position(),A.parsePosition(table.concat(d,',',1,3)))~=0 then return true end
+      if W.gotoLabel(d[4]) then return 'jump' end
+      return false,'Position check label not found: '..d[4]
+    end
     if A.distance(A.position(),A.parsePosition(table.concat(d,',',3,5)))<=tonumber(d[2]) then W.posRetries[v]=nil return true end
     W.posRetries[v]=(W.posRetries[v] or 0)+1
     if W.posRetries[v]>tonumber(d[6]) then return false,'Position check retry limit reached.' end
@@ -1458,6 +1527,43 @@ function E.register()
       local count=0 for _,bag in pairs(g_game.getContainers() or {}) do if bag~=source then for _,item in ipairs(bag:getItems()) do if item:getId()==tonumber(d[2]) then count=count+A.call(item,'getCount',1) end end end end
       if count>=tonumber(d[3]) then return true end
       return E.transfer(source,destination,tonumber(d[2]),tonumber(d[3])-count,s)
+    end)
+  end
+  for _,key in ipairs({'inwithdraw','dpwithdraw'}) do
+    local legacy=C.Actions[key]
+    reg(key,'Open source container item ID,item ID[,backpack item ID]. Move all matching items.','2854,3031',function(v)
+      local d=E.split(v)
+      if #d==4 then return legacy.validate(v) end
+      if #d~=2 and #d~=3 then return false end
+      for _,n in ipairs(d) do local id=tonumber(n) if not id or id%1~=0 or id<100 or id>65535 then return false end end
+      return true
+    end,function(v,s)
+      local d=E.split(v)
+      if #d==4 then return legacy.callback(v,s) end
+      local source=E.container(d[1]) local id=tonumber(d[2])
+      if not source then return false,'Open the selected depot/inbox first.' end
+      local found=false
+      for _,item in ipairs(source:getItems()) do if item:getId()==id then found=true break end end
+      if not found then
+        local nextIndex=A.call(source,'getFirstIndex',0)+A.call(source,'getCapacity',0)
+        if A.call(source,'hasPages',false) and nextIndex<A.call(source,'getSize',0) then
+          if NexusBot.now()<(s.nextMove or 0) then return 'retry' end
+          if g_game.seekInContainer then g_game.seekInContainer(source:getId(),nextIndex) s.nextMove=NexusBot.now()+600 return 'retry' end
+          return false,'Container paging is unavailable.'
+        end
+        return true
+      end
+      local backpack=A.call(g_game.getLocalPlayer(),'getInventoryItem',nil,InventorySlotBack or 3)
+      local destinationId=tonumber(d[3]) or A.call(backpack,'getId')
+      local destination
+      for _,bag in pairs(g_game.getContainers() or {}) do
+        if bag~=source and A.call(bag:getContainerItem(),'getId')==destinationId and #bag:getItems()<bag:getCapacity() then
+          if destination then return false,'Multiple matching backpacks. Use a distinct destination backpack item ID.' end
+          destination=bag
+        end
+      end
+      if not destination then return false,'Open a backpack with free space (optional third value = backpack item ID).' end
+      return E.transfer(source,destination,id,nil,s)
     end)
   end
   reg('depositor','Run all configured Stashing item -> OPEN container mappings.','',function(v) return v=='' end,function(v,s)

@@ -13,6 +13,10 @@ New-Item -ItemType Directory -Path "$source\modules\test","$target\modules\test"
 & "$PSScriptRoot\Build-Update.ps1" -ClientRoot $source -Output "$root\output" -Version 'test-1'
 $manifest=Get-Content "$root\output\update.json" -Raw | ConvertFrom-Json
 if(@($manifest.files).Count -ne 1){throw 'Private data included in package'}
+$script:seenProgress=@()
+$verified=Install-NexusPackage $target "$root\output\nexus-update.zip" $manifest "$root\validate-only" -ValidateOnly -Progress {param($done,$total,$file) $script:seenProgress+=@{done=$done;total=$total;file=$file}}
+if($verified -ne 1 -or $script:seenProgress.Count -ne 1 -or $script:seenProgress[0].file -ne 'modules/test/test.lua'){throw 'Missing file progress'}
+if((Get-Content "$target\modules\test\test.lua" -Raw) -ne 'return 1'){throw 'Download validation modified running client'}
 $changed=Install-NexusPackage $target "$root\output\nexus-update.zip" $manifest "$root\backup"
 if($changed -ne 1 -or (Get-Content "$target\modules\test\test.lua" -Raw) -ne 'return 2'){throw 'Install failed'}
 if((Get-Content "$root\backup\previous\modules\test\test.lua" -Raw) -ne 'return 1'){throw 'Missing backup'}

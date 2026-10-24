@@ -29,7 +29,7 @@ end
 local function renderPattern(c,p,r)
   local U=NexusBot.UI local G=NexusBot.Geometry local a=r.action
   local shape=G.shape(r)
-  if shape=='target' or r.type=='empowerment' or r.type=='item' then
+  if shape=='target' or shape=='chain' or r.type=='custom_action' or r.type=='empowerment' or r.type=='item' then
     U.label(p,shape=='target' and 'Single target' or 'No damage footprint')
     return
   end
@@ -134,6 +134,9 @@ end
 
 -- ==================== LOGIC / RUNTIME ====================
 applySpellPreset=function(rule,words)
+  -- Custom means literal text, including text which happens to be a known spell.
+  -- Keep manual conditions, but never inject a monster count or an area preset.
+  if rule.type=='custom_action' then return false end
   local preset=NexusBot.Spells.getPreset(words)
   if not preset then
     clearPreset(rule)
@@ -166,7 +169,7 @@ applySpellPreset=function(rule,words)
   for _,condition in ipairs(rule.conditions.children) do
     if condition.autoSpellPreset~=true then kept[#kept+1]=condition end
   end
-  if tonumber(preset.minimumMonsters) then
+  if tonumber(preset.minimumMonsters) and not (NexusBot.Geometry.chain[preset.words] or NexusBot.Geometry.centered[preset.words]) then
     kept[#kept+1]={type='monster_count',operator='>=',value=tonumber(preset.minimumMonsters),radius=tonumber(preset.radius) or tonumber(preset.range) or 5,autoSpellPreset=true}
   end
   rule.conditions.children=kept
@@ -197,6 +200,25 @@ function NexusBot.Features.MagicShooter.init()
   -- Upgrade only generated legacy fields, retaining hand-written conditions.
   for _,profile in ipairs(NexusBot.Profiles.list('magic_shooter')) do
     for _,rule in ipairs(profile.actions or {}) do
+      local words=(rule.action or {}).spell
+      if rule.type~='custom_action' and rule.autoPreset and (rule.autoPreset.geometryVersion or 0)<3
+        and (NexusBot.Geometry.chain[words] or NexusBot.Geometry.centered[words] or words=='exori scu') then
+        local preset=NexusBot.Spells.getPreset(words)
+        if preset then
+          rule.type=preset.actionType
+          rule.advanced=rule.advanced or {}
+          rule.advanced.range=preset.range
+          rule.advanced.requiresTarget=false rule.advanced.stopWhenNoTarget=false
+          rule.pattern={mode='area_pattern'}
+          rule.action.footprint=NexusBot.Spells.defaultFootprint(words,preset.actionType)
+          local kept={}
+          for _,condition in ipairs((rule.conditions or {}).children or {}) do
+            if not condition.autoSpellPreset then kept[#kept+1]=condition end
+          end
+          rule.conditions=rule.conditions or {mode='AND'} rule.conditions.children=kept
+          rule.autoPreset.geometryVersion=3 NexusBot.Storage.touch()
+        end
+      end
       if rule.autoPreset and not rule.autoPreset.geometryVersion then
         local action=rule.action or {}
         if rule.type=='rune' or rule.type=='item' then

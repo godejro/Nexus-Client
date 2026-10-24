@@ -227,7 +227,7 @@ function initializeSpelllist()
             tmpLabel:setPhantom(false)
 
             local iconId = tonumber(info.clientId)
-            if not iconId then
+            if not iconId and not info.iconUnavailable then
                 perror('Spell icon \'' .. info.icon .. '\' not found.')
             end
 

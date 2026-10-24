@@ -812,6 +812,7 @@ category.getEnabled=function() return NexusBot.Storage.get().settings.pvpEnabled
 category.setEnabled=function(value)
   NexusBot.Storage.get().settings.pvpEnabled=value==true
   if not value and NexusBot.Features.Combo then NexusBot.Features.Combo.stop() end
+  if value and NexusBot.Features.Combo and NexusBot.Features.Combo.config().enabled then NexusBot.Features.Combo.running=true end
   local runtime=P.runtime()
   if runtime then
     for _,spec in ipairs(specs) do
@@ -834,12 +835,14 @@ end
 function B.clear() B.queue={} B.seen={} end
 function B.stop() B.running=false B.clear() end
 function B.start()
-  B.clear() NexusBot.Categories.setEnabled(category,true) B.running=true
+  B.clear() B.config().enabled=true NexusBot.Categories.setEnabled(category,true) B.running=true NexusBot.Storage.touch()
 end
 function B.open()
   NexusBot.WindowManager.close('pvp:combo')
   local w,list=NexusBot.Features.Modern.shared.formWindow('COMBO BOT',410) w:setWidth(390)
-  local power=U.toggle(list,'Local combo',B.running,function(v) if v then B.start() else B.stop() end end)
+  local power=U.toggle(list,'Local combo',B.config().enabled==true,function(v)
+    if v then B.start() else B.config().enabled=false B.stop() NexusBot.Storage.touch() end
+  end)
   local rows=U.compactList(list,250)
   local function refresh()
     U.clear(rows)
@@ -852,10 +855,10 @@ function B.open()
     end
   end
   U.button(list,'+ Add',function()
-    local rule={id=NexusBot.id('combo'),leader='',trigger='',type='targeted_spell',enabled=false,ttl=600,delay=1000,range=5,action={spell='',target='target'}}
+    local rule={id=NexusBot.id('combo'),leader='',trigger='',type='area_spell',enabled=false,ttl=600,delay=0,range=7,action={spell='',target='target',avoidPlayers=false}}
     table.insert(B.config().rules,rule) NexusBot.Storage.touch() refresh() B.edit(rule)
   end)
-  NexusBot.Features.Modern.shared.ownTimer(w,function() power:setOn(B.running) end,300)
+  NexusBot.Features.Modern.shared.ownTimer(w,function() power:setOn(B.config().enabled==true) end,300)
   refresh() NexusBot.WindowManager.attach('pvp:combo',w)
   NexusBot.Scheduler.after(25,function() NexusBot.WindowManager.clamp(w) end,'Combo window layout')
   return w
@@ -875,13 +878,16 @@ function B.edit(rule)
       B.clear() rule.action.itemId=v rule.action.areaRune=NexusBot.Geometry.runes[v]~=nil
     end)
     U.toggle(list,'Area rune',rule.action.areaRune==true,function(v) B.clear() rule.action.areaRune=v end)
-  else U.spellPicker(list,'My spell words',rule.action.spell,function(v) B.clear() rule.action.spell=v end) end
+  else U.spellPicker(list,'My spell words',rule.action.spell,function(v)
+    B.clear() rule.action.spell=v
+    local preset=NexusBot.Spells.getPreset(v)
+    if preset then rule.type=preset.actionType rule.range=preset.range or rule.range end
+  end) end
   U.numberInput(list,'Range',rule.range,1,8,function(v) change('range',v) end)
   U.numberInput(list,'Event lifetime (ms)',rule.ttl,100,2000,function(v) change('ttl',v) end)
-  U.numberInput(list,'Minimum delay (ms)',rule.delay,100,10000,function(v) change('delay',v) end)
+  U.numberInput(list,'Minimum delay (ms)',rule.delay,0,10000,function(v) change('delay',v) end)
   if rule.type=='area_spell' or rule.type=='directional_spell' or rule.type=='rune' then
     U.textInput(list,'Custom 0/1/3 rows',rule.action.customMask or '',function(v) B.clear() rule.action.customMask=v end)
-    U.toggle(list,'Avoid players in area',rule.action.avoidPlayers~=false,function(v) B.clear() rule.action.avoidPlayers=v end)
   end
   U.button(list,'Delete',function()
     for i,r in ipairs(B.config().rules) do if r==rule then table.remove(B.config().rules,i) break end end
@@ -914,8 +920,16 @@ function B.onTalk(name,level,mode,text,channel,pos)
         local needsTarget=cfg.type=='targeted_spell' or cfg.type=='rune'
         if not needsTarget or target then
           local rule={id=cfg.id,type=cfg.type,enabled=true,priority=25,action=NexusBot.copy(cfg.action),conditions={mode='AND',children={}},pattern={autoFace=true},
-            advanced={range=cfg.range or 5,minimumDelay=cfg.delay or 1000,requiresTarget=needsTarget,onlyIfCooldownReady=true}}
+            advanced={range=cfg.range or 7,minimumDelay=cfg.delay or 0,requiresTarget=needsTarget,onlyIfCooldownReady=true}}
+          rule.action.avoidPlayers=false
           B.queue[#B.queue+1]={rule=rule,expires=now+math.max(100,math.min(2000,tonumber(cfg.ttl) or 600)),targetId=needsTarget and target:getId() or nil}
+          -- Dispatch at the server spell event instead of waiting for the next
+          -- 75-ms scheduler pass. Cooldown/PZ/turn ACK checks still apply.
+          local ok,context=pcall(NexusBot.Conditions.buildContext)
+          if ok and context then
+            context.providerId='combo'
+            NexusBot.Actions.execute(rule,context)
+          end
         end
       end
     end
@@ -933,6 +947,7 @@ function B.provide(context)
 end
 function B.init()
   B.terminate()
+  B.running=B.config().enabled==true
   B.connections={onTalk=B.onTalk,onGameEnd=B.stop}
   connect(g_game,B.connections)
   NexusBot.Actions.registerProvider('combo',25,B.provide)

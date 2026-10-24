@@ -46,8 +46,7 @@ function NexusBot.Storage.load()
   end
   NexusBot.Storage.data = NexusBot.merge(defaultData, loaded)
   NexusBot.Storage.data.schemaVersion = NexusBot.Storage.schemaVersion
-  -- Keep UI preferences, but require an explicit setup load for automation.
-  -- Preserve the old session as a recoverable setup once during migration.
+  -- Preserve pre-migration sessions as a recoverable setup.
   local previous=NexusBot.Storage.data
   if not previous.settings.manualConfigV1 and next(previous.modules or {}) then
     local directory=NexusBot.Storage.directory..'/setups'
@@ -57,8 +56,17 @@ function NexusBot.Storage.load()
       assert(g_resources.writeFileContents(backup,json.encode(previous,2))~=false,'Could not preserve previous bot settings')
     end
   end
-  NexusBot.Storage.data=NexusBot.copy(defaultData)
-  NexusBot.Storage.data.settings=NexusBot.copy(previous.settings)
+  -- Restore the full session, not only window preferences. Only the main
+  -- category powers start OFF; rule flags, tools, IDs and delays are retained.
+  NexusBot.Storage.data=previous
+  for _,module in pairs(previous.modules or {}) do
+    for _,profile in ipairs(module.profiles or {}) do profile.enabled=false end
+  end
+  for _,key in ipairs({'support','alarms','healFriends'}) do
+    if previous.integrations and previous.integrations[key] then previous.integrations[key].enabled=false end
+  end
+  previous.settings.extrasMaster=false
+  previous.settings.pvpEnabled=false
   NexusBot.Storage.data.settings.masterEnabled=false
   NexusBot.Storage.data.settings.manualConfigV1=true
   NexusBot.Logger.setDebug(NexusBot.Storage.data.settings.debug == true)

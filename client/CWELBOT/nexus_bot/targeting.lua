@@ -658,7 +658,7 @@ function U.Targeting.create()
     engine.setOff() A.data().targetProfiles[name]=nil
     if engine.getCurrentProfile()==name then engine.setCurrentProfile(API.list()[1].name) end NexusBot.Storage.touch() return true
   end
-  local function save() engine.setOff() engine.Creature.resetConfigsCache() engine.save() end
+  local function save() engine.Creature.resetConfigsCache() engine.save() end
   local definition={id='targeting',title='Targeting',profileAPI=API,columns={'Monster','Priority','Attack','Range'},addText='+ New Monster',
     setEnabled=function(enabled) if enabled then NexusBot.setEnabled(true) engine.setOn() else engine.setOff() end end,
     tabs={{'Action','action'},{'Conditions','conditions'},{'Movement','movement'}},changed=save,
@@ -666,19 +666,19 @@ function U.Targeting.create()
       local out={} for _,entry in ipairs(engine.targetList.entries) do out[#out+1]=entry.value end return out
     end,
     newRule=function()
-      local entry=engine.Creature.addConfig(NexusBot.merge(T.defaults,{name='*',enabled=false,requireShootable=true,requireReachable=true,hpMin=0,hpMax=100}))
+      local entry=engine.Creature.addConfig(NexusBot.merge(T.defaults,{name='*',enabled=false,dontLoot=true,requireShootable=true,requireReachable=true,hpMin=0,hpMax=100}))
       save() return entry.value
     end,
-    describe=function(r) return {type='Monster',action=r.name,target=r.keepDistance and 'Keep distance' or 'Stand'} end,
-    rowValues=function(r) return {r.name=='*' and 'All creatures' or r.name,tostring(r.priority or 1),r.keepDistance and 'Keep distance' or 'Stand',tostring(r.maxDistance or 10)} end}
+    describe=function(r) return {type='Monster',action=r.name,target=r.keepDistance and 'Keep distance' or r.explicitChase and 'Chase' or 'Stand'} end,
+    rowValues=function(r) return {r.name=='*' and 'All creatures' or r.name,tostring(r.priority or 1),r.keepDistance and 'Keep distance' or r.explicitChase and 'Chase' or 'Stand',tostring(r.maxDistance or 10)} end}
   definition.renderInspector=function(c,tab,r,p)
     local function set(key,v) r[key]=v save() c:refreshRules() end
     if tab=='action' then
       U.textInput(p,'Monster name',r.name,function(v) if v~='' and #v<=160 then set('name',v) end end)
       U.button(p,'Monsters ignore list',function() U.editNames('TARGET IGNORE LIST',r.ignoreNames or '',function(v) set('ignoreNames',v:gsub('\n',',')) end) end)
       U.numberInput(p,'Priority',r.priority or 1,0,10,function(v) set('priority',v) end)
-      U.combo(p,'Attack option',{{'Stand (no chase)','stand'},{'Keep distance','distance'}},r.keepDistance and 'distance' or 'stand',function(v)
-        r.chase=false set('keepDistance',v=='distance') c:renderInspector()
+      U.combo(p,'Attack option',{{'Stand','stand'},{'Chase','chase'},{'Keep distance','distance'}},r.keepDistance and 'distance' or r.explicitChase and 'chase' or 'stand',function(v)
+        r.explicitChase=v=='chase' r.chase=r.explicitChase set('keepDistance',v=='distance') c:renderInspector()
       end)
       U.numberInput(p,'Attacking range',r.maxDistance or 10,1,10,function(v) set('maxDistance',v) end)
       if r.keepDistance then
@@ -813,7 +813,7 @@ function T.apply(engine,entry,draft,profile)
   if entry and entry:isDestroyed() then return false,'Rule no longer exists.' end
   local ok,err=T.validate(draft) if not ok then return false,err end
   local value=NexusBot.copy(draft)
-  if T.chaseSuspended then value.chase=false end
+  if T.chaseSuspended and not value.explicitChase then value.chase=false end
   value.name=value.name:gsub('^%s+',''):gsub('%s+$','')
   if not entry or value.name~=entry.value.name then value.regex=T.pattern(value.name) end
   engine.setOff()
@@ -1059,15 +1059,31 @@ function T.moveToBand(candidate,pos,minimum,maximum,anchor)
   if NexusBot.now()<N.nextWalk or A.call(g_game.getLocalPlayer(),'isWalking',false) then return end
   if N.pending and A.key(pos)==N.pending.from and NexusBot.now()<N.pending.untilTime then return end
   local rule,target=candidate.rule,candidate.creature:getPosition()
+  local routeBounds
+  if A.CaveBot.isOn() then
+    for _,entry in ipairs(A.CaveBot.actionList.entries) do
+      if entry.action=='goto' or entry.action=='walk' or entry.action=='stairs' then
+        local p=A.parsePosition(entry.value)
+        if p and p.z==pos.z and A.distance(pos,p)<=18 then
+          if not routeBounds then routeBounds={x1=p.x,x2=p.x,y1=p.y,y2=p.y}
+          else routeBounds.x1=math.min(routeBounds.x1,p.x) routeBounds.x2=math.max(routeBounds.x2,p.x)
+            routeBounds.y1=math.min(routeBounds.y1,p.y) routeBounds.y2=math.max(routeBounds.y2,p.y) end
+        end
+      end
+    end
+  end
+  local function allowed(p)
+    return not routeBounds or (p.x>=routeBounds.x1-1 and p.x<=routeBounds.x2+1 and p.y>=routeBounds.y1-1 and p.y<=routeBounds.y2+1)
+  end
   local destinations={}
   for dx=-maximum,maximum do for dy=-maximum,maximum do
     local p={x=target.x+dx,y=target.y+dy,z=pos.z} local d=A.distance(p,target)
-    if d>=minimum and d<=maximum and N.safeTile(p) and (not anchor or A.distance(p,T.anchor)<=(rule.anchorRange or 3)) then
+    if d>=minimum and d<=maximum and allowed(p) and N.safeTile(p) and (not anchor or A.distance(p,T.anchor)<=(rule.anchorRange or 3)) then
       destinations[#destinations+1]={p=p,score=A.distance(pos,p)*10+math.abs(d-minimum)}
     end
   end end
   table.sort(destinations,function(a,b) if a.score==b.score then return A.key(a.p)<A.key(b.p) end return a.score<b.score end)
-  for i=1,math.min(8,#destinations) do local goal=destinations[i].p if N.path(pos,goal,0,false) then N.walk(goal,0,false) return true end end
+  for i=1,math.min(8,#destinations) do local goal=destinations[i].p if N.path(pos,goal,0,false,allowed) then N.walk(goal,0,false,false,allowed) return true end end
   N.nextWalk=NexusBot.now()+400 return false
 end
 function T.move(candidate,pos)
@@ -1081,8 +1097,8 @@ function T.move(candidate,pos)
   if rule.keepDistance then
     if not T.anchor or A.distance(pos,T.anchor)>(rule.anchorRange or 3) then T.anchor=NexusBot.copy(pos) end
     local distance=rule.keepDistanceRange or 1
-    if candidate.pathDistance<distance or candidate.pathDistance>distance+1 then return T.moveToBand(candidate,pos,distance,distance+1,rule.anchor) end
-  elseif not NexusBot.Features.TargetTools.chaseSuspended and rule.chase==true and candidate.pathDistance>1 then return T.moveToBand(candidate,pos,1,1,false) end
+    if A.distance(pos,target)~=distance then return T.moveToBand(candidate,pos,distance,distance,rule.anchor) end
+  elseif (not NexusBot.Features.TargetTools.chaseSuspended or rule.explicitChase) and rule.chase==true and A.distance(pos,target)>1 then return T.moveToBand(candidate,pos,1,1,false) end
   local dx,dy=target.x-pos.x,target.y-pos.y
   local options={}
   if rule.avoidAttacks then
@@ -1097,10 +1113,10 @@ function T.move(candidate,pos)
   end
   for _,p in ipairs(options) do if N.safeTile(p) and N.path(pos,p,0,false) then return N.walk(p,0,false) end end
 end
-function T.lootTick(pos)
+function T.lootTick(pos,nearbyOnly)
   local cfg=T.loot local now=NexusBot.now()
-  if not cfg or (not cfg.everyItem and #cfg.items==0) or #cfg.containers==0 or T.danger>cfg.maxDanger then return false end
-  if A.call(g_game.getLocalPlayer(),'getFreeCapacity',0)<cfg.minCapacity then return false end
+  if not cfg or T.danger>cfg.maxDanger then return false end
+  local canMove=(cfg.everyItem or #cfg.items>0) and #cfg.containers>0 and A.call(g_game.getLocalPlayer(),'getFreeCapacity',0)>=cfg.minCapacity
   local bags=g_game.getContainers() or {}
   if T.pendingOpen then
     local pending=T.pendingOpen
@@ -1110,18 +1126,22 @@ function T.lootTick(pos)
         T.lootOpened[id]=true T.pendingOpen=nil break
       end
     end
-    if T.pendingOpen and now>pending.untilTime then T.pendingOpen=nil end
+    if T.pendingOpen and now>pending.untilTime then
+      if pending.queued and pending.queued.attempts<3 and now<pending.queued.expires then table.insert(T.corpses,1,pending.queued) end
+      T.pendingOpen=nil
+    end
     if T.pendingOpen then return true end
   end
   local destination
   for id,bag in pairs(bags) do
     local item=bag:getContainerItem()
-    if not T.lootOpened[id] and item and contains(cfg.containers,item:getId()) and #bag:getItems()<bag:getCapacity() then destination=bag break end
+    if canMove and not T.lootOpened[id] and item and contains(cfg.containers,item:getId()) and #bag:getItems()<bag:getCapacity() then destination=bag break end
   end
-  if not destination then return false end
   for id in pairs(T.lootOpened) do
     local bag=bags[id]
-    if not bag then T.lootOpened[id]=nil else
+    -- Opening a corpse does not require a loot filter or destination bag.
+    -- Leave it open for the player when automatic item transfer is unavailable.
+    if not bag or not destination then T.lootOpened[id]=nil else
       for _,item in ipairs(bag:getItems()) do
         local listed=contains(cfg.items,item:getId())
         if (cfg.everyItem and not listed) or (not cfg.everyItem and listed) then
@@ -1138,17 +1158,23 @@ function T.lootTick(pos)
       return true
     end
   end
-  local queued=T.corpses[1]
+  local index=1
+  if nearbyOnly then
+    index=nil
+    for i,entry in ipairs(T.corpses) do if entry.pos.z==pos.z and A.distance(pos,entry.pos)<=1 then index=i break end end
+  end
+  local queued=index and T.corpses[index]
   if not queued then return false end
-  if now>queued.expires or queued.pos.z~=pos.z or queued.attempts>=3 then table.remove(T.corpses,1) return false end
+  if now>queued.expires or queued.pos.z~=pos.z or queued.attempts>=3 then table.remove(T.corpses,index) return false end
   if A.distance(pos,queued.pos)>1 then N.walk(queued.pos,1,false) return true end
   local corpse=T.corpseAt(queued.pos)
-  if not corpse then table.remove(T.corpses,1) return false end
+  if not corpse then table.remove(T.corpses,index) return false end
   if now<T.nextLoot then return true end
   local existing={} for id in pairs(bags) do existing[id]=true end
-  g_game.open(corpse) queued.attempts=queued.attempts+1
-  T.pendingOpen={id=corpse:getId(),existing=existing,untilTime=now+1200}
-  T.nextLoot=now+400 table.remove(T.corpses,1) return true
+  local sent=g_game.open(corpse) queued.attempts=queued.attempts+1 T.nextLoot=now+400
+  if sent==false then return true end
+  T.pendingOpen={id=corpse:getId(),existing=existing,queued=queued,untilTime=now+1200}
+  table.remove(T.corpses,index) return true
 end
 function T.tick()
   local engine=A.TargetBot T.blockCave=false T.allowCave=false
@@ -1176,6 +1202,7 @@ function T.tick()
     if (not current or current:getId()~=candidate.creature:getId()) and NexusBot.now()>=T.nextAttack then
       g_game.attack(candidate.creature) T.ownedAttack=candidate.creature:getId() T.nextAttack=NexusBot.now()+350
     end
+    if T.lootTick(pos,true) then T.blockCave=true engine.status='Looting / attacking' return end
     local route=A.CaveBot and A.CaveBot.actionList:getFocusedChild()
     if A.CaveBot and A.CaveBot.isOn() and route and route.action=='rushlure' then T.blockCave=false engine.status='Rush lure / attacking' return end
     if not T.luring(candidate,pos,#candidates) then T.move(candidate,pos) end

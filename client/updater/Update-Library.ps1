@@ -10,7 +10,7 @@ function Test-NexusProgramPath([string]$Name) {
     if ($Name -match '//|(?i)(^|/)(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])([.]|/|$)') { return $false }
     if ($Name -match '(?i)(^|/)(storage|config|credentials|accounts)\.(json|ini|otml)$|(^|/)(setups|lua scripts|scripts|settings|profiles|server_profiles)/') { return $false }
     if ($Name -in @('Nexus Client.exe','init.lua','LICENSE','cacert.pem','Nexus.ico','Nexus-256.png','URUCHOM_NEXUS.cmd')) { return $true }
-    if ($Name -match '^updater/(Start-Nexus|Update-Library)\.ps1$') { return $true }
+    if ($Name -match '^updater/(Start-Nexus|Update-Library|InClient-Update)\.ps1$') { return $true }
     if ($Name -match '^data/(cursors|fonts|images|styles|particles)/.+\.(lua|otui|png|otfont|otps|cur|ani|css)$') { return $true }
     if ($Name -match '^modules/.+\.(lua|otui|otmod|html|css|png|otfont|glsl|vert|frag|json)$') { return $true }
     if ($Name -match '^mods/(client_mods|client_profiles|client_textedit|game_buttons|game_itemselector|game_tasks)/.+\.(lua|otui|otmod|png|html|css|json)$') { return $true }
@@ -33,7 +33,7 @@ function Get-NexusChildPath([string]$Root,[string]$Name) {
     }
     return $path
 }
-function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest,[string]$BackupRoot) {
+function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest,[string]$BackupRoot,[switch]$ValidateOnly,[scriptblock]$Progress) {
     $ErrorActionPreference='Stop'
     if ($Manifest.schema -ne 1 -or @($Manifest.files).Count -eq 0 -or @($Manifest.files).Count -gt 20000) { throw 'Unsupported/empty manifest.' }
     if ($Manifest.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or (Get-NexusSHA256 $Zip) -ne $Manifest.sha256) { throw 'Package SHA256 mismatch.' }
@@ -58,9 +58,11 @@ function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest
             $null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($dest))
             [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$dest,$false)
             if ((Get-NexusSHA256 $dest) -ne $file.sha256) { throw "File SHA256 mismatch: $($file.path)" }
+            if ($Progress) { & $Progress $seen.Count $expected.Count $file.path }
         }
         if ($seen.Count -ne $expected.Count) { throw 'Incomplete package.' }
     } finally { $archive.Dispose() }
+    if ($ValidateOnly) { return $expected.Count }
     # Every entry is verified BEFORE modifying any installed file.
     $legacy=Join-Path ([IO.Path]::GetFullPath($ClientRoot)) 'mods\game_bot'
     if((Test-Path -LiteralPath $legacy) -and ((Get-Item -LiteralPath $legacy).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Legacy bot is a junction; move it manually.' }

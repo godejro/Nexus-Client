@@ -214,8 +214,8 @@ end
 
 function E.openSettings(key)
   local c=E.cfg[key]
-  local names={food='EAT FOOD',gold='CHANGE GOLD',effects='MAGIC EFFECTS',idle='ANTI IDLE',training='AUTO TRAINING',follow='AUTO FOLLOW PLAYER',bless='BUY BLESS AT LOGIN',skin='SKIN MONSTERS'}
-  local heights={food=350,gold=335,effects=140,idle=135,training=590,follow=235,bless=140,skin=400}
+  local names={food='EAT FOOD',gold='CHANGE GOLD',effects='MAGIC EFFECTS',idle='ANTI IDLE',training='AUTO TRAINING',follow='AUTO FOLLOW PLAYER',bless='BUY BLESS AT LOGIN',skin='SKIN MONSTERS',killTarget='KILL TARGET'}
+  local heights={food=350,gold=335,effects=140,idle=135,training=590,follow=235,bless=140,skin=400,killTarget=175}
   NexusBot.WindowManager.close('extras_'..key)
   local w,p=formWindow(names[key],heights[key]) w:setWidth(390)
   U.scrollbar(p)
@@ -252,6 +252,10 @@ function E.openSettings(key)
     U.numberInput(p,'Check delay (ms)',c.delay,0,10000,function(v) c.delay=v E.due.follow=nil end)
   elseif key=='bless' then
     U.textInput(p,'Command',c.command,function(v) c.command=v end)
+  elseif key=='killTarget' then
+    U.numberInput(p,'Target below HP%',c.hp,1,100,function(v) c.hp=v end)
+    U.spellPicker(p,'Spell',c.spell,function(v) c.spell=v end)
+    U.numberInput(p,'Delay (ms)',c.delay,0,10000,function(v) c.delay=v end)
   elseif key=='skin' then
     U.numberInput(p,'Tool ID',c.toolId,1,65535,function(v) c.toolId=v end)
     U.numberInput(p,'Delay (ms)',c.delay,0,10000,function(v) c.delay=v end)
@@ -267,7 +271,7 @@ local function nativeExtrasWindow()
   for _,entry in ipairs({{'food','Eat Food'},{'gold','Change Gold'},{'effects','Disable Magic Effects'},
     {'mount','Auto Mount'},{'idle','Anti Idle'},{'look','Display Item IDs On Look'},
     {'pm','Open Private Channel On PM'},{'training','Auto Training'},{'follow','Auto Follow Player'},
-    {'bless','Buy bless at login'},{'skin','Skin monsters'}}) do
+    {'bless','Buy bless at login'},{'skin','Skin monsters'},{'killTarget','Kill target'}}) do
     local key,label=entry[1],entry[2]
     local row=g_ui.createWidget('NexusIntegrationRow',p)
     row.name:setText(label) row.enabled:setOn(E.cfg[key].enabled)
@@ -524,6 +528,19 @@ function E.execute(context,action)
   return false
 end
 NexusBot.registerAction({id='extras_tool',name='Extras utility',execute=E.execute})
+function E.killRules(context)
+  local result={}
+  local kill=E.cfg.killTarget
+  local target=context.target
+  if kill and E.active('killTarget') and target and target~=context.player and not A.call(target,'isNpc',false)
+    and A.call(target,'getHealthPercent',100)>0 and A.call(target,'getHealthPercent',100)<kill.hp and kill.spell~=''
+    and not (PlayerStates and PlayerStates.Pz and context.player:hasState(PlayerStates.Pz)) then
+    result[#result+1]={id='extras:killTarget',enabled=true,type='targeted_spell',priority=1,
+      action={spell=kill.spell,target='target'},conditions={mode='AND',children={}},
+      advanced={requiresTarget=true,range=7,minimumDelay=kill.delay,onlyIfCooldownReady=true}}
+  end
+  return result
+end
 function E.rules(context)
   local result={}
   for _,key in ipairs({'food','gold','mount','idle','training','bless','skin'}) do
@@ -745,6 +762,7 @@ function E.init()
     follow={enabled=false,name='',mode='normal',distance=3,inLine=false,delay=300},
     channels={enabled=false},timers={enabled=false},channelDelay=10000})
   E.cfg.bless=E.cfg.bless or {enabled=false,command='!bless',delay=5000}
+  E.cfg.killTarget=E.cfg.killTarget or {enabled=false,hp=20,spell='',delay=200}
   E.cfg.skin=E.cfg.skin or {enabled=false,toolId=5908,delay=500,ids='4286 4272 4173 4011 4025 4047 4052 4057 4062 4112 4212 4321 4324 4327 10352 10356 10360 10364'}
   -- Existing explicitly enabled rules keep working when an older setup is loaded.
   for _,rule in ipairs(M.extraTimers.rules) do
@@ -793,11 +811,13 @@ category.init=function()
   M.extraTimers=config('extraTimers',{rules={}}) M.timerDue={} M.nextChannelMessage=0
   E.init()
   E.WallTimers.init()
+  NexusBot.Actions.registerProvider('killTarget',28,E.killRules)
   NexusBot.Actions.registerProvider('extraTimers',40,category.timerRules)
 end
 category.terminate=function()
   E.WallTimers.terminate()
   E.terminate()
+  NexusBot.Actions.unregisterProvider('killTarget')
   NexusBot.Actions.unregisterProvider('extraTimers') M.timerDue={} M.nextChannelMessage=0
 end
 

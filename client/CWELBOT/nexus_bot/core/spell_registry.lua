@@ -30,24 +30,26 @@ local realTibiaPresets={
   ['exori infir nia']={name='Tiger Clash',actionType='targeted_spell',minimumMonsters=1,range=1,mana=18},
   ['exori moe ico']={name='Physical Strike',actionType='targeted_spell',minimumMonsters=1,range=3,mana=20},
   ['exori ico scu']={name='Shield Bash',actionType='targeted_spell',minimumMonsters=1,range=1,mana=30},
-  ['exori scu']={name='Shield Slam',actionType='targeted_spell',minimumMonsters=1,range=1,mana=110},
+  ['exori scu']={name='Shield Slam',actionType='area_spell',minimumMonsters=1,range=1,mana=90},
   ['exori amp vis']={name='Lightning',actionType='targeted_spell',minimumMonsters=1,range=4,mana=60},
   ['exori amp kor']={name="Executioner's Throw",actionType='targeted_spell',minimumMonsters=1,range=5,mana=225},
   ['exori']={name='Berserk',actionType='area_spell',minimumMonsters=2,range=1,radius=1,mana=125},
   ['exori gran']={name='Fierce Berserk',actionType='area_spell',minimumMonsters=3,range=1,radius=1,mana=360},
   ['exori mas']={name='Groundshaker',actionType='area_spell',minimumMonsters=2,range=3,radius=3,mana=200},
   ['exori min']={name='Front Sweep',actionType='directional_spell',minimumMonsters=2,range=1,radius=2,mana=200},
-  ['exori dir moe']={name='Ethereal Barrage',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=135},
+  ['exori dir moe']={name='Ethereal Barrage',actionType='area_spell',minimumMonsters=1,range=7,mana=135},
+  ['exori dir san']={name='Divine Barrage',actionType='area_spell',minimumMonsters=1,range=7,mana=175},
+  ['exevo mort ora']={name='Death Echo',actionType='area_spell',minimumMonsters=1,range=7,mana=150},
   ['exori mas pug']={name='Flurry of Blows',actionType='area_spell',minimumMonsters=2,range=2,radius=2,mana=110},
   ['exori gran mas pug']={name='Greater Flurry of Blows',actionType='area_spell',minimumMonsters=3,range=2,radius=2,mana=300},
-  ['exori mas amp pug']={name='Thousand Fist Blows',actionType='area_spell',minimumMonsters=3,range=3,radius=3,mana=145},
+  ['exori mas amp pug']={name='Thousand Fist Blows',actionType='area_spell',minimumMonsters=1,range=7,mana=145},
   ['exori mas nia']={name='Sweeping Takedown',actionType='area_spell',minimumMonsters=2,range=2,radius=2,mana=195},
   ['exori gran mas nia']={name='Spiritual Outburst',actionType='area_spell',minimumMonsters=3,range=3,radius=3,mana=425},
   ['exevo vis lux']={name='Energy Beam',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=40},
   ['exevo gran vis lux']={name='Great Energy Beam',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=110},
   ['exevo max mort']={name='Great Death Beam',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=140},
-  ['exevo fur frigo']={name='Forked Glacier',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=180},
-  ['exevo fur tera']={name='Forked Thorns',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=180},
+  ['exevo fur frigo']={name='Forked Glacier',actionType='area_spell',minimumMonsters=1,range=7,mana=180},
+  ['exevo fur tera']={name='Forked Thorns',actionType='area_spell',minimumMonsters=1,range=7,mana=180},
   ['exevo vis hur']={name='Energy Wave',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=170},
   ['exevo flam hur']={name='Fire Wave',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=25},
   ['exevo frigo hur']={name='Ice Wave',actionType='directional_spell',minimumMonsters=2,range=5,radius=5,mana=25},
@@ -86,6 +88,9 @@ function NexusBot.Spells.getPreset(words)
     return copy
   end
   local spell=NexusBot.Spells.entries[key]
+  if spell and spell.category=='support' then
+    return {words=key,name=spell.name,source=spell.source,actionType='empowerment',range=7,mana=tonumber(spell.mana)}
+  end
   if spell and spell.category=='attack' then
     local targeted=spell.requiresTarget==true
     return {words=key,name=spell.name,source='Client SpellInfo',actionType=targeted and 'targeted_spell' or 'absolute_spell',
@@ -119,6 +124,7 @@ function NexusBot.Spells.countAffected(rule,context,radius)
 end
 
 local function category(info)
+  if info.category then return info.category end
   local spellType = tostring(info.type or ''):lower()
   local words = tostring(info.words or ''):lower()
   local name = tostring(info.name or ''):lower()

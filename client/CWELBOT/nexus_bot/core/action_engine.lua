@@ -91,7 +91,7 @@ function NexusBot.Actions.execute(rule, context)
   local offensive=context.providerId=='magic_shooter' or context.providerId=='combo'
   if offensive then
     if PlayerStates and PlayerStates.Pz and context.player:hasState(PlayerStates.Pz) then return false end
-    if rule.type~='empowerment' and rule.type~='item' then
+    if rule.type~='empowerment' and rule.type~='item' and rule.type~='custom_action' then
       context.areaPlan=NexusBot.Geometry.best(rule,context)
       if not context.areaPlan.valid then return false end
       if context.providerId=='magic_shooter' and not NexusBot.Conditions.compare(context.areaPlan.count,action.countOperator or '>=',tonumber(action.minimumHits) or 1) then return false end

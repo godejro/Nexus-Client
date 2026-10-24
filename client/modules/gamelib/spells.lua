@@ -311,6 +311,37 @@ SpellRunesData = {
     [21352] = {id = 7, group = 1, name = 'lightest missile rune', exhaustion = 2000}
 }
 
+-- 15.25 catalogue: costs/levels/cooldowns supplied by the server owner's table.
+-- IDs are from CrystalServer's spell definitions; atlas indices are NOT spell IDs.
+-- Leave unknown atlas slots unset rather than show another spell's icon.
+local nexus1525 = {
+    {315, 'Shield Bash', 'exori ico scu', 18, 30, 4, {4,8}, true},
+    {314, 'Divine Defiance', 'utori hur', 20, 250, 10, {3,7}, false, 'support'},
+    {304, 'Master of Flames', 'uteta flam', 20, 400, 30, {1,5}, false, 'support'},
+    {305, 'Master of Thunder', 'uteta vis', 20, 400, 30, {1,5}, false, 'support'},
+    {306, 'Master of Decay', 'uteta mort', 20, 400, 30, {1,5}, false, 'support'},
+    {309, 'Shared Conservation', 'utura sio', 20, 400, 10, {2,6}, false, 'support'},
+    {319, 'Elemental Synthesis', 'utito dru', 20, 400, 10, {2,6}, false, 'support'},
+    {316, 'Shield Slam', 'exori scu', 30, 90, 6, {4,8}},
+    {303, 'Ethereal Barrage', 'exori dir moe', 60, 135, 4, {3,7}},
+    {302, 'Divine Barrage', 'exori dir san', 70, 175, 4, {3,7}},
+    {318, 'Forked Thorns', 'exevo fur tera', 80, 180, 6, {2,6}},
+    {317, 'Forked Glacier', 'exevo fur frigo', 90, 180, 6, {2,6}},
+    {301, 'Thousand Fist Blows', 'exori mas amp pug', 120, 145, 8, {9,10}},
+    {310, 'Death Echo', 'exevo mort ora', 120, 150, 6, {1,5}},
+    {311, 'Aura of Sapped Strength', 'exori moe tempo', 175, 1500, 30, {1,5}, false, 'support'},
+    {312, 'Aura of Exposed Weakness', 'exori kor tempo', 175, 1500, 30, {1,5}, false, 'support'}
+}
+for _, s in ipairs(nexus1525) do
+    if not SpellInfo.Default[s[2]] then
+        SpellInfo.Default[s[2]] = {id=s[1], name=s[2], words=s[3], level=s[4], mana=s[5],
+            exhaustion=s[6]*1000, vocations=s[7], needTarget=s[8]==true,
+            category=s[9] or 'attack', group={[s[9]=='support' and 3 or 1]=2000},
+            type='Instant', soul=0, maglevel=0, premium=true, parameter=false,
+            range=s[3]=='exori ico scu' and 1 or 7, icon='', iconUnavailable=true, special=false, source=0}
+    end
+end
+
 Spells = {}
 
 function Spells.getSpellList()
@@ -590,6 +621,7 @@ function Spells.getIconFileByProfile(profile)
 end
 
 function Spells.getImageClip(indexClip, profile)
+    if not tonumber(indexClip) then return '0 0 0 0' end
     if profile == nil then
         profile = "Default"
     end
@@ -597,6 +629,7 @@ function Spells.getImageClip(indexClip, profile)
 end
 
 function Spells.getImageClipCooldown(indexClip, profile)
+    if not tonumber(indexClip) then return '0 0 0 0' end
     if profile == nil then
         profile = "Default"
     end

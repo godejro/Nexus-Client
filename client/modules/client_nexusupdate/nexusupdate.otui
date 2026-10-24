@@ -1,0 +1,51 @@
+MainWindow
+  id: nexusUpdateWindow
+  text: Nexus Client Update
+  size: 460 235
+  @onEscape: self:hide()
+  Label
+    id: heading
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 24
+    text: Nexus Client
+    text-align: center
+  Label
+    id: message
+    anchors.top: heading.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 36
+    text-wrap: true
+    text-align: center
+  ProgressBar
+    id: progress
+    anchors.top: message.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 18
+  Label
+    id: file
+    anchors.top: progress.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 36
+    text-wrap: true
+    text-align: center
+  Button
+    id: close
+    anchors.bottom: parent.bottom
+    anchors.right: parent.right
+    width: 90
+    text: Later
+    @onClick: self:getParent():hide()
+  Button
+    id: update
+    anchors.bottom: parent.bottom
+    anchors.right: close.left
+    margin-right: 8
+    width: 150
+    text: Check for updates

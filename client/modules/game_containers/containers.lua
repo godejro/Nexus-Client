@@ -990,9 +990,9 @@ function onContainerOpen(container, previousContainer)
     local lockButton = containerWindow:recursiveGetChildById('lockButton')
     local minimizeButton = containerWindow:recursiveGetChildById('minimizeButton')
     
-    -- Make sure contextMenuButton is visible
+    -- These title controls have no supported container action in Nexus.
     if contextMenuButton then
-        contextMenuButton:setVisible(true)
+        contextMenuButton:setVisible(false)
     end
     
     if contextMenuButton and minimizeButton then
@@ -1131,6 +1131,13 @@ function onContainerOpen(container, previousContainer)
     end
 
     containerWindow:setup()
+    -- setup restores the old miniwindow lock. Remove that UI lock, not the
+    -- server-owned Container::isUnlocked permission for its contents.
+    containerWindow:unlock()
+    for _,id in ipairs({'lockButton','contextMenuButton'}) do
+        local control=containerWindow:recursiveGetChildById(id)
+        if control then control:hide() end
+    end
     
     -- Apply current sorting mode if one is active and manual sort mode is disabled
     local currentSortMode = containerSettings and containerSettings['currentSortMode']

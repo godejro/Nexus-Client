@@ -10,6 +10,8 @@ G.masks={
   flurry={'00100','01110','01310','01010'}, greater_flurry={'00100','01110','01110','11311','01010'},
   sweeping={'01110','11111','11111','11311','11011'},
   burst={'000111000','001111100','011111110','111000111','111020111','111000111','011111110','001111100','000111000'},
+  diamond2={'00100','01110','11311','01110','00100'},
+  square2={'11111','11111','11311','11111','11111'},
   circle2={'01110','11111','11311','11111','01110'},
   circle3={'0011100','0111110','1111111','1113111','1111111','0111110','0011100'}
 }
@@ -31,6 +33,16 @@ G.spells={['exori']='adjacent',['exori gran']='adjacent',['exori min']='sweep',
   ['exevo gran mas frigo']='diamond5',['exevo gran mas tera']='diamond6',
   ['exori mas pug']='flurry',['exori gran mas pug']='greater_flurry',['exori mas nia']='sweeping',
   ['exevo ulus frigo']='burst',['exevo ulus tera']='burst'}
+G.spells['exori scu']='adjacent'
+G.spells['exevo fur frigo']='chain'
+G.spells['exevo fur tera']='chain'
+G.spells['exori dir moe']='diamond2'
+G.spells['exori dir san']='diamond2'
+-- Reference server footprints; variants can override them in Pattern.
+G.spells['exori mas amp pug']='circle3'
+G.spells['exevo mort ora']='square2'
+G.centered={['exori dir moe']=true,['exori dir san']=true,['exori mas amp pug']=true,['exevo mort ora']=true}
+G.chain={['exevo fur frigo']={targets=7,jump=5},['exevo fur tera']={targets=6,jump=5}}
 G.directional={['exori mas pug']=true,['exori gran mas pug']=true,['exori mas nia']=true}
 G.runes={[3161]='circle3',[3191]='circle3'}
 local function words(value) return tostring(value or ''):lower():gsub('^%s+',''):gsub('%s+$',''):gsub('%s+',' ') end
@@ -108,6 +120,7 @@ end
 function G.plan(rule,context,direction,center)
   local action=rule.action or {} local shape=G.shape(rule)
   local range=tonumber((rule.advanced or {}).range) or 5
+  if shape=='chain' then return G.chainPlan(rule,context) end
   if shape=='target' then
     local t=context.target local p=t and t:getPosition()
     local valid=p and distance(context.position,p)<=range and t:canShoot()
@@ -116,6 +129,10 @@ function G.plan(rule,context,direction,center)
   end
   local offsets=G.offsets(rule)
   if not offsets then return {valid=false,count=0,players=0,reason='Configure an exact area mask.'} end
+  if not center and G.centered[words(action.spell)] then
+    center=context.target and context.target:getPosition() or context.position
+    if distance(context.position,center)>range or not G.visible(context.position,center) then return {valid=false,count=0,players=0} end
+  end
   center=center or context.position direction=direction or 0
   if rule.type=='rune' and (distance(context.position,center)>range or not G.visible(context.position,center)) then return {valid=false,count=0,players=0} end
   local hits={}
@@ -129,6 +146,40 @@ function G.plan(rule,context,direction,center)
     if c~=context.player and p and p.z==center.z and hits[p.x..','..p.y] and G.visible(center,p) then
       if G.matchesMonster(rule,c) then result.count=result.count+1 elseif c:isPlayer() then result.players=result.players+1 end
     end
+  end
+  return result
+end
+-- A fork is not a cone. Predict nearest successive creatures, not tiles in a
+-- bounding square. Server-side PvP eligibility and unseen creatures are unknown;
+-- Avoid players therefore conservatively rejects any reachable player branch.
+function G.chainPlan(rule,context)
+  local spec=G.chain[words((rule.action or {}).spell)]
+  if not spec then return {valid=false,count=0,players=0} end
+  local range=tonumber((rule.advanced or {}).range) or 7
+  local candidates={} local seen={}
+  for _,c in ipairs(context.spectators or {}) do
+    if c~=context.player and (c:isMonster() or c:isPlayer()) and not seen[c:getId()] then
+      candidates[#candidates+1]=c seen[c:getId()]=true
+    end
+  end
+  if context.target and not seen[context.target:getId()] then candidates[#candidates+1]=context.target end
+  local visited={} local current=context.position
+  local result={valid=false,count=0,players=0,center=context.position}
+  for index=1,spec.targets do
+    local chosen,bestDistance
+    for _,c in ipairs(candidates) do
+      local p=c:getPosition()
+      if not visited[c:getId()] and distance(current,p)<=(index==1 and range or spec.jump) and G.visible(current,p) then
+        local d=(current.x-p.x)^2+(current.y-p.y)^2
+        if index==1 and c==context.target then d=-1 end
+        if not chosen or d<bestDistance or (d==bestDistance and c:getId()<chosen:getId()) then chosen,bestDistance=c,d end
+        if c:isPlayer() then result.players=result.players+1 end
+      end
+    end
+    if not chosen then break end
+    visited[chosen:getId()]=true current=chosen:getPosition() result.valid=true
+    if index==1 then result.center=current end
+    if G.matchesMonster(rule,chosen) then result.count=result.count+1 end
   end
   return result
 end

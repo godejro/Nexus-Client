@@ -11,7 +11,9 @@ try {
     $running=Get-Process -ErrorAction SilentlyContinue | Where-Object {
         try { $_.Path -and [IO.Path]::GetDirectoryName($_.Path) -eq $clientRoot } catch { $false }
     }
-    if (!$running) {
+    # New clients own the visible download/restart flow. Keep the old bootstrap
+    # only for installations that do not yet contain the in-client updater.
+    if (!$running -and ($CheckOnly -or !(Test-Path -LiteralPath (Join-Path $clientRoot 'modules/client_nexusupdate/nexusupdate.otmod')))) {
         [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
         $headers=@{'User-Agent'='Nexus-Updater';'Accept'='application/vnd.github+json'}
         $release=Invoke-RestMethod -Uri "https://api.github.com/repos/$repository/releases/latest" -Headers $headers -TimeoutSec 15
@@ -46,6 +48,6 @@ if(!$ready) { exit 3 }
 if(!$CheckOnly -and (Test-Path -LiteralPath $exe)) {
     if($Profile -and $Profile -notmatch '^[a-zA-Z0-9_.-]+$'){throw 'Invalid profile name.'}
     $argsList=if($Profile){@('--profile',$Profile)}else{@()}
-    if($argsList.Count){Start-Process -FilePath $exe -WorkingDirectory $clientRoot -ArgumentList $argsList}
-    else {Start-Process -FilePath $exe -WorkingDirectory $clientRoot}
+    if($argsList.Count){Start-Process -FilePath $exe -WorkingDirectory $clientRoot -ArgumentList $argsList -WindowStyle Hidden}
+    else {Start-Process -FilePath $exe -WorkingDirectory $clientRoot -WindowStyle Hidden}
 }
