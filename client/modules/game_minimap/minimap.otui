@@ -11,6 +11,8 @@ PhantomMiniWindow
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
+    margin-left: 8
+    margin-right: 4
     height: 17
     image-source: /images/ui/miniwindow_header
     image-border: 4
@@ -30,7 +32,7 @@ PhantomMiniWindow
     margin-right: 4
     margin-top: 1
     size: 28 15
-    text: >
+    text: <
     @onClick: toggleWideMinimap()
 
   UIWidget

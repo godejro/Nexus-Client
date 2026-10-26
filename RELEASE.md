@@ -1,16 +1,18 @@
-# Nexus Client v2026.10.23.2
+# Nexus Client v2026.10.26.1
 
-Poprawiona zgodność aktualizatora ze starszym launcherem v2026.10.22.2: nowe tryby działają w istniejących plikach Start-Nexus.ps1 / Update-Library.ps1, bez nowej niedozwolonej ścieżki. Pozostałe poprawki są takie same jak w v2026.10.23.1.
+- Natywny aktualizator: małe Checking for updates przy starcie, automatyczne pobieranie, MB/s, weryfikacja SHA256, instalacja i restart przed logowaniem. Nowy klient nie uruchamia CMD ani PowerShella. Starszy launcher pozostaje do migracji ze starszych wydań.
+- 16 poprawnych ikon nowych czarów w kliencie, Action Bar i Magic Shooterze; nowe niebiesko-czarne tło logowania.
+- Magical Archive: filtry profesji/grupy/poziomu, wyszukiwanie nazw i słów, Combat Stats/Additional, dane referencyjne 149 czarów i 133 efekty do podglądu z aktywnych assetów. Parametry własnego serwera mogą się różnić; nieznane pola pozostają puste.
+- Sell All u NPC z zapisywanymi wykluczeniami ID. Cyclopedia uwzględnia nowe strzały, potiony i reward bags, jeżeli znajdują się w assetach serwera.
+- Tryby walki po lewej stronie ekwipunku, węższy nagłówek minimapy i regulacja wysokości dolną krawędzią.
+- Węższe główne okno CWEL BOT, animowane przełączniki kategorii, bez głównego ON. Alarms ze wspólnym repeat; nowe reguły Equipment z zakresem HP/MP 0–100%.
+- Magic Shooter nie nalicza pełnego cooldownu za samo wysłanie odrzuconego czaru, gdy dostępne są potwierdzenia serwera. Jawne opóźnienia i prawdziwe cooldowny pozostają respektowane.
+- Wall Keeper i Flower Block wykonują akcje po zakończeniu modyfikacji tile; poprawiona obsługa zajętych pól, odrzuconych użyć i wyłączenia funkcji. Smart Push nie kontynuuje po odrzuconej runie. Combo jako zwykłe ON/Edit w PvP.
+- CaveBot: edycja supplies bez OFF, Auto Navigate po odkrytej mapie, środkowane etykiety waypointów i półprzezroczyste niebieskie pola trasy.
+- Poprawiona granica wyjątków C++/LuaJIT; wyjątek zasobu nie rozwija stosu Lua wewnątrz aktywnego catch C++.
 
-- Aktualizator w oknie klienta: Update, postęp pobierania/sprawdzania plików, Restart and install. Instalacja dopiero po wylogowaniu i zamknięciu procesu; backup i SHA256 pozostają aktywne.
-- 16 nowych czarów z tabeli 15.25, poprawiona obsługa łańcuchowych Forked Glacier/Thorns, czarów wokół celu oraz dosłownego Custom Spell.
-- CaveBot: wybrane miejsce wstawienia waypointa, zachowany scroll, current position, Supply/Position check, Use z opóźnieniem, Depot/Inbox withdraw all, Sell po ID, Auto navigate. Błąd akcji nie wyłącza kategorii.
-- Targeting: edycja bez OFF, Stand/Chase/Keep distance, dokładny dystans, otwieranie pobliskich ciał podczas walki przed ruchem.
-- Combo bez dodatkowego oczekiwania na timer; bez Avoid players. Extras: Kill target z własnym priorytetem przed Magic Shooterem.
-- Przywracanie ustawień podfunkcji, ID, czarów i delayów; główne kategorie startują OFF. Usunięte przyciski kłódki/menu plecaków.
+Testy: 45 testów C++, testy LuaJIT botów/updatera/NPC/cooldownów, natywny start i edytory bez logowania, 100 błędów zasobu C++/Lua, HTTP GitHub, instalacja prawdziwego nowego EXE nad poprzednim wraz z restartem, rollback przy zablokowanym pliku. Testy zachowują konfiguracje i assety w standardowych data/things/<wersja> i data/sounds/<wersja>.
 
-Testy: 13 zestawów LuaJIT, natywne offline UI, komunikacja klient–pomocnik aktualizacji, instalacja 2795 plików w izolowanym katalogu, SHA256/ochrona prywatnych plików/rollback. Bez logowania i testu walki na serwerze.
+Ważne: prawdziwy losowy timer MW/WG można pokazać tylko wtedy, gdy serwer przesyła czas danego przedmiotu. Nie potwierdzono tego dla Vantorii; klient nie zgaduje 20 sekund. Nie odtworzono dokładnego zgłoszonego crasha Wall Keeper podczas gry. Rzucanie czarów, PvP, wygląd animacji i trasy w rzeczywistej sesji wymagają testu na konkretnym serwerze. Magical Archive jest rozszerzonym widokiem referencyjnym, a nie pełną kopią serwerowego katalogu Tibii.
 
-Ograniczenia: nowe czary bez potwierdzonego indeksu atlasu mają pustą ikonę. Maski i ID protokołu nowych czarów są referencyjne — customowe serwery mogą je zmieniać. Rzeczywiste obszary na Vantorii, dialog bankiera i Combo dwóch graczy wymagają testu użytkownika. Ping i cooldowny serwera nadal obowiązują.
-
-Wymagana istniejąca instalacja z assetami serwera. Paczka nie zawiera kont, ustawień graczy, prywatnych skryptów ani assetów. Nie zmienia EXE ani silnika synchronizacji. U starszej instalacji uruchom launcher raz, aby otrzymać aktualizator wbudowany w klienta.
+Aktualizacja zawiera program i CWEL BOT. Nie zawiera kont, ustawień graczy, prywatnych skryptów ani assetów serwerów. Wymagana istniejąca instalacja z assetami. Uruchamiaj Nexus Client.exe; ze starego wydania zaktualizuj program raz przez dotychczasowy updater/launcher.

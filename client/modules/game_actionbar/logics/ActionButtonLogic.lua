@@ -1088,15 +1088,14 @@ function updateButton(button)
         local spellData, param = Spells.getSpellDataByParamWords(sendText:lower())
         if spellData then
             local spellId = spellData.clientId
-            if not spellId then
+            if not spellId and not spellData.iconSource then
                 print("Warning Spell ID not found L734 modules/game_actionbar/logics/ActionButtonLogic.lua")
                 return
             end
             local source = SpelllistSettings['Default'].iconFile
             local clip = Spells.getImageClip(spellId, 'Default')
 
-            button.item.text:setImageSource(source)
-            button.item.text:setImageClip(clip)
+            Spells.applyIcon(button.item.text,spellData,'Default')
             button.cache.isSpell = true
             button.cache.spellID = spellData.id
             button.cache.spellData = spellData

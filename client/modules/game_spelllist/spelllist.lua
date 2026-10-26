@@ -81,7 +81,7 @@ end
 
 function online()
     if g_game.getFeature(GameSpellList) and not spelllistButton then
-        spelllistButton = modules.game_mainpanel.addToggleButton('spelllistButton', tr('Spell List'),
+        spelllistButton = modules.game_mainpanel.addToggleButton('spelllistButton', tr(g_game.getClientVersion()>=1500 and 'Magical Archive' or 'Spell List'),
         '/images/options/button_spells', toggle, false, 4)
         spelllistButton:setOn(false)
     end
@@ -227,15 +227,14 @@ function initializeSpelllist()
             tmpLabel:setPhantom(false)
 
             local iconId = tonumber(info.clientId)
-            if not iconId and not info.iconUnavailable then
+            if not iconId and not info.iconUnavailable and not info.iconSource then
                 perror('Spell icon \'' .. info.icon .. '\' not found.')
             end
 
             tmpLabel:setHeight(SpelllistSettings[SpelllistProfile].iconSize.height + 4)
             tmpLabel:setTextOffset(topoint((SpelllistSettings[SpelllistProfile].iconSize.width + 10) .. ' ' ..
                                                (SpelllistSettings[SpelllistProfile].iconSize.height - 32) / 2 + 3))
-            tmpLabel:setImageSource(SpelllistSettings[SpelllistProfile].iconFile)
-            tmpLabel:setImageClip(Spells.getImageClip(iconId, SpelllistProfile))
+            Spells.applyIcon(tmpLabel, info, SpelllistProfile)
             tmpLabel:setImageSize(tosize(SpelllistSettings[SpelllistProfile].iconSize.width .. ' ' ..
                                              SpelllistSettings[SpelllistProfile].iconSize.height))
             tmpLabel.onClick = updateSpellInformation
@@ -373,6 +372,11 @@ function selectDefaultVocation(dontSignal)
 end
 
 function toggle()
+    if g_game.getClientVersion()>=1500 and modules.game_cyclopedia and modules.game_cyclopedia.Cyclopedia then
+        modules.game_cyclopedia.Cyclopedia.openTab('magicalArchives')
+        return
+    end
+    if not spelllistButton then return end
     if spelllistButton:isOn() then
         spelllistButton:setOn(false)
         spelllistWindow:hide()

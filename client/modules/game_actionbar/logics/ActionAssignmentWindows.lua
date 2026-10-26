@@ -58,8 +58,8 @@ function assignSpell(button, multiSlotIndex)
             widget:setText(spellName .. "\n" .. spellData.words)
             widget.voc = spellData.vocations
             widget.param = spellData.parameter
-            widget.source = defaultIconsFolder
-            widget.clip = clip
+            widget.source = spellData.iconSource or defaultIconsFolder
+            widget.clip = spellData.iconSource and '0 0 32 32' or clip
             widget.image:setImageSource(widget.source)
             widget.image:setImageClip(widget.clip)
             if spellData.level then
@@ -103,13 +103,12 @@ function assignSpell(button, multiSlotIndex)
     if preselectSpellData then
         local spellData = preselectSpellData
         local spellId = spellData.clientId
-        if not spellId then
+        if not spellId and not spellData.iconSource then
             print("Warning Spell ID not found L81 modules/game_actionbar/logics/ActionAssignmentWindows.lua")
             return
         end
         local clip = Spells.getImageClip(spellId, 'Default')
-        imageWidget:setImageSource(defaultIconsFolder)
-        imageWidget:setImageClip(clip)
+        Spells.applyIcon(imageWidget,spellData,'Default')
         paramLabel:setOn(spellData.parameter)
         paramText:setEnabled(spellData.parameter)
         if spellData.parameter and preselectCastParam then
@@ -198,8 +197,8 @@ function assignSpell(button, multiSlotIndex)
             widget:setText(spellName .. "\n" .. spellData.words)
             widget.voc = spellData.vocations
             widget.param = spellData.parameter
-            widget.source = defaultIconsFolder
-            widget.clip = clip
+            widget.source = spellData.iconSource or defaultIconsFolder
+            widget.clip = spellData.iconSource and '0 0 32 32' or clip
             widget.image:setImageSource(widget.source)
             widget.image:setImageClip(widget.clip)
             if spellData.level then

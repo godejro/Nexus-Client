@@ -210,7 +210,7 @@ rules=function(profile) profile.rules=profile.rules or {} return profile.rules e
 create=function(profile)
   local list=rules(profile)
   local rule={id=NexusBot.id('equipment'),type='equip',enabled=true,priority=#list+1,
-    action={itemId=0,tier=0,slot=InventorySlotFinger},conditions={mode='AND',children={{type='health_percent',operator='between',value=0,value2=55},{type='mana_percent',operator='between',value=35,value2=100}}},
+    action={itemId=0,tier=0,slot=InventorySlotFinger},conditions={mode='AND',children={{type='health_percent',operator='between',value=0,value2=100},{type='mana_percent',operator='between',value=0,value2=100}}},
     advanced={minimumDelay=300,customDelay=0,onlyIfCooldownReady=false}}
   list[#list+1]=rule return rule
 end

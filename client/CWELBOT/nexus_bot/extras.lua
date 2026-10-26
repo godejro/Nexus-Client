@@ -59,7 +59,7 @@ end
 timerWindow=function(channel)
   local key=channel and 'channels_manager' or 'timer_actions'
   NexusBot.WindowManager.close(key)
-  local w,p=formWindow(channel and 'CHANNELS MANAGER' or 'TIMER ACTIONS',channel and 420 or 370) w:setWidth(460)
+  local w,p=formWindow(channel and 'CHANNELS MANAGER' or 'TIMER ACTIONS',channel and 300 or 260) w:setWidth(370)
   U.scrollbar(p)
   local group=channel and 'channels' or 'timers'
   local enabled=U.toggle(p,'Enabled',E.cfg[group].enabled,function(v) E.setTool(group,v) end)
@@ -282,7 +282,13 @@ local function nativeExtrasWindow()
   end
   U.button(p,'Channels Manager',function() return timerWindow(true) end)
   U.button(p,'Timer Actions',function() return timerWindow(false) end)
-  U.button(p,'Show MW/WG Timers',function() E.WallTimers.open() end)
+  local walls=g_ui.createWidget('NexusIntegrationRow',p)
+  walls.name:setText('Show MW/WG Timers') walls.enabled:setOn(E.WallTimers.config().enabled==true)
+  walls.enabled.onClick=function()
+    local cfg=E.WallTimers.config() cfg.enabled=not cfg.enabled
+    walls.enabled:setOn(cfg.enabled) E.WallTimers.register() NexusBot.Storage.touch()
+  end
+  walls.edit.onClick=function() E.WallTimers.open() end
   ownTimer(w,function() for _,entry in ipairs(toggles) do entry.widget:setOn(E.cfg[entry.key].enabled==true) end end)
   return w
 end
@@ -834,7 +840,7 @@ function WT.clear()
     local tile=g_map and g_map.getTile(entry.position)
     if tile and entry.text and tile:getText()==entry.text then tile:setText('') end
   end
-  WT.entries={} WT.sequence=nil
+  WT.entries={} WT.sequence=nil WT.nativeSeen={} WT.nextScan=0
 end
 function WT.receive(message)
   local cfg=WT.config()
@@ -873,8 +879,11 @@ function WT.receive(message)
   return true
 end
 function WT.tick()
-  if not WT.config().enabled or not g_game.isOnline() then WT.clear() return end
+  if not NexusBot.enabled or not category.getEnabled() or not WT.config().enabled or not g_game.isOnline() then WT.clear() return end
   local now=NexusBot.now()
+  -- GameThingClock carries a per-item U32 duration only for expiring item types.
+  -- Never infer an expiry from appearance, local standard tile timers or Look.
+  if now>=(WT.nextScan or 0) then WT.nextScan=now+250 WT.scanNative() end
   for key,entry in pairs(WT.entries) do
     local tile=g_map.getTile(entry.position) local exists=false
     for _,item in ipairs(A.call(tile,'getItems',{})) do if item:getId()==entry.itemId then exists=true break end end
@@ -886,6 +895,30 @@ function WT.tick()
       entry.text=string.format('%.1f s',math.max(0,entry.expires-now)/1000) tile:setText(entry.text)
     end
   end
+end
+function WT.scanNative()
+  if not g_game.getFeature or not GameThingClock or not g_game.getFeature(GameThingClock) then return end
+  local pos=A.position() if not pos then return end
+  local ids=E.ids(WT.config().ids) local seen={} local now=NexusBot.now()
+  WT.nativeSeen=WT.nativeSeen or {}
+  for x=pos.x-9,pos.x+9 do for y=pos.y-7,pos.y+7 do
+    local tile=g_map.getTile({x=x,y=y,z=pos.z})
+    for _,item in ipairs(A.call(tile,'getItems',{})) do
+      if ids[item:getId()] then
+        local p={x=x,y=y,z=pos.z} local key=A.key(p) seen[key]=true
+        local clock=A.call(item,'hasClockExpire',false) or A.call(item,'hasExpire',false)
+        local duration=clock and tonumber(A.call(item,'getDurationTime',0)) or 0
+        local old=WT.nativeSeen[key]
+        if duration>0 and duration<=600 and (not old or old.item~=item or old.duration~=duration) then
+          WT.nativeSeen[key]={item=item,duration=duration}
+          local previous=WT.entries[key]
+          WT.entries[key]={position=p,instance='native',itemId=item:getId(),received=now,
+            expires=now+duration*1000,seen=true,text=previous and previous.text,source='GameThingClock'}
+        end
+      end
+    end
+  end end
+  for key in pairs(WT.nativeSeen) do if not seen[key] then WT.nativeSeen[key]=nil end end
 end
 function WT.register()
   if WT.opcode then ProtocolGame.unregisterExtendedOpcode(WT.opcode) WT.opcode=nil end
@@ -900,10 +933,8 @@ function WT.register()
   if ok then WT.opcode=opcode else cfg.enabled=false NexusBot.Logger.warn('Wall timers','Opcode unavailable: '..tostring(err)) end
 end
 function WT.open()
-  local w,p=formWindow('SHOW MW/WG TIMERS',180) w:setWidth(360) U.scrollbar(p)
+  local w,p=formWindow('SHOW MW/WG TIMERS',95) w:setWidth(330)
   local cfg=WT.config()
-  U.toggle(p,'Server timers',cfg.enabled,function(v) cfg.enabled=v WT.register() end)
-  U.numberInput(p,'Server opcode (0 = unset)',cfg.opcode,0,255,function(v) cfg.opcode=v WT.register() end)
   U.textInput(p,'Wall item IDs',cfg.ids,function(v) cfg.ids=v WT.clear() end)
   return NexusBot.WindowManager.attach('extras_wall_timers',w)
 end

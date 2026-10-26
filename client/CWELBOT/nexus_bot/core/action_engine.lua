@@ -2,14 +2,15 @@ NexusBot.Actions = { providers = {}, lastUse = {}, lastSignature = {}, loop = ni
 local A=NexusBot.Actions
 A.serverSpells, A.serverGroups, A.sentGroups = {}, {}, {}
 A.turns={}
+A.receivesCooldowns=false
 
 function A.init()
   if A.connections then return end
   A.connections={
-    onSpellCooldown=function(id,duration) A.serverSpells[tonumber(id)]=NexusBot.now()+duration end,
-    onSpellGroupCooldown=function(id,duration) A.serverGroups[tonumber(id)]=NexusBot.now()+duration end,
+    onSpellCooldown=function(id,duration) A.receivesCooldowns=true A.serverSpells[tonumber(id)]=NexusBot.now()+duration end,
+    onSpellGroupCooldown=function(id,duration) A.receivesCooldowns=true A.serverGroups[tonumber(id)]=NexusBot.now()+duration end,
     onGameEnd=function()
-      A.serverSpells={} A.serverGroups={} A.sentGroups={} A.lastUse={} A.lastSignature={} A.turns={}
+      A.serverSpells={} A.serverGroups={} A.sentGroups={} A.lastUse={} A.lastSignature={} A.turns={} A.receivesCooldowns=false
       if NexusBot.Features and NexusBot.Features.EquipmentManager then NexusBot.Features.EquipmentManager.slotLocks={} end
     end
   }
@@ -40,7 +41,12 @@ local function cooldown(rule)
   local delay = (tonumber(advanced.minimumDelay) or 0) + (tonumber(advanced.customDelay) or 0)
   if rule.type=='empowerment' then delay=math.max(delay,tonumber(advanced.buffDuration) or 10000) end
   local spell = rule.action and NexusBot.Spells.get(rule.action.spell)
-  if advanced.onlyIfCooldownReady ~= false and spell and spell.cooldown then delay = math.max(delay, tonumber(spell.cooldown) or 0) end
+  if advanced.onlyIfCooldownReady ~= false and spell and spell.cooldown then
+    -- Sending speech is not confirmation that the server accepted the cast.
+    -- Cooldown packets gate accepted casts; a rejected request must remain retryable.
+    local serverTimers=A.receivesCooldowns or (GameSpellList and g_game.getFeature and g_game.getFeature(GameSpellList))
+    delay=math.max(delay,serverTimers and 250 or (tonumber(spell.cooldown) or 0))
+  end
   return math.max(50, delay)
 end
 

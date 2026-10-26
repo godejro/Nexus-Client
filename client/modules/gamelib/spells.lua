@@ -338,7 +338,8 @@ for _, s in ipairs(nexus1525) do
             exhaustion=s[6]*1000, vocations=s[7], needTarget=s[8]==true,
             category=s[9] or 'attack', group={[s[9]=='support' and 3 or 1]=2000},
             type='Instant', soul=0, maglevel=0, premium=true, parameter=false,
-            range=s[3]=='exori ico scu' and 1 or 7, icon='', iconUnavailable=true, special=false, source=0}
+            range=s[3]=='exori ico scu' and 1 or 7, icon='',
+            iconSource='/images/spells/nexus/'..s[1], special=false, source=0}
     end
 end
 
@@ -618,6 +619,24 @@ end
 
 function Spells.getIconFileByProfile(profile)
     return SpelllistSettings[profile]['iconFile']
+end
+
+-- Individual supplied icons do not share the legacy atlas indices.
+function Spells.applyIcon(widget, spell, profile, cooldown)
+    if not widget or not spell then return false end
+    if spell.iconSource then
+        widget:setImageSource(spell.iconSource)
+        widget:setImageClip('0 0 32 32')
+        return true
+    end
+    profile=profile or 'Default'
+    if not tonumber(spell.clientId) then
+        widget:setImageSource('')
+        return false
+    end
+    widget:setImageSource(cooldown and SpelllistSettings[profile].iconsForGameCooldown or Spells.getIconFileByProfile(profile))
+    widget:setImageClip(cooldown and Spells.getImageClipCooldown(spell.clientId,profile) or Spells.getImageClip(spell.clientId,profile))
+    return true
 end
 
 function Spells.getImageClip(indexClip, profile)

@@ -8,7 +8,6 @@ local R=M.bindings
 local H=M.shared
 local safe=H.safe
 local alarmSound
-local additionalWindow
 local config=H.config
 local isAlive=H.isAlive
 local ownTimer=H.ownTimer
@@ -22,8 +21,9 @@ local bindRuntime=H.bindRuntime
 
 local function alarmsWindow()
   local c=M.alarms
-  local w,p=formWindow('ALARMS',300)
-  w:setWidth(310)
+  local w,p=formWindow('ALARMS',680)
+  w:setWidth(330) U.scrollbar(p)
+  U.numberInput(p,'Repeat ms',c.delay,1500,60000,function(v) c.delay=v M.lastAlarm={} NexusBot.Storage.touch() end)
   local function threshold(label,key,metric)
     local toggle=U.toggle(p,label,c[key],function(v) c[key]=v end)
     local input=g_ui.createWidget('NexusNumberInput',toggle.container)
@@ -48,23 +48,13 @@ local function alarmsWindow()
   U.button(p,'Friend List',function()
     U.editNames('Friend List',c.friends,function(value) c.friends=value end)
   end)
-  U.button(p,'Additional alarms',additionalWindow)
-  w:setHeight(335)
-  return w
-end
-
-additionalWindow=function()
-  NexusBot.WindowManager.close('additional_alarms')
-  local c=M.alarms
-  local w,p=formWindow('ADDITIONAL ALARMS',440) w:setWidth(350)
   for _,entry in ipairs({{'damage','Damage taken'},{'creatureSeen','Creature detected'},{'enemySeen','Enemy guild'},{'skullSeen','Skull detected'},
     {'privateMessage','Private message'},{'localMessage','Local chat'},{'walkerStuck','Walker stuck'},{'unjustified','Unjustified points increased'},{'ignoreAllies','Ignore party / guild'}}) do
     local key=entry[1] U.toggle(p,entry[2],c[key],function(v) c[key]=v end)
   end
   U.button(p,'Creature names',function() U.editNames('Creature names',c.creatures,function(v) c.creatures=v end) end)
   U.numberInput(p,'Stuck seconds',c.stuckSeconds,3,120,function(v) c.stuckSeconds=v end)
-  U.numberInput(p,'Repeat ms',c.delay,1500,60000,function(v) c.delay=v end)
-  NexusBot.WindowManager.attach('additional_alarms',w) return w
+  return w
 end
 
 M.windows.alarmsWindow=alarmsWindow

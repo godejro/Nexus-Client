@@ -9,8 +9,21 @@ local oldBuyChild = nil
 local oldSaleChild = nil
 
 local currencyNames = { [3031]='gold coin', [3035]='platinum coin', [3043]='crystal coin' }
+-- Appearances may exist without the market flag (especially reward bags).
+-- Match names in the active server assets, never assume official IDs on an OTS.
+local supplementalItems={
+    ['bag you desire']={4,0},['bag you covet']={4,0},['primal bag']={4,0},
+    ['firestorm arrow']={16,125},['froststorm arrow']={16,125},
+    ['terrastorm arrow']={16,125},['thunderstorm arrow']={16,125},['shatterstorm arrow']={16,50},
+    ['superior mana potion']={10,100},['distilled superior mana potion']={10,130},['distilled ultimate mana potion']={10,200}
+}
 local function itemMarketData(data)
     local market = data:getMarketData()
+    local name=(data:getName() or ''):lower()
+    local extra=supplementalItems[name]
+    if extra and (not market.name or market.name=='') then
+        return {name=name,category=extra[1],restrictVocation=0,requiredLevel=extra[2],showAs=data:getId(),tradeAs=data:getId()}
+    end
     if currencyNames[data:getId()] and (not market.name or market.name == '') then
         return {name=currencyNames[data:getId()], category=30, restrictVocation=0,
                 requiredLevel=0, showAs=data:getId(), tradeAs=data:getId()}
@@ -1109,6 +1122,11 @@ function Cyclopedia.loadItemsCategories()
     Cyclopedia.ItemList = {}
     local seen = {}
     for _, data in pairs(types) do seen[data:getId()] = true end
+    for _,data in pairs(g_things.getThingTypes(ThingCategoryItem)) do
+        if data and supplementalItems[(data:getName() or ''):lower()] and not seen[data:getId()] then
+            types[#types+1]=data seen[data:getId()]=true
+        end
+    end
     -- Coins are valid appearances but normally have no market flag.
     for id, name in pairs(currencyNames) do
         if not seen[id] then

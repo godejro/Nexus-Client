@@ -204,8 +204,26 @@ NexusProfileRow < UIWidget
     color: #dceaff
     phantom: true
 
+NexusPowerSwitch < UIWidget
+  size: 34 18
+  image-source: @NEXUS_ASSETS@/button
+  image-border: 9
+  focusable: false
+  $on:
+    image-source: @NEXUS_ASSETS@/selected
+  UIWidget
+    id: dot
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 2
+    size: 14 14
+    image-source: /images/ui/checkboxcircle
+    image-clip: 0 12 12 12
+    image-smooth: true
+    phantom: true
+
 NexusNavigationRow < UIWidget
-  height: 35
+  height: 32
   image-source: @NEXUS_ASSETS@/surface
   image-border: 12
   $hover:
@@ -214,8 +232,8 @@ NexusNavigationRow < UIWidget
     id: icon
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
-    margin-left: 12
-    size: 22 22
+    margin-left: 8
+    size: 18 18
     image-smooth: true
     phantom: true
   Label
@@ -223,16 +241,17 @@ NexusNavigationRow < UIWidget
     anchors.left: icon.right
     anchors.right: power.left
     anchors.verticalCenter: parent.verticalCenter
-    margin-left: 8
-    margin-right: 8
+    margin-left: 6
+    margin-right: 3
+    font: Verdana-9px
     color: #d1e0f3
     phantom: true
-  NexusToggle
+  NexusPowerSwitch
     id: power
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
     margin-right: 6
-    size: 38 23
+    size: 34 18
 
 NexusConditionRow < UIWidget
   height: 60

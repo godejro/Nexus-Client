@@ -31,6 +31,7 @@ local ignoreCapacity = nil
 local ignoreEquipped = nil
 local showAllItems = nil
 local sellAllButton = nil
+local sellExclusions = nil
 
 local playerFreeCapacity = 0
 local playerMoney = 0
@@ -63,6 +64,9 @@ function controllerNpcTrader:legacy_init()
     ignoreEquipped = npcWindow:recursiveGetChildById('ignoreEquipped')
     showAllItems = npcWindow:recursiveGetChildById('showAllItems')
     sellAllButton = npcWindow:recursiveGetChildById('sellAllButton')
+    sellExclusions = npcWindow:recursiveGetChildById('sellExclusions')
+    sellExclusions:setText(self:getSellExclusionsText())
+    sellExclusions.onTextChange=function(_,text) self:setSellExclusionsText(text) end
 
     buyTab = npcWindow:getChildById('buyTab')
     sellTab = npcWindow:getChildById('sellTab')
@@ -150,6 +154,7 @@ function onTradeTypeChange(radioTabs, selected, deselected)
     ignoreEquipped:setVisible(currentTradeType == SELL)
     showAllItems:setVisible(currentTradeType == SELL)
     sellAllButton:setVisible(currentTradeType == SELL)
+    sellExclusions:setVisible(currentTradeType == SELL)
 
     refreshTradeItems()
     refreshPlayerGoods()
@@ -549,12 +554,22 @@ function getBuyItemsLegacy()
     return tradeItems[BUY] or {}
 end
 
-function sellAllLegacy()
-    for itemid, item in pairs(playerItems) do
-        local item = Item.create(itemid)
-        local amount = getSellQuantityLegacy(item)
-        if amount > 0 then
-            g_game.sellItem(item, amount, ignoreEquipped:isChecked())
+function sellAllLegacy(exclusions, explicitExclusions)
+    if type(explicitExclusions)=='table' then exclusions=explicitExclusions end
+    exclusions=type(exclusions)=='table' and exclusions or controllerNpcTrader:getSellExclusions()
+    if not exclusions then return end
+    local seen={}
+    for _,offer in pairs(tradeItems[SELL]) do
+        local item=offer.ptr or offer.item
+        if item and not seen[item:getId()] and not table.find(exclusions,item:getId()) then
+            seen[item:getId()]=true
+            local amount=getSellQuantityLegacy(item)
+            local limit=g_game.getFeature(GameDoubleShopSellAmount) and 10000 or 100
+            while amount>0 do
+                local count=math.min(amount,limit)
+                g_game.sellItem(item,count,ignoreEquipped:isChecked())
+                amount=amount-count
+            end
         end
     end
 end

@@ -1,6 +1,6 @@
 NexusWindow
   id: nexusLauncher
-  size: 296 642
+  size: 254 600
   padding-top: 16
   text:
   Panel
@@ -8,7 +8,7 @@ NexusWindow
     anchors.left: parent.left
     anchors.top: parent.top
     anchors.right: parent.right
-    margin-right: 78
+    margin-right: 30
     height: 34
     phantom: true
     Label
@@ -40,12 +40,6 @@ NexusWindow
     anchors.verticalCenter: brand.verticalCenter
     text: x
     color: #ef6575
-  NexusToggle
-    id: power
-    anchors.right: closeButton.left
-    anchors.verticalCenter: brand.verticalCenter
-    margin-right: 4
-    size: 42 26
   UIWidget
     id: line
     anchors.top: brand.bottom

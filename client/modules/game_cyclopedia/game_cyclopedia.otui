@@ -197,6 +197,25 @@ MainWindow
         image-clip: 0 34 34 34
         image-source: /images/game/cyclopedia/bossSlot_off
 
+    UIButton
+      id: magicalArchives
+      anchors.top: prev.top
+      anchors.left: prev.right
+      margin-left: 1
+      size: 34 34
+      image-source: /images/options/button_spells
+      image-size: 26 26
+      image-offset: 4 4
+      text-align: right-center
+      tooltip: Magical Archive
+      @onClick: SelectWindow('magicalArchives')
+      $on:
+        width: 155
+        text: Magical Archive
+      $!on:
+        width: 34
+        text:
+
   UIWidget
     id: contentContainer
     anchors.top: prev.bottom

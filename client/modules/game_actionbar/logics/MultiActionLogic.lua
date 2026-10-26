@@ -267,12 +267,11 @@ local function renderSlotOnWidget(widget, slotData, isMainButton)
         local spellData, param = Spells.getSpellDataByParamWords(slotData["chatText"]:lower())
         if spellData then
             local spellId = spellData.clientId
-            if spellId then
+            if spellId or spellData.iconSource then
                 local source = SpelllistSettings['Default'].iconFile
                 local clip = Spells.getImageClip(spellId, 'Default')
                 widget.item.text:setText("")
-                widget.item.text:setImageSource(source)
-                widget.item.text:setImageClip(clip)
+                Spells.applyIcon(widget.item.text,spellData,'Default')
             end
             widget.cache.isSpell = true
             widget.cache.spellID = spellData.id

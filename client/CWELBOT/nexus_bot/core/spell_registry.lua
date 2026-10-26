@@ -147,7 +147,7 @@ function NexusBot.Spells.init()
           type = info.type, category = category(info), mana = info.mana, soul = info.soul,
             cooldown = info.exhaustion, groups = NexusBot.copy(info.group or {}),
             range = info.range, requiresTarget = info.needTarget,
-          vocations = NexusBot.copy(info.vocations or {}), clientId = info.clientId,
+          vocations = NexusBot.copy(info.vocations or {}), clientId = info.clientId, iconSource = info.iconSource,
           profile = profileName, source = 'SpellInfo'
         }
         NexusBot.Spells.entries[key] = entry
@@ -197,9 +197,13 @@ end
 function NexusBot.Spells.applyIcon(widget, spell)
   local settings = SpelllistSettings or (modules.gamelib and modules.gamelib.SpelllistSettings)
   local spellApi = Spells or (modules.gamelib and modules.gamelib.Spells)
-  if not widget or not spell or not spell.clientId or not settings or not settings[spell.profile] or not spellApi then return false end
-  widget:setImageSource(spellApi.getIconFileByProfile(spell.profile))
-  widget:setImageClip(spellApi.getImageClip(spell.clientId, spell.profile))
+  if not widget or not spell or not settings or not settings[spell.profile] or not spellApi then return false end
+  if spellApi.applyIcon then
+    if not spellApi.applyIcon(widget,spell,spell.profile) then return false end
+  elseif spell.clientId then
+    widget:setImageSource(spellApi.getIconFileByProfile(spell.profile))
+    widget:setImageClip(spellApi.getImageClip(spell.clientId, spell.profile))
+  else return false end
   widget:setImageSize({ width = 24, height = 24 })
   return true
 end

@@ -136,10 +136,14 @@ function U.openReference(definition)
     local result={}
     for i,text in ipairs(values) do local l=U.label(parent,tostring(text or ''),'NexusHeader') l:setPhantom(true) result[i]=l end
     local function layout()
-      local width=math.max(1,(parent:getWidth()-76)/#values)
+      local total=math.max(1,parent:getWidth()-76)
+      local width=total/#values
+      local offset=44
       for i,l in ipairs(result) do
+        local cellWidth=definition.id=='magic_shooter' and total*({0.16,0.46,0.14,0.24})[i] or width
         l:breakAnchors() l:addAnchor(AnchorLeft,'parent',AnchorLeft) l:addAnchor(AnchorVerticalCenter,'parent',AnchorVerticalCenter)
-        l:setMarginLeft(44+math.floor((i-1)*width)) l:setWidth(math.max(1,math.floor(width)-4))
+        l:setMarginLeft(math.floor(offset)) l:setWidth(math.max(1,math.floor(cellWidth)-4))
+        offset=offset+cellWidth
       end
     end
     parent.onGeometryChange=layout layout() return result

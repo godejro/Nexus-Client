@@ -96,11 +96,11 @@
     .tradeSearchClear { --image-source: /game_cyclopedia/images/button_clear_search; float: right; margin-right: 5px; }
 
     /* Trade Footer & Controls */
-    .tradeFooter { height: 60px; padding: 4px; position: relative; }
+    .tradeFooter { height: 84px; padding: 4px; position: relative; }
     .tradeTopRow { padding-right: 56px; height: 14px; }
     #amountScrollBar { width: 130px; }
     .tradePreviewBox { background: #1a1a1a; position: absolute; right: 4px; top: 4px; }
-    .tradeBuyButton { width: 29px; height: -15px; position: absolute; right: 2px; bottom: 0px; }
+    .tradeBuyButton { width: 56px; height: 20px; position: absolute; right: 2px; bottom: 24px; }
     .tradeRows { margin-top: 2px; padding-right: 56px; }
     .tradeRow { height: 14px; }
     .tradeFooterLabel { width: 55px; }
@@ -193,6 +193,10 @@
 
             <!-- Buy button (bottom right) -->
             <button id="toggleButton" class="tradeBuyButton fontTitle" text="Buy" onclick="self:executeTrade()"></button>
+            <div style="position: absolute; left: 3px; bottom: 1px; height: 20px; width: 220px;" *visible="self.tradeMode == self.SELL">
+                <button style="width: 60px; height: 20px;" text="Sell All" onclick="self:sellAllFromUi()"></button>
+                <input style="position: absolute; left: 64px; width: 150px; height: 20px;" *text="self:getSellExclusionsText()" onchange="self:setSellExclusionsText(event.value)" tooltip="Excluded item IDs, separated by commas" />
+            </div>
 
             <!-- Rows (left) -->
             <div class="tradeRows">

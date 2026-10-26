@@ -486,6 +486,7 @@ function EnterGame.terminate()
 end
 
 function EnterGame.show()
+    if modules.client_nexusupdate and modules.client_nexusupdate.isBusy() then return end
     if g_game.isOnline() or CharacterList.isVisible() then -- fix login quickly error (http post)
         return
     end
@@ -920,6 +921,7 @@ function EnterGame.loginFailed(requestId, msg, result)
 end
 
 function EnterGame.doLogin()
+    if modules.client_nexusupdate and modules.client_nexusupdate.isBusy() then modules.client_nexusupdate.show() return end
     G.stayLogged = enterGame:getChildById('stayLoggedBox'):isChecked()
     G.host = enterGame:getChildById('serverHostTextEdit'):getText()
     G.port = tonumber(enterGame:getChildById('serverPortTextEdit'):getText())

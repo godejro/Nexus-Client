@@ -1,9 +1,29 @@
 NexusBot.Launcher={window=nil,rows={}}
 
+local function animateSwitch(switch,on)
+  if switch.switchState==on then return end
+  local first=switch.switchState==nil
+  switch.switchState=on switch:setOn(on)
+  switch.dot:setImageColor(on and '#72e5ff' or '#a7b7cb')
+  if switch.motion then removeEvent(switch.motion) switch.motion=nil end
+  local target=on and (switch:getWidth()-16) or 2
+  if first then switch.dot:setMarginLeft(target) return end
+  local origin=switch.dot:getMarginLeft() local started=g_clock.millis()
+  local function frame()
+    switch.motion=nil
+    if switch:isDestroyed() then return end
+    local t=math.min(1,(g_clock.millis()-started)/140)
+    local eased=t*t*(3-2*t)
+    switch.dot:setMarginLeft(math.floor(origin+(target-origin)*eased+0.5))
+    if t<1 then switch.motion=scheduleEvent(frame,16) end
+  end
+  frame()
+end
+
 function NexusBot.Launcher.refresh()
   for _,entry in ipairs(NexusBot.Launcher.rows) do
     if not entry.row:isDestroyed() and entry.category.getEnabled then
-      entry.row.power:setOn(NexusBot.enabled and entry.category.getEnabled())
+      animateSwitch(entry.row.power,NexusBot.enabled and entry.category.getEnabled())
     end
   end
 end
@@ -16,9 +36,6 @@ function NexusBot.Launcher.create()
   window.brand.accent:setText(NexusBot.Metadata.brandAccent)
   window.closeButton.onClick=function() NexusBot.hide() return true end
   window.closeButton:setTooltip(nil)
-  window.power:setOn(NexusBot.enabled)
-  window.power:setTooltip(nil)
-  window.power.onClick=function() NexusBot.setEnabled(not NexusBot.enabled) end
   window.closeButton:setPhantom(false)
   window.closeButton:setEnabled(true)
   window.closeButton:raise()
@@ -29,8 +46,10 @@ function NexusBot.Launcher.create()
     row.title:setText(entry.title)
     row.icon:setImageSource(NexusBot.Assets.get(entry.id))
     row.power:setVisible(entry.setEnabled~=nil)
+    row.power.onDestroy=function(widget) if widget.motion then removeEvent(widget.motion) widget.motion=nil end end
     local function togglePower()
       if entry.setEnabled then NexusBot.Categories.setEnabled(entry,not (NexusBot.enabled and entry.getEnabled())) end
+      NexusBot.Launcher.refresh()
       return true
     end
     local suppressRelease, beforeClick

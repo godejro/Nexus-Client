@@ -1,51 +1,150 @@
+ArchiveSpellRow < Label
+  height: 28
+  color: #eeeeee
+  font: verdana-11px-antialised
+  text-offset: 29 0
+  text-align: left-center
+  image-size: 24 24
+  image-offset: 1 2
+  focusable: true
+  $focus:
+    background-color: #ffffff33
+  $hover:
+    background-color: #ffffff11
+
 UIWidget
-  id: Cat5
+  id: magicalArchive
   anchors.fill: parent
-  visible: false
-  UIWidget
-    id: InformationBase
+  margin-bottom: 38
+  MiniPanel
+    id: selection
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.bottom: parent.bottom
-    margin-bottom: 8
-    margin-top: 10
-    width: 180
-    MiniPanel
-      id: selectSpell
-      anchors.fill: parent
-      image-border: 10
-      padding-right: 16
-      margin-bottom: 25
-      !text: tr('Select Spell')
+    width: 182
+    text: Select Spell
+    padding: 20 5 5 5
+    ComboBox
+      id: vocation
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+    ComboBox
+      id: group
+      anchors.top: vocation.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 3
+    CheckBox
+      id: level
+      anchors.top: group.bottom
+      anchors.left: parent.left
+      margin-top: 4
+      width: 145
+      text: My level
+    TextEdit
+      id: search
+      anchors.bottom: parent.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      placeholder: Name or spell words
+    TextList
+      id: list
+      anchors.top: level.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-right: 12
+      anchors.bottom: search.top
+      margin-top: 5
+      margin-bottom: 4
+      vertical-scrollbar: scrollbar
       layout:
         type: verticalBox
-        spacing: 6
-
-      ComboBox
-      TextListQuestLog
-        height: 330
-      TextEditQuestLog
-
+    VerticalScrollBar
+      id: scrollbar
+      anchors.top: list.top
+      anchors.right: parent.right
+      anchors.bottom: list.bottom
+      pixels-scroll: true
+      step: 28
   MiniPanel
-    id: spellAndRune
-    text: Spell / Rune Information
-    anchors.top: InformationBase.top
-    anchors.left: InformationBase.right
+    id: details
+    anchors.top: parent.top
+    anchors.left: selection.right
     anchors.right: parent.right
-    anchors.bottom: InformationBase.bottom
-    margin-left: 10
-    margin-bottom: 25
-
+    anchors.bottom: parent.bottom
+    margin-left: 8
+    text: Spell / Rune Information
+    padding: 22 6 6 6
+    UIWidget
+      id: icon
+      anchors.top: parent.top
+      anchors.left: parent.left
+      size: 32 32
     Label
-      anchors.centerIn: parent
-      text: select a spell to view detailed information. 
+      id: name
+      anchors.left: icon.right
+      anchors.right: parent.right
+      anchors.top: icon.top
+      margin-left: 7
+      height: 18
+      color: #ffffff
     Label
-      id: deleteme
-      anchors.centerIn: parent
-      !text: tr("\nis this in the protobuf ?\n in http post ? \nor modify gamelib/spells.lua?")
-      font-scale: 2
-      margin-top: 32
-      text-auto-resize: true
-
-
-
+      id: words
+      anchors.top: name.bottom
+      anchors.left: name.left
+      anchors.right: parent.right
+      color: #ffffff
+    Button
+      id: combat
+      anchors.top: icon.bottom
+      anchors.left: parent.left
+      margin-top: 8
+      width: 150
+      text: Combat Stats
+    Button
+      id: additional
+      anchors.top: combat.top
+      anchors.left: combat.right
+      margin-left: 4
+      width: 150
+      text: Additional
+    FlatPanel
+      id: statistics
+      anchors.top: combat.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 100
+      margin-top: 4
+      padding: 7
+      Label
+        id: left
+        anchors.top: parent.top
+        anchors.left: parent.left
+        width: 205
+        height: 86
+        text-wrap: true
+        color: #eeeeee
+      Label
+        id: right
+        anchors.top: parent.top
+        anchors.left: left.right
+        anchors.right: parent.right
+        height: 86
+        text-wrap: true
+        color: #eeeeee
+    FlatPanel
+      id: preview
+      anchors.top: statistics.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-top: 5
+      Label
+        id: caption
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 18
+        text-align: center
+        color: #bdbdbd

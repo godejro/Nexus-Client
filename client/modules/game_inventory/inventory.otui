@@ -52,7 +52,7 @@ PhantomMiniWindow
       image-clip: 0 0 12 12
       anchors.top: parent.top
       anchors.left: parent.left
-      margin-left: 8
+      margin-left: 61
       margin-top: 5
       size: 12 12
       @onClick: changeInventorySize()
@@ -96,9 +96,9 @@ PhantomMiniWindow
       id: standPosture
       image-source: /images/inventory/buttons_general
       image-clip: 0 0 20 20
-      anchors.right: parent.right
+      anchors.left: parent.left
       anchors.top: changeSize.top
-      margin-right: 7
+      margin-left: 32
       size: 20 20
       @onClick: |
         selectPosture('stand')
@@ -160,9 +160,9 @@ PhantomMiniWindow
 
     WhiteHandBox
       id: whiteHandBox
-      anchors.right: parent.right
+      anchors.right: standPosture.right
       anchors.top: pvp.bottom
-      margin-right: 8
+      margin-right: 0
       margin-top: 5
 
     RedFistBox

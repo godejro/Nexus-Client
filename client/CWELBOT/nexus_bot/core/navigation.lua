@@ -12,9 +12,29 @@ function N.reset()
 end
 function N.beginTick()
   N.budget=2200 N.lastExpanded=0 N.lastBudgetHit=false
+  N.nativeBudget=3
   N.tileCache={}
   local now=NexusBot.now()
   for key,expires in pairs(N.blocked or {}) do if expires<=now then N.blocked[key]=nil end end
+end
+-- Use the client's explored minimap for remote route recovery. Send only the
+-- currently visible, checked prefix; discover/revalidate the next part on ACK.
+function N.mappedPath(start,goal,transition,visibleOnly)
+  if not g_map.findPath or not start or not goal or start.z~=goal.z or A.distance(start,goal)>64 then return nil end
+  if (N.nativeBudget or 0)<=0 then return nil end
+  N.nativeBudget=N.nativeBudget-1
+  local path=g_map.findPath(start,goal,2000,0)
+  if type(path)~='table' or #path==0 then return nil end
+  if not visibleOnly then return path end
+  local result={} local p={x=start.x,y=start.y,z=start.z}
+  for _,direction in ipairs(path) do
+    local d=N.directions[direction+1] if not d then return nil end
+    p={x=p.x+d[1],y=p.y+d[2],z=p.z}
+    if not N.safeTile(p,transition and A.distance(p,goal)==0) then break end
+    result[#result+1]=direction
+    if #result>=12 then break end
+  end
+  if #result>0 then return result end
 end
 function N.transition(tile)
   if not tile then return false end
@@ -129,6 +149,9 @@ function N.walk(goal,range,transition,routeWalk,constraint)
   if now<N.nextWalk or (not routeWalk and A.call(player,'isWalking',false)) then return false,'waiting' end
   local path=N.path(pos,goal,range,transition,constraint)
   local config=A.CaveBot and A.CaveBot.Config and A.CaveBot.Config.values
+  if not path and routeWalk and not constraint and config and config.autoNavigate then
+    path=N.mappedPath(pos,goal,transition,true)
+  end
   N.nextWalk=now+math.max(0,tonumber(config and config.stepDelay) or 180)
   if not path or not path[1] then return false,'No safe visible path. Move closer or add intermediate waypoints.' end
   if A.call(player,'isAutoWalking',false) and player.stopAutoWalk then player:stopAutoWalk() end

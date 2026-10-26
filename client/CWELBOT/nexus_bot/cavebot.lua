@@ -373,10 +373,10 @@ local function suppliesEditor(left,right)
       U.numberInput(right,'Max',draft.max,0,65535,function(v) draft.max=v end)
       U.button(right,'Save supply',function()
         if draft.id<100 or draft.min>draft.max then displayErrorBox('Supplies','Set an item ID and Min <= Max.') return end
-        A.CaveBot.setOff() if id then cfg.items[tostring(id)]=nil end
+        if id then cfg.items[tostring(id)]=nil end
         cfg.items[tostring(draft.id)]={min=draft.min,max=draft.max} NexusBot.Storage.touch() suppliesEditor(left,right)
       end)
-      if id then U.button(right,'Remove',function() A.CaveBot.setOff() cfg.items[tostring(id)]=nil NexusBot.Storage.touch() suppliesEditor(left,right) end) end
+      if id then U.button(right,'Remove',function() cfg.items[tostring(id)]=nil NexusBot.Storage.touch() suppliesEditor(left,right) end) end
     end
     U.button(left,'+ Supply item',function() edit() end)
     local itemList=U.compactList(left,320)
@@ -772,7 +772,10 @@ local W=A.Walker
 W.defaults={loop=true,stepDelay=0,actionTimeout=15000,useDelay=900,maxUseRetries=4,recordDistance=3,ropeId=3003,shovelId=3457,allowLua=false,talkDelay=700,debugCave=false,debugPath=false,autoNavigate=false}
 
 function W.clearDebug()
-  for tile,text in pairs(W.debugTiles or {}) do if tile:getText()==text then tile:setText('') end end
+  for tile,text in pairs(W.debugTiles or {}) do
+    if tile:getText()==text then tile:setText('') if tile.setTextCentered then tile:setTextCentered(false) end end
+    if tile.setFill then tile:setFill('#00000000') end
+  end
   W.debugTiles={}
 end
 function W.drawDebug()
@@ -782,7 +785,12 @@ function W.drawDebug()
   local function mark(p,text)
     if not p or p.z~=pos.z or A.distance(p,pos)>18 then return end
     local tile=g_map.getTile(p)
-    if tile and (tile:getText()=='' or W.debugTiles[tile]) then tile:setText(text) W.debugTiles[tile]=text end
+    if tile and (tile:getText()=='' or W.debugTiles[tile]) then
+      tile:setText(text)
+      if tile.setTextCentered then tile:setTextCentered(true) end
+      if tile.setFill then tile:setFill('#368dda80') end
+      W.debugTiles[tile]=text
+    end
   end
   local current=C.actionList:getFocusedChild()
   local goal=current and A.parsePosition(current.value)
@@ -794,7 +802,7 @@ function W.drawDebug()
     local point=NexusBot.copy(pos)
     for _,direction in ipairs(path or {}) do
       local delta=N.directions[direction+1] point={x=point.x+delta[1],y=point.y+delta[2],z=point.z}
-      mark(point,'.')
+      mark(point,'')
     end
   end
   for i,entry in ipairs(C.actionList.entries) do mark(A.parsePosition(entry.value),(entry==current and '> ' or '')..i..' '..(entry.action=='goto' and 'Node' or entry.action)) end
@@ -848,7 +856,7 @@ function W.nearestReachable(pos,exclude)
   for _,entry in ipairs(A.CaveBot.actionList.entries) do
     if entry~=exclude and (entry.action=='goto' or entry.action=='walk' or entry.action=='stairs') then
       local goal=A.parsePosition(entry.value)
-      if goal and goal.z==pos.z and A.distance(pos,goal)<=18 then
+      if goal and goal.z==pos.z and A.distance(pos,goal)<=64 then
         candidates[#candidates+1]={entry=entry,goal=goal,distance=A.distance(pos,goal)}
       end
     end
@@ -859,6 +867,7 @@ function W.nearestReachable(pos,exclude)
   for _,candidate in ipairs(candidates) do
     if N.budget and N.budget<=0 then break end
     local path=N.path(pos,candidate.goal,candidate.goal.radius or 0,candidate.goal.radius==0)
+    if not path and A.CaveBot.Config.values.autoNavigate then path=N.mappedPath(pos,candidate.goal,candidate.goal.radius==0,false) end
     if path then
       local cost=0 for _,direction in ipairs(path) do cost=cost+(direction>=4 and 3 or 1) end
       if not bestCost or cost<bestCost then best,bestCost=candidate.entry,cost end

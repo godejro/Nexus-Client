@@ -7,6 +7,28 @@ controllerNpcTrader.isTradeOpen = false
 controllerNpcTrader.legacyMode = false
 controllerNpcTrader.npcTalkConnected = false
 
+function controllerNpcTrader:getSellExclusionsText()
+    return g_settings.get('nexusNpcSellExclusions') or ''
+end
+function controllerNpcTrader:setSellExclusionsText(text)
+    g_settings.set('nexusNpcSellExclusions',tostring(text or ''))
+    g_settings.save()
+end
+function controllerNpcTrader:getSellExclusions()
+    local ids={}
+    for token in self:getSellExclusionsText():gmatch('[^,]+') do
+        local id=tonumber(token)
+        if not id or id%1~=0 or id<1 or id>65535 then return nil end
+        ids[#ids+1]=id
+    end
+    return ids
+end
+function controllerNpcTrader:sellAllFromUi()
+    local exclusions=self:getSellExclusions()
+    if not exclusions then displayErrorBox('Sell All','Enter item IDs separated by commas.') return end
+    if self:isLegacyMode() then sellAllLegacy(exclusions) else self:sellAll(true,exclusions) end
+end
+
 function controllerNpcTrader:isLegacyMode()
     return self.legacyMode
 end

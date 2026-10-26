@@ -69,7 +69,7 @@ local function releaseWideMap()
         main:moveChildToIndex(mapController.ui,1)
         mapController.ui:setWidth(main:getWidth())
         mapController.ui.minimapBorder:setWidth(115)
-        mapController.ui.widenMap:setText('>')
+        mapController.ui.widenMap:setText('<')
     end
     for _,widget in ipairs({mainMapSpace,extraMapSpace}) do
         if widget and not widget:isDestroyed() then widget:destroy() end
@@ -105,7 +105,7 @@ function toggleWideMinimap()
     extra:moveChildToIndex(extraMapSpace,1)
     mapController.ui:setParent(root)
     mapController.ui:breakAnchors()
-    mapController.ui.widenMap:setText('<')
+    mapController.ui.widenMap:setText('>')
     wideMap=true
     mapGeometryHandlers={onGeometryChange=arrangeWideMap,onVisibilityChange=arrangeWideMap}
     for _,widget in ipairs({root,main,extra}) do connect(widget,mapGeometryHandlers) end
@@ -397,6 +397,34 @@ end
 
 function mapController:onInit()
     self.ui:setDraggable(false)
+    local savedHeight=math.max(134,math.min(500,tonumber(g_settings.get('nexusMinimapHeight')) or 134))
+    self.ui.panelHeight=savedHeight
+    self.ui:setHeight(savedHeight)
+    self.ui.minimapBorder:setHeight(savedHeight-23)
+    local resizing=false
+    self.ui.onGeometryChange=function(widget)
+        if resizing then return end
+        resizing=true
+        local height=widget:getHeight()
+        widget.panelHeight=height
+        widget.minimapBorder:setHeight(math.max(111,height-23))
+        if mainMapSpace then mainMapSpace.panelHeight=height mainMapSpace:setHeight(height) end
+        if extraMapSpace then extraMapSpace.panelHeight=height extraMapSpace:setHeight(height) end
+        arrangeWideMap()
+        if modules.game_mainpanel then modules.game_mainpanel.reloadMainPanelSizes() end
+        resizing=false
+    end
+    local border=g_ui.createWidget('ResizeBorder',self.ui)
+    border:setId('mapResizeBorder')
+    border:addAnchor(AnchorLeft,'parent',AnchorLeft)
+    border:addAnchor(AnchorRight,'parent',AnchorRight)
+    border:addAnchor(AnchorBottom,'parent',AnchorBottom)
+    border:setHeight(5) border:setMinimum(134) border:setMaximum(500) border.vertical=true
+    local release=border.onMouseRelease
+    border.onMouseRelease=function(widget,...)
+        if release then release(widget,...) end
+        g_settings.set('nexusMinimapHeight',self.ui:getHeight()) g_settings.save()
+    end
     self.ui.onDragEnter=function() return false end
     local function protectDrops(widget)
         widget.onDrop=dropBelowMap

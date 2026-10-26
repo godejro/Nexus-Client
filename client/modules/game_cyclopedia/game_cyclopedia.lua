@@ -81,6 +81,7 @@ function controllerCyclopedia:onGameStart()
             character = { obj = character, func = showCharacter },
             bosstiary = { obj = bosstiary, func = showBosstiary },
             bossSlot = { obj = bossSlot, func = showBossSlot },
+            magicalArchives = { obj = buttonSelection:getChildById('magicalArchives'), func = showMagicalArchives },
         }
 
         g_ui.importStyle("cyclopedia_widgets")

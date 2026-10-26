@@ -243,6 +243,16 @@ MainWindow
       checked: true
       @onCheckChange: modules.game_npctrade.onShowAllItemsChange()
 
+  TextEdit
+    id: sellExclusions
+    anchors.left: parent.left
+    anchors.right: sellAllButton.left
+    anchors.bottom: parent.bottom
+    margin-right: 8
+    visible: false
+    placeholder: Excluded item IDs
+    tooltip: Item IDs excluded from Sell All, separated by commas
+
   Button
     id: sellAllButton
     !text: tr('Sell All')
@@ -251,7 +261,7 @@ MainWindow
     anchors.bottom: parent.bottom
     margin-right: 10
     visible: false
-    @onClick: modules.game_npctrade.sellAll()
+    @onClick: modules.game_npctrade.controllerNpcTrader:sellAllFromUi()
 
   Button
     id: tradeButton

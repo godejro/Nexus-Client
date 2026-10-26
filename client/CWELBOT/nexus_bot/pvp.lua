@@ -776,7 +776,15 @@ function P.open()
   w.content.heading:hide() w.content.heading:setHeight(0)
   w.content.status:hide()
   w.closeButton.onClick=function() w:destroy() return true end w.onEscape=w.closeButton.onClick
-  U.button(w.content.list,'Combo Bot',function() NexusBot.Features.Combo.open() end)
+  local combo=NexusBot.Features.Combo
+  local comboRow=g_ui.createWidget('NexusIntegrationRow',w.content.list)
+  comboRow.name:setText('Combo Bot') comboRow.enabled:setOn(combo.config().enabled==true)
+  comboRow.enabled.onClick=function()
+    if combo.config().enabled then combo.config().enabled=false combo.stop()
+    else combo.start() end
+    comboRow.enabled:setOn(combo.config().enabled==true) NexusBot.Storage.touch()
+  end
+  comboRow.edit.onClick=function() combo.open() end
   local runtime=P.runtime()
   if not runtime then U.label(w.content.list,'Load a bot profile to access PvP scripts.') return w end
   local rows={}
@@ -800,6 +808,7 @@ function P.open()
   end
   local timer=NexusBot.Scheduler.every(300,function()
     if w:isDestroyed() then return end
+    comboRow.enabled:setOn(combo.config().enabled==true)
     if not NexusBot.botSandbox and P.runtime()~=runtime then w:destroy() return end
     for _,row in ipairs(rows) do if not row.entry.switch:isDestroyed() then row.widget:setOn(row.entry.switch:isOn()) end end
   end,'PvP status')
@@ -1040,8 +1049,24 @@ function P.createRuntime()
     return map and map:getTile(g_window.getMousePosition())
   end
   env.useWith=function(id,target)
-    if type(id)=='number' then return g_game.useInventoryItemWith(id,target) end
+    if not target or not target.getPosition or not target.getId then return false end
+    local position=target:getPosition()
+    local player=g_game.getLocalPlayer()
+    if not player or not position or position.z~=player:getPosition().z then return false end
+    if type(id)=='number' then
+      if id%1~=0 or id<1 or id>65535 then return false end
+      if g_things and g_things.isValidDatId and not g_things.isValidDatId(id,ThingCategoryItem or 0) then return false end
+      return g_game.useInventoryItemWith(id,target)
+    end
     return g_game.useWith(id,target)
+  end
+  env.findItem=function(id)
+    id=tonumber(id) if not id or id<=0 then return nil end
+    for _,container in pairs(g_game.getContainers() or {}) do
+      for _,item in ipairs(container:getItems() or {}) do if item:getId()==id then return item end end
+    end
+    local player=g_game.getLocalPlayer()
+    if player then for slot=1,10 do local item=player:getInventoryItem(slot) if item and item:getId()==id then return item end end end
   end
   env.autoWalk=function(position,_,options)
     A.Navigation.beginTick()
@@ -1389,6 +1414,12 @@ do
       return ground or tile:getTopThing()
     end
     
+    local function sendPushRune(runeId, target)
+      if runeId <= 0 or not target then return false end
+      local ok,result=pcall(function() return useWith(runeId,target) end)
+      return ok and result~=false
+    end
+
     local function executePushOnce()
       if pushExecuted or not cfg.enabled or not selectedPos then return false end
       local destination = copyPos(selectedPos)
@@ -1401,14 +1432,13 @@ do
       if cfg.usePushRune then
         local runeId = tonumber(cfg.pushRuneId) or 0
         local runeTarget = runeTargetUnderCreature(target)
-        if runeId <= 0 or not runeTarget or
-           not pcall(function() useWith(runeId, runeTarget) end) then
+        if not sendPushRune(runeId, runeTarget) then
           pushExecuted = false
           return false
         end
         schedule(10, function()
           local current = creatureById(targetId)
-          if current then
+          if cfg.enabled and current and samePos(current:getPosition(),pushOriginPos) then
             pcall(function() g_game.move(current, destination) end)
           end
         end)
@@ -1430,15 +1460,14 @@ do
       if cfg.usePushRune then
         local runeId = tonumber(cfg.pushRuneId) or 0
         local runeTarget = runeTargetUnderCreature(target)
-        if runeId <= 0 or not runeTarget or
-           not pcall(function() useWith(runeId, runeTarget) end) then
+        if not sendPushRune(runeId, runeTarget) then
           finishedPos, finishedTargetId, finishedUntil = nil, nil, 0
           pushOriginPos = nil
           return false
         end
         schedule(10, function()
           local current = creatureById(targetId)
-          if current then
+          if cfg.enabled and current and samePos(current:getPosition(),pushOriginPos) then
             pcall(function() g_game.move(current, destination) end)
           end
         end)
@@ -1449,9 +1478,9 @@ do
     end
     
     local function castPendingRewall()
-      if not pendingRewallPos then return end
+      if not cfg.enabled or not pendingRewallPos then return end
       local tile = g_map.getTile(pendingRewallPos)
-      if not tile or tile:hasCreature() or wallThing(tile) then return end
+      if not tile or tile:hasCreatures() or wallThing(tile) then return end
       local target = tile:getTopUseThing() or tile:getGround() or tile:getTopThing()
       local runeId = tonumber(cfg.mwRuneId) or 0
       pendingRewallPos = nil
@@ -1470,7 +1499,7 @@ do
     bar.enabled.onClick = function(widget)
       cfg.enabled = not cfg.enabled
       widget:setOn(cfg.enabled)
-      if not cfg.enabled then clearSelection() end
+      if not cfg.enabled then clearSelection() pendingRewallPos=nil end
     end
     
     bar.edit.onClick = function()
@@ -1694,7 +1723,7 @@ do
         local pathOk, notPathable = pcall(function() return item:isNotPathable() end)
         if (walkOk and notWalkable) or (pathOk and notPathable) then return false end
       end
-      if tile:hasCreature() then
+      if tile:hasCreatures() then
         if not allowPlayer then return false end
         for _, creature in ipairs(tile:getCreatures()) do
           if creature ~= player then return false end
@@ -2012,7 +2041,7 @@ do
       if not cfg.enabled or not entry then return false end
       if now < (entry.nextAttempt or 0) then return false end
       local tile = g_map.getTile(entry.pos)
-      if not tile or tile:hasCreature() then return false end
+      if not tile or tile:hasCreatures() then return false end
       if not forceMissing and tileHasWall(tile, entry) then return false end
       local target = tile:getTopUseThing() or tile:getGround() or tile:getTopThing()
       local runeId = entryRune(entry)
@@ -2102,7 +2131,8 @@ do
       if not entry then return end
       if entryIds(entry)[thing:getId()] then
         entry.sent = false
-        castOnce(entry, true)
+        -- Finish the map removal callback before inspecting the new stack.
+        schedule(1, function() castOnce(entry) end)
       end
     end)
     
@@ -2193,9 +2223,21 @@ do
       if thing:getId() ~= tonumber(cfg.wallId) then return end
       if not samePos(tile:getPosition(), markedPos) then return end
       local destination = copyPos(markedPos)
-      clearMark()
-      local flower = findItem(tonumber(cfg.flowerId) or 0)
-      if flower then g_game.move(flower, destination, 1) end
+      -- A removal callback runs while the native tile stack is changing.
+      -- Reacquire the tile and inventory item after that update has completed.
+      schedule(1,function()
+        if not cfg.enabled or not samePos(markedPos,destination) then return end
+        local current=g_map.getTile(destination)
+        if not current then return end
+        for _,item in ipairs(current:getItems()) do
+          if item:getId()==tonumber(cfg.wallId) then return end
+        end
+        local flower=findItem(tonumber(cfg.flowerId) or 0)
+        if flower then
+          local ok,result=pcall(function() return g_game.move(flower,destination,1) end)
+          if ok and result~=false then clearMark() end
+        end
+      end)
     end)
   end)
   if not masterOk then warn("[My Script Center] Flower: " .. tostring(masterError)) end
