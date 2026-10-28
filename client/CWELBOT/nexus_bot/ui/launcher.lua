@@ -1,24 +1,6 @@
 NexusBot.Launcher={window=nil,rows={}}
 
-local function animateSwitch(switch,on)
-  if switch.switchState==on then return end
-  local first=switch.switchState==nil
-  switch.switchState=on switch:setOn(on)
-  switch.dot:setImageColor(on and '#72e5ff' or '#a7b7cb')
-  if switch.motion then removeEvent(switch.motion) switch.motion=nil end
-  local target=on and (switch:getWidth()-16) or 2
-  if first then switch.dot:setMarginLeft(target) return end
-  local origin=switch.dot:getMarginLeft() local started=g_clock.millis()
-  local function frame()
-    switch.motion=nil
-    if switch:isDestroyed() then return end
-    local t=math.min(1,(g_clock.millis()-started)/140)
-    local eased=t*t*(3-2*t)
-    switch.dot:setMarginLeft(math.floor(origin+(target-origin)*eased+0.5))
-    if t<1 then switch.motion=scheduleEvent(frame,16) end
-  end
-  frame()
-end
+local function animateSwitch(switch,on) switch:setOn(on) end
 
 function NexusBot.Launcher.refresh()
   for _,entry in ipairs(NexusBot.Launcher.rows) do
@@ -34,12 +16,7 @@ function NexusBot.Launcher.create()
   NexusBot.Launcher.rows={}
   window.brand.primary:setText(NexusBot.Metadata.brandPrimary)
   window.brand.accent:setText(NexusBot.Metadata.brandAccent)
-  window.closeButton.onClick=function() NexusBot.hide() return true end
-  window.closeButton:setTooltip(nil)
-  window.closeButton:setPhantom(false)
-  window.closeButton:setEnabled(true)
-  window.closeButton:raise()
-  window.onEscape=window.closeButton.onClick
+  window.onEscape=function() NexusBot.hide() return true end
   for _,entry in ipairs(NexusBot.Categories.list()) do
     local row=g_ui.createWidget('NexusNavigationRow',window.entries)
     row:setPhantom(false)
@@ -52,20 +29,11 @@ function NexusBot.Launcher.create()
       NexusBot.Launcher.refresh()
       return true
     end
-    local suppressRelease, beforeClick
     row.onClick=function()
-      if suppressRelease then suppressRelease=false return true end
-      local current=NexusBot.WindowManager.instances[entry.id]
-      beforeClick=current and not current:isDestroyed() and current:isVisible() or false
       NexusBot.WindowManager.toggle(entry.id)
       return true
     end
-    row.onDoubleClick=function()
-      local current=NexusBot.WindowManager.instances[entry.id]
-      if current and not current:isDestroyed() and beforeClick~=nil then current:setVisible(beforeClick) end
-      suppressRelease=true
-      return togglePower()
-    end
+    row.onDoubleClick=function() return true end
     row.power.onClick=togglePower
     NexusBot.Launcher.rows[#NexusBot.Launcher.rows+1]={row=row,category=entry}
   end

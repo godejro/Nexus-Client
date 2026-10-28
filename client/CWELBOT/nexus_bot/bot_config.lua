@@ -4,8 +4,16 @@ local hotkeyWindow
 
 -- ==================== GUI / LAYOUT ====================
 category.open = function()
-  local w,p=NexusBot.Features.Modern.shared.formWindow('BOT CONFIG',210)
+  local w,p=NexusBot.Features.Modern.shared.formWindow('BOT CONFIG',250)
   w:setWidth(340)
+  NexusBot.UI.combo(p,'Bot icon',{{'Above HP / Mana','docked'},{'Floating icon','floating'}},
+    g_settings.getString('nexusBotLauncherMode')=='floating' and 'floating' or 'docked',function(value)
+      NexusBot.Storage.get().settings.launcherMode=value NexusBot.Storage.touch()
+      g_settings.set('nexusBotLauncherMode',value) g_settings.save()
+      modules.game_healthinfo.refreshBotChoice()
+      NexusBot.createCrownButton()
+      if modules.game_mainpanel then modules.game_mainpanel.reloadMainPanelSizes() end
+    end)
   local key=NexusBot.Storage.get().settings.windowHotkey or ''
   local input=NexusBot.UI.textInput(p,'Show/Hide bot window',key,function() end)
   input:getParent().label:setWidth(160)
@@ -100,6 +108,12 @@ function category.bindAction(id,key,loading)
 end
 category.init=function()
   category.terminate()
+  local mode=NexusBot.Storage.get().settings.launcherMode
+  if mode=='docked' or mode=='floating' then
+    g_settings.set('nexusBotLauncherMode',mode) g_settings.save()
+    modules.game_healthinfo.refreshBotChoice()
+    NexusBot.createCrownButton()
+  end
   category.bind(NexusBot.Storage.get().settings.windowHotkey or '')
   for id,key in pairs(NexusBot.Storage.get().settings.categoryHotkeys or {}) do
     local ok,err=pcall(category.bindAction,id,key,true)

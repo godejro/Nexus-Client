@@ -406,6 +406,8 @@ function mapController:onInit()
         if resizing then return end
         resizing=true
         local height=widget:getHeight()
+        -- Parent layout temporarily collapses hidden panels during login/logout.
+        if height < 134 then resizing=false return end
         widget.panelHeight=height
         widget.minimapBorder:setHeight(math.max(111,height-23))
         if mainMapSpace then mainMapSpace.panelHeight=height mainMapSpace:setHeight(height) end
@@ -440,6 +442,10 @@ function mapController:onInit()
 end
 
 function mapController:onGameStart()
+    self.ui.panelHeight=math.max(134,tonumber(self.ui.panelHeight) or 134)
+    self.ui:setHeight(self.ui.panelHeight)
+    self.ui:show()
+    modules.game_mainpanel.reloadMainPanelSizes()
     g_satelliteMap.clear()
     staticMinimapAssetsDir = nil
     loadedStaticMinimapFloors = {}

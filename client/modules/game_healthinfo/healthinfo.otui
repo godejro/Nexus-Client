@@ -1,3 +1,17 @@
+NexusFloatingLauncher < UIWindow
+  id: nexusFloatingLauncher
+  size: 108 30
+  draggable: true
+  focusable: false
+  image-source: /images/ui/nexus-launcher
+  image-border: 10
+  text: CWEL BOT
+  text-align: center
+  font: cipsoftFont
+  color: #d9ecff
+  $hover:
+    color: #ffffff
+
 PhantomMiniWindow
   id: mainhealthmanapanel
   draggable: true
@@ -15,18 +29,16 @@ PhantomMiniWindow
     text: CWEL BOT
     font: verdana-11px-antialised
     color: #d9ecff
-    background-color: #13263c
-    border-width: 1
-    border-color: #36618a
+    image-source: /images/ui/nexus-launcher
+    image-border: 10
     draggable: false
     @onClick: modules.game_healthinfo.openBot()
 
     $hover:
-      background-color: #203f5c
-      border-color: #66a9da
+      image-color: #c4e7ff
 
     $pressed:
-      background-color: #0b1929
+      image-color: #829dbb
 
   UIWidget
     id: health

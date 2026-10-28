@@ -211,7 +211,7 @@ function EnterGame.onProfileChange(comboBox, text, profileId)
     end
 
     manager.setSelectedProfile(profileId)
-    local loginHost = profile.loginUrl or profile.host
+    local loginHost = (profile.loginUrl and profile.loginUrl:match('%S') and profile.loginUrl) or profile.host
     enterGame:getChildById('serverHostTextEdit'):setText(loginHost)
     enterGame:getChildById('serverPortTextEdit'):setText(tonumber(profile.loginPort) or 7171)
     enterGame:getChildById('httpLoginBox'):setChecked(profile.loginType == 'http-json')
@@ -612,7 +612,6 @@ local function configureModernHttpRsa(clientVersion)
 end
 
 function EnterGame.tryHttpLogin(clientVersion, httpLogin)
-    g_game.setClientVersion(clientVersion)
 
     local manager = getProfileManager()
     local serverProfile = manager and manager.getActiveProfile and manager.getActiveProfile() or nil
@@ -621,11 +620,12 @@ function EnterGame.tryHttpLogin(clientVersion, httpLogin)
                             g_settings.getNode('ServerList') or {}
         serverProfile = servers[G.host]
     end
-    local gameProtocol = type(serverProfile) == 'table' and tonumber(serverProfile.gameProtocol) or nil
+    local gameProtocol = type(serverProfile) == 'table' and tonumber(serverProfile.gameProtocol or serverProfile.protocolVersion) or nil
     local gameVersionString = type(serverProfile) == 'table' and serverProfile.gameVersionString or nil
     local loginPreviewState = type(serverProfile) == 'table' and tonumber(serverProfile.loginPreviewState) or 0
 
     g_game.setProtocolVersion(gameProtocol or g_game.getClientProtocolVersion(clientVersion))
+    g_game.setClientVersion(clientVersion)
     g_game.setLoginPreviewState(loginPreviewState or 0)
     if type(gameVersionString) == 'string' and gameVersionString ~= '' then
         g_game.setClientVersionString(gameVersionString)
@@ -933,7 +933,11 @@ function EnterGame.doLogin()
     local activeProfile
 
     if selectedProfileId ~= '' and manager then
-        local applied, profileErrors, profileWarnings = manager.applyProfile(selectedProfileId)
+        local success, applied, profileErrors, profileWarnings = pcall(manager.applyProfile, selectedProfileId)
+        if not success then
+            displayErrorBox(tr('Profile Error'), tostring(applied))
+            return
+        end
         if not applied then
             local errorBox = displayErrorBox(tr('Profile Error'), table.concat(profileErrors or {}, '\n'))
             connect(errorBox, { onOk = EnterGame.show })
@@ -943,7 +947,7 @@ function EnterGame.doLogin()
             g_logger.warning('[ProfileManager] ' .. tostring(warning))
         end
         activeProfile = manager.getActiveProfile()
-        G.host = activeProfile.loginUrl or activeProfile.host
+        G.host = (activeProfile.loginUrl and activeProfile.loginUrl:match('%S') and activeProfile.loginUrl) or activeProfile.host
         G.port = tonumber(activeProfile.loginPort)
         clientVersion = tonumber(activeProfile.clientVersion)
         loginType = activeProfile.loginType
@@ -1048,8 +1052,8 @@ function EnterGame.doLogin()
         })
 
         if not activeProfile then
-            g_game.setClientVersion(clientVersion)
             g_game.setProtocolVersion(g_game.getClientProtocolVersion(clientVersion))
+            g_game.setClientVersion(clientVersion)
         end
         g_game.chooseRsa(G.host)
 
@@ -1147,8 +1151,8 @@ function EnterGame.setUniqueServer(host, port, protocol, windowWidth, windowHeig
     local server = Servers_init[host]
     enterGame.disableToken = not (server and server.useAuthenticator)
 
-    g_game.setClientVersion(clientVersion)
     g_game.setProtocolVersion(g_game.getClientProtocolVersion(clientVersion))
+    g_game.setClientVersion(clientVersion)
 end
 
 function EnterGame.setServerInfo(message)

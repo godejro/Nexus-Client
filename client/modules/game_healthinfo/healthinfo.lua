@@ -1,14 +1,18 @@
 local iconTopMenu = nil
 local loadingBot = false
+local floatingLauncher
+local suppressClickUntil=0
 
 function getBotButton()
+    if g_settings.getString('nexusBotLauncherMode')=='floating' then return floatingLauncher end
     return healthManaController.ui and healthManaController.ui.cwelBotLauncher
 end
 
 function refreshBotChoice(value)
     local ui=healthManaController.ui
     if not ui then return end
-    local visible=true -- CWEL BOT is the client's only integrated bot.
+    local visible=g_settings.getString('nexusBotLauncherMode')~='floating'
+    if floatingLauncher then floatingLauncher:setVisible(not visible and g_game.isOnline()) end
     ui.cwelBotLauncher:setVisible(visible)
     ui.cwelBotLauncher:setHeight(visible and 24 or 0)
     ui.cwelBotLauncher:setMarginTop(visible and 4 or 0)
@@ -52,10 +56,26 @@ healthManaController = Controller:new()
 healthManaController:setUI('healthinfo', modules.game_interface.getMainRightPanel())
 
 function healthManaController:onInit()
+    floatingLauncher=g_ui.createWidget('NexusFloatingLauncher',modules.game_interface.getRootPanel())
+    local pos=g_settings.getNode('nexusBotLauncherPosition') or {x=30,y=100}
+    floatingLauncher:setPosition({x=tonumber(pos.x) or 30,y=tonumber(pos.y) or 100})
+    floatingLauncher:bindRectToParent()
+    floatingLauncher.onClick=function()
+        if g_clock.millis()>=suppressClickUntil then openBot() end
+    end
+    floatingLauncher.onDragLeave=function(widget)
+        suppressClickUntil=g_clock.millis()+200
+        g_settings.setNode('nexusBotLauncherPosition',widget:getPosition()) g_settings.save()
+    end
     refreshBotChoice()
 end
 
+function healthManaController:onGameEnd()
+    if floatingLauncher then floatingLauncher:hide() end
+end
+
 function healthManaController:onTerminate()
+    if floatingLauncher then floatingLauncher:destroy() floatingLauncher=nil end
     if iconTopMenu then
         iconTopMenu:destroy()
         iconTopMenu = nil

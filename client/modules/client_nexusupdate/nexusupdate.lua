@@ -1,4 +1,4 @@
-local version='v2026.10.26.1'
+local version='v2026.10.28.1'
 local repository='godejro/Nexus-Client'
 local window,button,operation,timer,session,state,automatic,manifest,release,stage,started
 local active=false

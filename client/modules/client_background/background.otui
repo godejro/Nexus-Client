@@ -24,6 +24,6 @@ Panel
 
   UIParticles
     id: particles
-    effect: background-effect
+    effect: background2-effect
     anchors.fill: parent
     phantom: true

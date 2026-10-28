@@ -8,7 +8,7 @@ It contains no server assets, login credentials or player setups.
 1. Pobierz `nexus-launcher.zip` z najnowszego wydania (Releases).
 2. Rozpakuj do istniejącego folderu gry obok `Nexus Client.exe`, zachowując podfolder `updater`.
 3. W starszej instalacji uruchom raz `URUCHOM_NEXUS.cmd`, aby pobrać wersję z wbudowanym aktualizatorem.
-4. Od v2026.10.23.1 możesz uruchamiać samo `Nexus Client.exe`. Okno aktualizacji pokaże **Update**, postęp pobierania (MB), sprawdzania plików (liczba/nazwa) i **Restart and install**. Restart wymaga wylogowania. Przycisk Nexus updates w górnym menu pozwala ponownie otworzyć okno.
+4. Uruchom `Nexus Client.exe`. Od v2026.10.26.1 klient przed logowaniem automatycznie sprawdza, pobiera, weryfikuje i instaluje aktualizację, następnie uruchamia się ponownie. Poczekaj na powrót okna logowania. W wydaniu v2026.10.23.1 użyj przycisków **Update**, a potem **Restart and install**. Przycisk Nexus updates w górnym menu pozwala sprawdzić aktualizacje ręcznie; instalacja wymaga wylogowania.
 
 To aktualizacja istniejącej instalacji, nie kompletny klient z assetami serwera.
 Nie wypakowuj plików w nowym pustym folderze i nie kopiuj tokenów GitHub.

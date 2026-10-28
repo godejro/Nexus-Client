@@ -80,7 +80,10 @@ function setSpelllistProfile(name)
 end
 
 function online()
-    if g_game.getFeature(GameSpellList) and not spelllistButton then
+    if g_game.getClientVersion()>=1500 and spelllistButton then
+        spelllistButton:destroy() spelllistButton=nil
+    end
+    if g_game.getClientVersion()<1500 and g_game.getFeature(GameSpellList) and not spelllistButton then
         spelllistButton = modules.game_mainpanel.addToggleButton('spelllistButton', tr(g_game.getClientVersion()>=1500 and 'Magical Archive' or 'Spell List'),
         '/images/options/button_spells', toggle, false, 4)
         spelllistButton:setOn(false)

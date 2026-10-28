@@ -80,27 +80,8 @@ function startBackgroundEffectLoop()
         bgEffectEvent = nil
     end
 
-    local function switchEffect()
-        if not background then
-            return
-        end
-
-        local particlesWidget = background:getChildById('particles') -- background is the root widget of the background module
-        if not particlesWidget then
-            return
-        end
-
-        if toggleState then
-            particlesWidget:setEffect('background-effect')
-        else
-            particlesWidget:setEffect('background2-effect')
-        end
-        toggleState = not toggleState
-
-        -- repeat every 5 seconds (adjust the time you want)
-        bgEffectEvent = scheduleEvent(switchEffect, timeLoopBackgroundEffect)
+    if background then
+        local particles=background:getChildById('particles')
+        if particles then particles:setEffect('background2-effect') end
     end
-
-    -- start the first effect change
-    switchEffect()
 end

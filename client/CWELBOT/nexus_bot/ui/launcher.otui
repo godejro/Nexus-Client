@@ -16,7 +16,7 @@ NexusWindow
       anchors.left: parent.left
       anchors.verticalCenter: parent.verticalCenter
       margin-left: 0
-      font: verdana-11px-antialised
+      font: pVerdana Bold-11px
       width: 40
       height: 24
       text: CWEL
@@ -31,15 +31,9 @@ NexusWindow
       height: 24
       text: BOT
       text-align: left-center
-      font: verdana-11px-antialised
+      font: pVerdana Bold-11px
       color: #ef4353
       phantom: true
-  NexusIconButton
-    id: closeButton
-    anchors.right: parent.right
-    anchors.verticalCenter: brand.verticalCenter
-    text: x
-    color: #ef6575
   UIWidget
     id: line
     anchors.top: brand.bottom

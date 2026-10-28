@@ -236,6 +236,7 @@ EnterGameWindow
 
   Label
     id: serverInfoLabel
+    phantom: true
     font: verdana-11px-rounded
     anchors.top: prev.top
     anchors.left: parent.left

@@ -27,14 +27,26 @@ NexusCloseButton < NexusIconButton
   $pressed:
     color: #fa6275
 
-NexusToggle < NexusButton
-  size: 44 24
-  text: OFF
-  color: #8394ac
+NexusPowerSwitch < UIWidget
+  size: 34 18
+  image-source: @NEXUS_ASSETS@/button
+  image-border: 9
+  focusable: false
+  @onSetup: NexusBot.UI.configureSwitch(self)
   $on:
-    text: ON
-    color: #72e5c4
     image-source: @NEXUS_ASSETS@/selected
+  UIWidget
+    id: dot
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 2
+    size: 14 14
+    image-source: @NEXUS_ASSETS@/switch-dot
+    image-smooth: true
+    phantom: true
+
+NexusToggle < NexusPowerSwitch
+  size: 38 22
 
 NexusTextInput < UITextEdit
   font: verdana-11px-antialised
@@ -204,24 +216,6 @@ NexusProfileRow < UIWidget
     color: #dceaff
     phantom: true
 
-NexusPowerSwitch < UIWidget
-  size: 34 18
-  image-source: @NEXUS_ASSETS@/button
-  image-border: 9
-  focusable: false
-  $on:
-    image-source: @NEXUS_ASSETS@/selected
-  UIWidget
-    id: dot
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    margin-left: 2
-    size: 14 14
-    image-source: /images/ui/checkboxcircle
-    image-clip: 0 12 12 12
-    image-smooth: true
-    phantom: true
-
 NexusNavigationRow < UIWidget
   height: 32
   image-source: @NEXUS_ASSETS@/surface
@@ -243,7 +237,7 @@ NexusNavigationRow < UIWidget
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 6
     margin-right: 3
-    font: Verdana-9px
+    font: pVerdana Bold-11px
     color: #d1e0f3
     phantom: true
   NexusPowerSwitch

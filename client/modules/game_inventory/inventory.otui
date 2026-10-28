@@ -52,7 +52,7 @@ PhantomMiniWindow
       image-clip: 0 0 12 12
       anchors.top: parent.top
       anchors.left: parent.left
-      margin-left: 61
+      margin-left: 8
       margin-top: 5
       size: 12 12
       @onClick: changeInventorySize()
@@ -96,9 +96,9 @@ PhantomMiniWindow
       id: standPosture
       image-source: /images/inventory/buttons_general
       image-clip: 0 0 20 20
-      anchors.left: parent.left
+      anchors.right: parent.right
       anchors.top: changeSize.top
-      margin-left: 32
+      margin-right: 4
       size: 20 20
       @onClick: |
         selectPosture('stand')

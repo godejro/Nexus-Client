@@ -461,12 +461,14 @@ function applyProfile(id)
 
     local clientVersion = tonumber(activeProfile.clientVersion)
     local protocolVersion = tonumber(activeProfile.protocolVersion)
+    -- onClientVersionChange loads assets and can enqueue texture workers.
+    -- Select the matching decoder before those callbacks run.
+    g_game.setProtocolVersion(protocolVersion)
     if g_game.getClientVersion() == clientVersion then
         g_game.reloadClientFeatures()
     else
         g_game.setClientVersion(clientVersion)
     end
-    g_game.setProtocolVersion(protocolVersion)
     g_game.setLoginPreviewState(tonumber(activeProfile.loginPreviewState) or 0)
     if trim(activeProfile.clientVersionString) ~= '' then
         g_game.setClientVersionString(activeProfile.clientVersionString)

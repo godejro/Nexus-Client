@@ -17,25 +17,36 @@ local function drawPreview(info)
     local validEffect=false
     if effectId then
         for _,appearance in pairs(g_things.getThingTypes(ThingCategoryEffect)) do
-            if appearance:getId()==effectId then validEffect=true break end
+            if appearance:getId()==effectId then
+                validEffect=appearance:getWidth()>0 and appearance:getHeight()>0
+                    and appearance:getNumPatternX()>0 and appearance:getNumPatternY()>0
+                    and appearance:getAnimationPhases()>0
+                break
+            end
         end
     end
-    if not validEffect then
-        panel.caption:setText('Animation unavailable in the spell data')
-        return
-    end
-    panel.caption:setText('Reference animation')
-    local size=32
-    for y=-1,1 do for x=-1,1 do
-        local cell=g_ui.createWidget('UIWidget',panel)
-        cell:setSize({width=size,height=size})
-        cell:addAnchor(AnchorHorizontalCenter,'parent',AnchorHorizontalCenter)
-        cell:addAnchor(AnchorVerticalCenter,'parent',AnchorVerticalCenter)
-        cell:setMarginLeft(x*size*2) cell:setMarginTop(y*size*2)
+    panel.caption:setText(validEffect and '' or 'No animation provided by the server assets')
+    local grid=g_ui.createWidget('UIWidget',panel)
+    grid:setSize({width=96,height=96})
+    grid:addAnchor(AnchorHorizontalCenter,'parent',AnchorHorizontalCenter)
+    grid:addAnchor(AnchorVerticalCenter,'parent',AnchorVerticalCenter)
+    for y=0,2 do for x=0,2 do
+        local cell=g_ui.createWidget('UIWidget',grid)
+        cell:setSize({width=32,height=32})
+        cell:addAnchor(AnchorLeft,'parent',AnchorLeft)
+        cell:addAnchor(AnchorTop,'parent',AnchorTop)
+        cell:setMarginLeft(x*32) cell:setMarginTop(y*32)
         cell:setBackgroundColor('#9bafb555') cell:setBorderWidth(1) cell:setBorderColor('#b9c6c9')
-        if x==0 and y==0 then
-            local effect=g_ui.createWidget('Effect',cell)
-            effect:fill('parent') effect:setEffectId(effectId) effect:setVirtual(true) effect:setDraggable(false)
+        if x==1 and y==1 then
+            if g_game.getLocalPlayer() then
+                local creature=g_ui.createWidget('Creature',cell)
+                creature:fill('parent') creature:setOutfit(g_game.getLocalPlayer():getOutfit())
+                creature:setDirection(South)
+            end
+            if validEffect then
+                local effect=g_ui.createWidget('Effect',cell)
+                effect:fill('parent') effect:setEffectId(effectId) effect:setVirtual(true) effect:setDraggable(false)
+            end
         end
     end end
 end
@@ -66,8 +77,8 @@ local function updateDetails()
         local groupNames={} local groupCooldown=0
         for id,duration in pairs(info.group or {}) do groupNames[#groupNames+1]=groups[id+1] or tostring(id) groupCooldown=math.max(groupCooldown,tonumber(duration) or 0) end
         table.sort(groupNames)
-        UI.details.statistics.left:setText('Mana: '..tostring(info.mana or 0)..'\nSpell group: '..table.concat(groupNames,', ')..'\nBase power: '..tostring(info.basePower or stats.power or '—')..'\nScales with: '..tostring(info.scalesWith or stats.scale or '—'))
-        UI.details.statistics.right:setText('Cooldown: '..tostring((info.exhaustion or 0)/1000)..' s\nGroup cooldown: '..tostring(groupCooldown/1000)..' s\nMagic type: '..tostring(info.magicType or stats.element or '—')..'\nRange: '..((info.range or 0)>0 and (info.range..' sqm') or 'Self'))
+        UI.details.statistics.left:setText('Mana: '..tostring(info.mana or 0)..'\nSpell group: '..table.concat(groupNames,', ')..'\nBase power: '..tostring(info.basePower or stats.power or '-')..'\nScales with: '..tostring(info.scalesWith or stats.scale or '-'))
+        UI.details.statistics.right:setText('Cooldown: '..tostring((info.exhaustion or 0)/1000)..' s\nGroup cooldown: '..tostring(groupCooldown/1000)..' s\nMagic type: '..tostring(info.magicType or stats.element or '-')..'\nRange: '..((info.range or 0)>0 and (info.range..' sqm') or 'Self'))
     end
     drawPreview(info)
 end
@@ -88,15 +99,20 @@ local function refresh()
           and (name:lower():find(query,1,true) or tostring(info.words):lower():find(query,1,true)) then names[#names+1]=name end
     end
     table.sort(names)
+    if not contains(names,selected) then selected=names[1] end
     for _,name in ipairs(names) do
         local row=g_ui.createWidget('ArchiveSpellRow',filter.list)
         row:setText(name) row:setTooltip(name..'\n'..SpellInfo.Default[name].words)
-        row.spellName=name Spells.applyIcon(row,SpellInfo.Default[name])
-        row.onClick=function() selected=name updateDetails() end
+        row.spellName=name Spells.applyIcon(row.icon,SpellInfo.Default[name])
+        row:setOn(name==selected)
+        row.onClick=function()
+            selected=name
+            for _,other in ipairs(filter.list:getChildren()) do other:setOn(other==row) end
+            updateDetails()
+        end
         if name==selected then row:focus() end
     end
-    if #names==0 then selected=nil updateDetails()
-    elseif not contains(names,selected) then selected=names[1] updateDetails() end
+    updateDetails()
 end
 function showMagicalArchives(parent)
     UI=g_ui.loadUI('magicalArchives',parent or contentContainer)

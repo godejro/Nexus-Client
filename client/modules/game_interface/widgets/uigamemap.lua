@@ -3,8 +3,8 @@ UIGameMap = extends(UIMap, 'UIGameMap')
 function UIGameMap.create()
     local gameMap = UIGameMap.internalCreate()
     gameMap:setKeepAspectRatio(true)
-    gameMap:setMaxZoomIn(1)
-    gameMap:setMaxZoomOut(13)
+    gameMap:setMaxZoomIn(3)
+    gameMap:setMaxZoomOut(15)
     gameMap:setVisibleDimension({
         width = 15,
         height = 11
@@ -23,8 +23,8 @@ end
 
 function UIGameMap:changeTiles(dx,dy)
     local size=self:getVisibleDimension()
-    local width=math.max(1,math.min(17,size.width+dx))
-    local height=math.max(1,math.min(13,size.height+dy))
+    local width=math.max(3,math.min(21,size.width+dx))
+    local height=math.max(3,math.min(15,size.height+dy))
     self:setKeepAspectRatio(true)
     self:setVisibleDimension({width=width,height=height})
     self:onZoomChange()

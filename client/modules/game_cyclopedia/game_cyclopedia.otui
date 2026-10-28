@@ -204,9 +204,12 @@ MainWindow
       margin-left: 1
       size: 34 34
       image-source: /images/options/button_spells
+      image-clip: 0 0 20 20
       image-size: 26 26
       image-offset: 4 4
       text-align: right-center
+      text-offset: -4 0
+      font: cipsoftFont
       tooltip: Magical Archive
       @onClick: SelectWindow('magicalArchives')
       $on:

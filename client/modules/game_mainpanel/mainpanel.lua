@@ -50,7 +50,7 @@ function reloadMainPanelSizes()
     local total_height = 1
     for _, panel in ipairs(main_panel:getChildren()) do
         if panel.panelHeight ~= nil then
-            if panel:isVisible() then
+            if panel:isExplicitlyVisible() then
                 panel:setHeight(panel.panelHeight)
                 total_height = total_height + panel.panelHeight
                 if panel:getId() == 'mainoptionspanel' then
@@ -231,15 +231,8 @@ function optionsController:onGameStart()
             end
         end
     end, 50, "onGameStart")
-    if g_game.getClientVersion() >= 1400 and not controlButton1400 then
-        controlButton1400 = modules.game_mainpanel.addToggleButton('controButtons', tr('Manage control buttons'),
-        '/images/options/button_control', function() modules.client_options.openOptionsCategory("Interface", "Control Buttons") end, false, 1)
-        controlButton1400:setOn(false)
-        if not buttonConfigs.controButtons then
-            controlButton1400:hide()
-            buttonConfigs.controButtons={visible=false,tooltip=tr('Manage control buttons')}
-        end
-    end
+    buttonConfigs.controButtons=nil
+    if controlButton1400 then controlButton1400:destroy() controlButton1400=nil end
 end
 
 function optionsController:onGameEnd()

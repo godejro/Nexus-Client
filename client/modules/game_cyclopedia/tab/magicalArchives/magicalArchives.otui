@@ -1,16 +1,22 @@
-ArchiveSpellRow < Label
+ArchiveSpellRow < UIWidget
   height: 28
   color: #eeeeee
-  font: verdana-11px-antialised
+  font: verdana-11px-rounded
   text-offset: 29 0
   text-align: left-center
-  image-size: 24 24
-  image-offset: 1 2
   focusable: true
-  $focus:
-    background-color: #ffffff33
-  $hover:
-    background-color: #ffffff11
+  background-color: #00000000
+  $on:
+    background-color: #595959
+  $!on:
+    background-color: #00000000
+  UIWidget
+    id: icon
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 1
+    size: 24 24
+    phantom: true
 
 UIWidget
   id: magicalArchive

@@ -3,14 +3,15 @@ local A=NexusBot.Actions
 A.serverSpells, A.serverGroups, A.sentGroups = {}, {}, {}
 A.turns={}
 A.receivesCooldowns=false
+A.predictedSpells={}
 
 function A.init()
   if A.connections then return end
   A.connections={
-    onSpellCooldown=function(id,duration) A.receivesCooldowns=true A.serverSpells[tonumber(id)]=NexusBot.now()+duration end,
-    onSpellGroupCooldown=function(id,duration) A.receivesCooldowns=true A.serverGroups[tonumber(id)]=NexusBot.now()+duration end,
+    onSpellCooldown=function(id,duration) A.receivesCooldowns=true A.serverSpells[tonumber(id)]=NexusBot.now()+duration A.predictedSpells[tonumber(id)]=nil end,
+    onSpellGroupCooldown=function(id,duration) A.receivesCooldowns=true A.serverGroups[tonumber(id)]=NexusBot.now()+duration A.sentGroups[tonumber(id)]=nil end,
     onGameEnd=function()
-      A.serverSpells={} A.serverGroups={} A.sentGroups={} A.lastUse={} A.lastSignature={} A.turns={} A.receivesCooldowns=false
+      A.serverSpells={} A.serverGroups={} A.sentGroups={} A.predictedSpells={} A.lastUse={} A.lastSignature={} A.turns={} A.receivesCooldowns=false
       if NexusBot.Features and NexusBot.Features.EquipmentManager then NexusBot.Features.EquipmentManager.slotLocks={} end
     end
   }
@@ -168,7 +169,8 @@ local function speak(context, action, rule)
     local cost=tonumber((rule.advanced or {}).minimumMana)
     if not cost or cost<=0 then cost=tonumber(spell.mana) or 0 end
     if context.mana<cost then return false end
-    if (A.serverSpells[tonumber(spell.id) or -1] or 0)>context.now then return false end
+    local id=tonumber(spell.id) or -1
+    if (A.serverSpells[id] or 0)>context.now or (A.predictedSpells[id] or 0)>context.now then return false end
     for group in pairs(spell.groups or {}) do
       group=tonumber(group)
       if (A.serverGroups[group] or 0)>context.now or (A.sentGroups[group] or 0)>context.now then return false end
@@ -190,8 +192,14 @@ local function speak(context, action, rule)
   if g_game.talk(words)==false then return false end
   -- Brief prediction bridges network latency; server cooldown events then win.
   -- No UI visibility dependency and no extra loop per healing rule.
+  local offensive=context.providerId=='magic_shooter' or context.providerId=='combo'
+  if offensive and spell and tonumber(spell.id) then
+    -- Bridge missing/delayed packets with this spell's own known cooldown.
+    -- A real server cooldown replaces this prediction immediately, even if shorter.
+    A.predictedSpells[tonumber(spell.id)]=context.now+math.max(250,tonumber(spell.cooldown) or 250)
+  end
   for group,duration in pairs(spell and spell.groups or {}) do
-    A.sentGroups[tonumber(group)]=context.now+math.min(250,tonumber(duration) or 250)
+    A.sentGroups[tonumber(group)]=context.now+(offensive and (tonumber(duration) or 250) or math.min(250,tonumber(duration) or 250))
   end
   return true
 end

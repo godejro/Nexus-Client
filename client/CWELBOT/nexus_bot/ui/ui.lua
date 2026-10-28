@@ -1,3 +1,20 @@
+-- All category and rule switches share the same solid, accessible capsule.
+function NexusBot.UI.configureSwitch(widget)
+  local nativeSetOn=widget.setOn
+  local nativeSetText=widget.setText
+  local function refresh(self)
+    if self:isDestroyed() or not self.dot then return end
+    local on=self:isOn()
+    self.dot:setImageColor(on and '#53cfff' or '#899bb1')
+    self.dot:setMarginLeft(on and math.max(2,self:getWidth()-16) or 2)
+  end
+  widget.setOn=function(self,value) nativeSetOn(self,value==true) refresh(self) end
+  widget.setText=function(self,text) nativeSetText(self,(text=='ON' or text=='OFF') and '' or text) end
+  widget.onGeometryChange=refresh
+  widget.onStyleApply=refresh
+  refresh(widget)
+end
+
 NexusBot.UI.Controllers = {}
 
 function NexusBot.UI.prompt(title, label, callback, defaultValue)

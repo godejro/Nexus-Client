@@ -42,7 +42,7 @@ function W.track(id, widget)
     assert(W.tracked[widget].id==id,'A window cannot have two position keys')
     return widget
   end
-  local saved=positions()[id]
+  local saved=id=='launcher' and positions()[id] or nil
   if id=='heal_friends' and saved then
     local neighbour=W.instances.launcher
     if neighbour and not neighbour:isDestroyed() and neighbour:isVisible() then
@@ -56,7 +56,8 @@ function W.track(id, widget)
     local position={x=tonumber(saved.x),y=tonumber(saved.y)}
     if valid(position) then widget:setPosition(position) end
   elseif id ~= 'launcher' then
-    previous = id=='heal_friends' and W.instances.launcher or (W.lastOpened or W.instances.launcher)
+    previous = NexusBot.Categories.entries[id] and W.instances.launcher or (W.lastOpened or W.instances.launcher)
+    while previous and W.tracked[previous] and W.tracked[previous].after and not NexusBot.Categories.entries[W.tracked[previous].id] do previous=W.tracked[previous].after end
     if previous and (previous:isDestroyed() or not previous:isVisible()) then previous=W.instances.launcher end
     if previous and previous ~= widget and not previous:isDestroyed() and previous:isVisible() then
       local p = previous:getPosition()
@@ -99,6 +100,7 @@ function W.track(id, widget)
   local handlers
   handlers={
     onGeometryChange=capture,
+    onFocusChange=function(current,focused) if focused and NexusBot.Categories.entries[id] then W.lastOpened=current end end,
     onDragLeave=function(current) W.clamp(current) capture(current) end,
     onVisibilityChange=capture,
     onDestroy=function(current)
@@ -124,13 +126,14 @@ function W.attach(id, widget)
     widget.onEscape=widget.closeButton.onClick
   end
   widget:show() widget:raise() widget:focus()
-  if id=='heal_friends' then W.dockBesideLauncher(widget) end
+  if id~='launcher' then W.dockBesideLauncher(widget) end
   W.lastOpened=widget
   return widget
 end
 
 function W.dockBesideLauncher(widget)
-  local launcher=W.instances.launcher
+  local state=W.tracked[widget]
+  local launcher=state and state.after or W.instances.launcher
   if not launcher or launcher==widget or launcher:isDestroyed() or not launcher:isVisible() then return end
   local parent=widget:getParent() or rootWidget
   local origin=parent:getPosition()
@@ -163,7 +166,7 @@ function W.open(id, ...)
   if current and not current:isDestroyed() then
     W.clamp(current)
     current:show() current:raise() current:focus()
-    if id=='heal_friends' then W.dockBesideLauncher(current) end
+    if id~='launcher' then W.dockBesideLauncher(current) end
     W.lastOpened=current
     return current
   end

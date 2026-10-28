@@ -27,9 +27,15 @@ local function friendsWindow()
   w.toolbar:hide() w.left:setMarginTop(-30)
   U.scrollbar(left) U.scrollbar(right)
   U.section(left,'HEALING')
-  U.combo(left,'Method',{{'Sio / custom spell','spell'},{'UH / healing item','item'}},c.method,function(v) c.method=v end)
-  U.combo(left,'Spell',{{'exura sio','exura sio'},{'exura gran sio','exura gran sio'}},c.spell,function(v) c.spell=v end)
-  U.numberInput(left,'Item ID',c.itemId,1,65535,function(v) c.itemId=v end)
+  local spellField,itemField
+  local function updateMethod()
+    if spellField then spellField:getParent():setVisible(c.method=='spell') end
+    if itemField then itemField:getParent():setVisible(c.method=='item') end
+  end
+  U.combo(left,'Method',{{'Sio / custom spell','spell'},{'UH / healing item','item'}},c.method,function(v) c.method=v updateMethod() end)
+  spellField=U.combo(left,'Spell',{{'exura sio','exura sio'},{'exura gran sio','exura gran sio'}},c.spell,function(v) c.spell=v end)
+  itemField=U.numberInput(left,'Item ID',c.itemId,1,65535,function(v) c.itemId=v end)
+  updateMethod()
   U.numberInput(left,'Heal below HP%',c.hp,1,100,function(v) c.hp=v end)
   U.numberInput(left,'My min MP%',c.mana,0,100,function(v) c.mana=v end)
   U.numberInput(left,'My safe HP%',c.safeHp or 0,0,100,function(v) c.safeHp=v end)

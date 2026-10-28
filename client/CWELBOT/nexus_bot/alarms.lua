@@ -21,7 +21,7 @@ local bindRuntime=H.bindRuntime
 
 local function alarmsWindow()
   local c=M.alarms
-  local w,p=formWindow('ALARMS',680)
+  local w,p=formWindow('ALARMS',590)
   w:setWidth(330) U.scrollbar(p)
   U.numberInput(p,'Repeat ms',c.delay,1500,60000,function(v) c.delay=v M.lastAlarm={} NexusBot.Storage.touch() end)
   local function threshold(label,key,metric)
@@ -45,15 +45,18 @@ local function alarmsWindow()
   edit:setWidth(48) edit:setHeight(24)
   edit:addAnchor(AnchorRight,'toggle',AnchorLeft) edit:setMarginRight(6)
   edit:addAnchor(AnchorVerticalCenter,'parent',AnchorVerticalCenter)
-  U.button(p,'Friend List',function()
-    U.editNames('Friend List',c.friends,function(value) c.friends=value end)
-  end)
   for _,entry in ipairs({{'damage','Damage taken'},{'creatureSeen','Creature detected'},{'enemySeen','Enemy guild'},{'skullSeen','Skull detected'},
     {'privateMessage','Private message'},{'localMessage','Local chat'},{'walkerStuck','Walker stuck'},{'unjustified','Unjustified points increased'},{'ignoreAllies','Ignore party / guild'}}) do
     local key=entry[1] U.toggle(p,entry[2],c[key],function(v) c[key]=v end)
   end
   U.button(p,'Creature names',function() U.editNames('Creature names',c.creatures,function(v) c.creatures=v end) end)
-  U.numberInput(p,'Stuck seconds',c.stuckSeconds,3,120,function(v) c.stuckSeconds=v end)
+  U.button(p,'Friend List',function() U.editNames('Friend List',c.friends,function(v) c.friends=v end) end)
+  scheduleEvent(function()
+    if w:isDestroyed() then return end
+    local required=w:getHeight()+p:getChildrenRect().height-p:getPaddingRect().height
+    w:setHeight(math.min(required,rootWidget:getHeight()-20))
+    NexusBot.WindowManager.dockBesideLauncher(w)
+  end,1)
   return w
 end
 

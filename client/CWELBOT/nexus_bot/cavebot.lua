@@ -42,6 +42,7 @@ NexusWindow
       anchors.top: parent.top
       anchors.left: parent.left
       text: WAYPOINTS
+      color: #67acff
     NexusScrollPanel
       id: list
       anchors.top: heading.bottom
