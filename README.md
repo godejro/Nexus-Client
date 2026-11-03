@@ -6,12 +6,12 @@ It contains no server assets, login credentials or player setups.
 ## Instalacja aktualizatora u kolegi
 
 1. Pobierz `nexus-launcher.zip` z najnowszego wydania (Releases).
-2. Rozpakuj do istniejącego folderu gry obok `Nexus Client.exe`, zachowując podfolder `updater`.
-3. W starszej instalacji uruchom raz `URUCHOM_NEXUS.cmd`, aby pobrać wersję z wbudowanym aktualizatorem.
-4. Uruchom `Nexus Client.exe`. Od v2026.10.26.1 klient przed logowaniem automatycznie sprawdza, pobiera, weryfikuje i instaluje aktualizację, następnie uruchamia się ponownie. Poczekaj na powrót okna logowania. W wydaniu v2026.10.23.1 użyj przycisków **Update**, a potem **Restart and install**. Przycisk Nexus updates w górnym menu pozwala sprawdzić aktualizacje ręcznie; instalacja wymaga wylogowania.
+2. Rozpakuj do istniejÄ…cego folderu gry obok `Nexus Client.exe`, zachowujÄ…c podfolder `updater`.
+3. W starszej instalacji uruchom raz `URUCHOM_NEXUS.cmd`, aby pobraÄ‡ wersjÄ™ z wbudowanym aktualizatorem.
+4. Uruchom `Nexus Client.exe`. Od v2026.10.26.1 klient przed logowaniem automatycznie sprawdza, pobiera, weryfikuje i instaluje aktualizacjÄ™, nastÄ™pnie uruchamia siÄ™ ponownie. Poczekaj na powrĂłt okna logowania. W wydaniu v2026.10.23.1 uĹĽyj przyciskĂłw **Update**, a potem **Restart and install**. Przycisk Nexus updates w gĂłrnym menu pozwala sprawdziÄ‡ aktualizacje rÄ™cznie; instalacja wymaga wylogowania.
 
-To aktualizacja istniejącej instalacji, nie kompletny klient z assetami serwera.
-Nie wypakowuj plików w nowym pustym folderze i nie kopiuj tokenów GitHub.
+To aktualizacja istniejÄ…cej instalacji, nie kompletny klient z assetami serwera.
+Nie wypakowuj plikĂłw w nowym pustym folderze i nie kopiuj tokenĂłw GitHub.
 
 The old launcher bootstraps installations without the new module. Once present, the
 in-client updater owns checking, downloading and explicit restart, including direct EXE starts.
@@ -35,3 +35,7 @@ Nexus updater scripts are provided under the MIT license in LICENSE.
 
 GitHub API: https://docs.github.com/en/rest/releases/releases#get-the-latest-release
 Actions permissions: https://docs.github.com/en/actions/tutorials/authenticate-with-github_token
+
+## Season IglaOTS (od v2026.11.3.1)
+
+Zaktualizuj klienta, pobierz z tego samego wydania `nexus-studio-sync.zip` i postepuj wedlug dolaczonego `SEASON - instrukcja.txt`. Studio importuje profil i zasoby z kompletnego oficjalnego klienta Season. Profil Season to `login.iglaots.net`; Low Rate to `loginlowrate.iglaots.net`. Paczka programu nie zawiera zasobow serwera.

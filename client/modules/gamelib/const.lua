@@ -229,6 +229,12 @@ GameEffectSource = 132
 GameNpcWindowRedesign = 133
 GameTaskboard = 134
 GameProficiency = 135
+GameCreatureIconV2 = 136
+GameCyclopediaMapData = 137
+GameForgeCompactConfig = 138
+GameProficiencyPerkShaping = 139
+GameTacticsWithoutFightMode = 140
+GameAttackCancelAdditionalData = 141
 
 TextColors = {
     red = '#f55e5e',    -- '#c83200'

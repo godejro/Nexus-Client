@@ -2,7 +2,7 @@ name: Nexus update release
 on:
   push:
     branches: [main]
-    paths: [client/**, build/**, VERSION, .github/workflows/release.yml]
+    paths: [client/**, studio/**, build/**, VERSION, .github/workflows/release.yml]
   workflow_dispatch:
 permissions:
   contents: write
@@ -21,11 +21,12 @@ jobs:
           $version=(Get-Content VERSION -Raw).Trim()
           ./build/Build-Update.ps1 -ClientRoot ./client -Output ./dist -Version $version
           Compress-Archive -Path ./client/URUCHOM_NEXUS.cmd,./client/updater -DestinationPath ./dist/nexus-launcher.zip
+          Compress-Archive -Path ./studio/* -DestinationPath ./dist/nexus-studio-sync.zip
       - name: Publish verified package
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $version=(Get-Content VERSION -Raw).Trim()
-          gh release create $version ./dist/nexus-update.zip ./dist/update.json ./dist/nexus-launcher.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Nexus Client $version" --notes-file RELEASE.md --latest
+          gh release create $version ./dist/nexus-update.zip ./dist/update.json ./dist/nexus-launcher.zip ./dist/nexus-studio-sync.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Nexus Client $version" --notes-file RELEASE.md --latest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

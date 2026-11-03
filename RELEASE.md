@@ -1,32 +1,29 @@
-# Nexus Client v2026.10.28.1
+# Nexus Client v2026.11.3.1
 
-Aktualizacja programu i CWEL BOT do istniejącej instalacji. Zamknij klienta i uruchom Nexus Client.exe ponownie; wydanie 26.10 pobierze aktualizację przed logowaniem. W starszym oknie aktualizatora kliknij Update, następnie Restart and install.
+Naprawione odswiezanie ekwipunku oraz obsluga logowania Season IglaOTS przez profil importowany w Nexus Studio Sync.
 
-## Klient
+## Ekwipunek
 
-- Naprawione przywracanie minimapy po ukryciu panelu i przejściu przez ekran logowania.
-- Naprawiony crash loadera grafik przy pustej puli SPR; protokół ustawiany przed ładowaniem assetów. Dodatkowa walidacja geometrii tekstur i animacji.
-- Magical Archive: poprawione kodowanie tekstu, pojedyncze zaznaczenie, szczegóły filtrów, grafika zakładki i animowany podgląd dostępnych efektów na siatce 3x3.
-- Poprawiona obsługa kliknięcia Login dla profili serwerów, pustego loginUrl oraz błędów zastosowania profilu.
-- Zoom od 3x3 do 21x15 z zachowaniem paneli bocznych.
-- Tryby walki po prawej stronie ekwipunku. Usunięte Manage control buttons i osobny przycisk Spell List w klientach 15.x.
-- Niebieski efekt tła logowania bez pomarańczowych cząsteczek.
-- Ikona Nexus osadzona w EXE we wszystkich dziewięciu rozmiarach od 16 do 256 px.
+- Zdarzenie zmiany slotu nie zapamietuje juz braku odbiorcy przed inicjalizacja interfejsu. Zmiany otrzymane po zalogowaniu trafiaja do aktualnych odbiorcow.
+- Poprzedni przedmiot jest przekazywany poprawnie do callbackow. Kontrolka przedmiotu zleca odrysowanie po zmianie.
+- Rzeczywisty test na Season: trzy cykle zdejmowania/zakladania butow, zamiana luku na wlocznie, kolczana na tarcze i przywrocenie wyposazenia. Stan wszystkich 10 slotow zgadzal sie z kontrolkami; grafika tarczy zostala sprawdzona w oknie gry. Nie trzeba zwijac ekwipunku.
 
-## CWEL BOT
+## Season IglaOTS i Studio
 
-- Pogrubiona czcionka, pełne kółka przełączników, jednolite odstępy okien, brak X głównego GUI. Dwuklik kategorii nie włącza modułu.
-- Alarms: listy na dole i dopasowanie wysokości. Usunięte wyszukiwarki reguł Targeting/Magic Shooter/Equipment Manager.
-- Heal Friends pokazuje pole czaru albo przedmiotu zgodnie z metodą.
-- MW/WG Timers wyżej w Extras; dopasowany edytor, format 20 / 20.0 / 20.00 i kolory. Rzeczywisty czas jest używany tylko, gdy serwer przesyła per-item duration. Bez niego licznik 20 s jest oszacowaniem od zauważenia walla, nie rzeczywistym losowym czasem wygaśnięcia. Nie wymuszamy flag protokołu.
-- Magic Shooter/Combo respektuje znany cooldown po wysłaniu czaru, a cooldown serwera zastępuje przewidywanie. Wylogowanie czyści stan.
-- Debug Cave: półprzezroczysta nakładka nie zastępuje już rysowania zawartości kratki; poprawiony rozmiar przy skalowaniu. Niebieski nagłówek WAYPOINTS.
-- BOT CONFIG: wybór ikony nad HP/Maną albo ruchomej zaokrąglonej ikony z zapisem pozycji.
+- Obsluga transportu launchera przez profil, natywnego HTTP logowania, RSA i wersji klienta zapisanych w profilu oraz wymaganych pol protokolu 15.30.
+- Poprawki parsowania anulowania ataku i trybow walki; zachowanie Stand nie wymusza follow.
+- Studio wykrywa zagniezdzony katalog klienta w folderze launchera, wypelnia wersje i ustawienia polaczenia oraz jasno opisuje bledy manifestu.
+- Osobna paczka nexus-studio-sync.zip zawiera aktualne Studio i instrukcje dla znajomego.
 
-## Weryfikacja i zakres
+## Jak zaktualizowac i wejsc na Season
 
-Przeszły testy składni zmienionych Lua, 9 zestawów testów logiki bota, 45 istniejących testów C++ oraz testy natywnego UI i ponownej inicjalizacji. Odtworzony crash pustej puli SPR nie występuje po poprawce; wizualnie sprawdzono animację Forked Glacier. Wdrożone pliki zweryfikowano SHA256.
+1. Uruchom dotychczasowy Nexus Client.exe i poczekaj na aktualizacje oraz restart. W starszym aktualizatorze wybierz Update, potem Restart and install.
+2. Pobierz nexus-studio-sync.zip z tego wydania i wypakuj. Uruchom Nexus Studio Sync.exe i wskaz swoj folder Nexusa.
+3. Przygotuj kompletny oficjalny klient SEASON IglaOTS, po aktualizacji jego launcherem. Zamknij klienty.
+4. W Studio / Synchronizacja wskaz folder Season_Launcher albo jego IglaOTS/bin. Kliknij Rozpoznaj klienta, potem Dodaj serwer automatycznie.
+5. Gdy Studio wykryje lokalne modyfikacje plikow OTS, dla kompletnego klienta pobranego z serwera zaznacz Import lokalnych modyfikacji assets i ponow import. Nie uzywaj tej opcji do pomijania brakujacych plikow.
+6. Uruchom Nexus Client.exe, wybierz login.iglaots.net i zaloguj sie swoim kontem. loginlowrate.iglaots.net jest osobnym serwerem Low Rate.
 
-Logowanie na Igłę/Feru, timery oraz Debug Cave podczas rzeczywistej gry wymagają testu na serwerze. Nie wszystkie czary mają metadane efektów; podgląd nie zgaduje brakujących animacji. Testy offline nie są gwarancją działania każdego niestandardowego serwera.
+Stara instalacja bez aktualizatora: wypakuj nexus-launcher.zip obok Nexus Client.exe i uruchom URUCHOM_NEXUS.cmd raz.
 
-Paczka nie zawiera kont, konfiguracji graczy, prywatnych skryptów ani assetów serwerów. Zachowuje istniejące dane użytkownika. Dla instalacji bez aktualizatora użyj nexus-launcher.zip zgodnie z README.
+Paczka programu nie zawiera kont, ustawien graczy ani zasobow serwera. Assets importowane przez Studio pozostaja w data/things/<wersja>/<profil>/ i data/sounds/<wersja>/<profil>/; kontrola SHA256 jest zachowana. Testy ekwipunku i logowania nie oznaczaja zakonczonego audytu wszystkich funkcji serwera ani testow Feru/JustRL.

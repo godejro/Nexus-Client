@@ -239,9 +239,13 @@ local function populateProfileList()
 
     local selected = manager.getSelectedProfileId()
     if selected ~= '' and manager.getProfile(selected) then
-        profileBox:setCurrentOptionByData(selected)
+        -- addOption already selects the first row without our callback connected.
+        -- Always synchronize the form, even if the selected row did not change.
+        local profile = manager.getProfile(selected)
+        profileBox:setCurrentOptionByData(selected, true)
+        EnterGame.onProfileChange(profileBox, profile.name, selected)
     elseif profiles[1] then
-        profileBox:setCurrentOptionByData(profiles[1].id)
+        profileBox:setCurrentOptionByData(profiles[1].id, true)
         EnterGame.onProfileChange(profileBox, profiles[1].name, profiles[1].id)
     else
         profileBox:addOption(tr('Add a server in Nexus Studio'), '')
@@ -585,6 +589,8 @@ local function configureModernHttpRsa(clientVersion)
             g_game.setRsa(OTSERV_RSA)
         elseif configuredMode == 'cipsoft' then
             g_game.setRsa(CIPSOFT_RSA)
+        elseif configuredMode == 'custom' and tostring(activeProfile.rsaValue or ''):match('^%d+$') then
+            g_game.setRsa(activeProfile.rsaValue)
         else
             g_game.setRsa(defaultRsa)
             configuredMode = configuredMode ~= '' and configuredMode or 'modern'
@@ -621,7 +627,8 @@ function EnterGame.tryHttpLogin(clientVersion, httpLogin)
         serverProfile = servers[G.host]
     end
     local gameProtocol = type(serverProfile) == 'table' and tonumber(serverProfile.gameProtocol or serverProfile.protocolVersion) or nil
-    local gameVersionString = type(serverProfile) == 'table' and serverProfile.gameVersionString or nil
+    local gameVersionString = type(serverProfile) == 'table' and
+        (serverProfile.gameVersionString or serverProfile.clientVersionString) or nil
     local loginPreviewState = type(serverProfile) == 'table' and tonumber(serverProfile.loginPreviewState) or 0
 
     g_game.setProtocolVersion(gameProtocol or g_game.getClientProtocolVersion(clientVersion))
@@ -639,9 +646,14 @@ function EnterGame.tryHttpLogin(clientVersion, httpLogin)
             g_game.getLoginPreviewState()))
     end
 
-    if clientVersion >= 1281 and httpLogin then
+    -- HTTP transport implementation must not decide the game connection RSA.
+    -- A native HTTP login must select its own profile key on every switch too.
+    if clientVersion >= 1281 then
         configureModernHttpRsa(clientVersion)
-        if clientVersion >= 1500 and g_app.getOs() == 'windows' then
+        local profileOs = type(serverProfile) == 'table' and tonumber(serverProfile.clientOs) or nil
+        if profileOs and profileOs == math.floor(profileOs) and profileOs > 0 and profileOs <= 65535 then
+            g_game.setCustomOs(profileOs)
+        elseif clientVersion >= 1500 and g_app.getOs() == 'windows' then
             g_game.setCustomOs(OsTypes.NewWindows)
         elseif g_app.getOs() == 'windows' then
             g_game.setCustomOs(OsTypes.Windows)
@@ -756,7 +768,8 @@ function EnterGame.tryHttpLogin(clientVersion, httpLogin)
     end
 
     local http = LoginHttp.create()
-    http:httpLogin(host, path, G.port, G.account, G.password, G.requestId, false, G.authenticatorToken)
+    http:httpLogin(host, path, G.port, G.account, G.password, G.requestId,
+        scheme == 'http' or (not scheme and G.port == 80), G.authenticatorToken)
 end
 
 function printTable(t)
@@ -1055,7 +1068,11 @@ function EnterGame.doLogin()
             g_game.setProtocolVersion(g_game.getClientProtocolVersion(clientVersion))
             g_game.setClientVersion(clientVersion)
         end
-        g_game.chooseRsa(G.host)
+        if activeProfile and activeProfile.rsaMode and activeProfile.rsaMode ~= 'auto' then
+            configureModernHttpRsa(clientVersion)
+        else
+            g_game.chooseRsa(G.host)
+        end
 
         if modules.game_things.isLoaded() then
             protocolLogin:login(G.host, G.port, G.account, G.password, G.authenticatorToken, G.stayLogged)

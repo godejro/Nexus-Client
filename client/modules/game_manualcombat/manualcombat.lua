@@ -8,7 +8,8 @@ local tactics, active
 local requestedMode = DontChase
 
 local function modernTactics()
-    return g_game.getClientVersion() == 1525 and g_game.getProtocolVersion() == 1525
+    if GameTacticsWithoutFightMode then return g_game.getFeature(GameTacticsWithoutFightMode) end
+    return g_game.getClientVersion() >= 1525 and g_game.getProtocolVersion() >= 1525
 end
 
 local function getTactics()

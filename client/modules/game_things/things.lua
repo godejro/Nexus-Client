@@ -3,6 +3,7 @@ ThingsLoaderController = Controller:new()
 local filename = nil
 local loaded = false
 local loadedAssetPath = nil
+local lastLoadError = nil
 
 local function normalizePath(path)
     path = tostring(path or ''):gsub('\\', '/')
@@ -98,6 +99,14 @@ local function tryLoadDatWithFallbacks(datPath)
 end
 
 local function load(version)
+    -- Resetting the protocol after a failed load emits this event again.
+    -- Version zero has no assets and must not create another error dialog.
+    if not version or version <= 0 then
+        loaded = false
+        loadedAssetPath = nil
+        return
+    end
+    lastLoadError = nil
     local errorList = {}
     local assetPath = getAssetPath(version)
     local soundPath = getSoundPath(version)
@@ -172,11 +181,18 @@ local function load(version)
 
     loadedAssetPath = nil
 
-    local messageBox = displayErrorBox(tr('Error'), table.concat(errorList, "\n"))
-    addEvent(function()
-        messageBox:raise()
-        messageBox:focus()
-    end)
+    lastLoadError = table.concat(errorList, "\n")
+    local manager = modules.client_profiles
+    local profile = manager and manager.getActiveProfile and manager.getActiveProfile()
+    -- Profile activation reports this failure to its caller. Only standalone
+    -- asset loads own an error dialog here.
+    if not profile then
+        local messageBox = displayErrorBox(tr('Error'), lastLoadError)
+        addEvent(function()
+            messageBox:raise()
+            messageBox:focus()
+        end)
+    end
 
     g_game.setClientVersion(0)
     g_game.setProtocolVersion(0)
@@ -189,6 +205,10 @@ end
 
 function getLoadedAssetPath()
     return loadedAssetPath
+end
+
+function getLoadError()
+    return lastLoadError
 end
 
 function ThingsLoaderController:onInit()

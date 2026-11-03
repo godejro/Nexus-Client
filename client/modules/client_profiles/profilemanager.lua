@@ -407,6 +407,23 @@ function validateProfile(profileOrId)
     if profile.capabilities and profile.capabilities.requiresLocalGameProxy then
         warnings[#warnings + 1] = 'This profile expects a local game proxy to be running.'
     end
+    if profile.transport ~= nil then
+        local t = profile.transport
+        if type(t) ~= 'table' or (t.profile ~= 'classic' and t.profile ~= 'launcher-blocks-v1' and t.profile ~= 'igla-launcher-v1') then
+            errors[#errors + 1] = 'Unsupported relay transport profile.'
+        elseif not g_proxy or not g_proxy.setTransportProfile then
+            errors[#errors + 1] = 'This executable does not support the required relay transport.'
+        elseif type(t.proxies) ~= 'table' or #t.proxies == 0 then
+            errors[#errors + 1] = 'Relay endpoints are missing.'
+        else
+            for _, relay in ipairs(t.proxies) do
+                local port = type(relay) == 'table' and tonumber(relay.port)
+                if not port or port < 1 or port > 65535 or trim(relay.host) == '' then
+                    errors[#errors + 1] = 'Invalid relay endpoint.'
+                end
+            end
+        end
+    end
     if type(profile.modules) ~= 'table' then
         errors[#errors + 1] = 'modules must be an array.'
     end
@@ -437,6 +454,19 @@ end
 
 function getDebugFlag(name)
     return activeProfile and type(activeProfile.debug) == 'table' and activeProfile.debug[name] == true
+end
+
+local function configureTransport(profile)
+    if not g_proxy then return end
+    g_proxy.clear()
+    if g_proxy.setTransportProfile then g_proxy.setTransportProfile('classic') end
+    local transport = profile and profile.transport
+    if type(transport) ~= 'table' then return end
+    g_proxy.setTransportProfile(transport.profile)
+    g_proxy.setMaxActiveProxies(tonumber(transport.maxActiveProxies) or 1)
+    for _, relay in ipairs(transport.proxies) do
+        g_proxy.addProxy(relay.host, tonumber(relay.port), tonumber(relay.priority) or 0)
+    end
 end
 
 function applyProfile(id)
@@ -481,7 +511,7 @@ function applyProfile(id)
     local thingsModule = modules.game_things
     local assetsLoaded = thingsModule and thingsModule.getLoadedAssetPath and
         thingsModule.getLoadedAssetPath() == activeProfile.assetPath
-    if not assetsLoaded and thingsModule and thingsModule.loadProfileAssets then
+    if not assetsLoaded and g_game.getClientVersion() == clientVersion and thingsModule and thingsModule.loadProfileAssets then
         assetsLoaded = thingsModule.loadProfileAssets(clientVersion)
     end
 
@@ -490,7 +520,7 @@ function applyProfile(id)
     local runtimeMatches = g_game.getClientVersion() == clientVersion and
         g_game.getProtocolVersion() == protocolVersion
     if not assetsLoaded or loadedAssetPath ~= activeProfile.assetPath or not runtimeMatches then
-        local errorMessage = string.format(
+        local errorMessage = (not assetsLoaded and thingsModule and thingsModule.getLoadError and thingsModule.getLoadError()) or string.format(
             '[ProfileMismatch] id=%s expectedClient=%d actualClient=%d expectedProtocol=%d actualProtocol=%d expectedAssets=%s actualAssets=%s',
             tostring(activeProfile.id),
             clientVersion,
@@ -506,6 +536,7 @@ function applyProfile(id)
         return false, { errorMessage }, warnings
     end
 
+    configureTransport(activeProfile)
     g_game.setActiveProfileId(activeProfile.id)
     g_settings.set('active-profile', id)
     g_settings.save()
@@ -529,6 +560,7 @@ function clearActiveProfile()
     if not unloaded then
         return false
     end
+    configureTransport(nil)
     activeProfile = nil
     g_game.setActiveProfileId('')
     local clientVersion = g_game.getClientVersion()
@@ -562,6 +594,7 @@ end
 function terminate()
     g_things.waitForPendingTextureLoads()
     unloadProfileModules()
+    configureTransport(nil)
     activeProfile = nil
     g_game.setActiveProfileId('')
     profiles = {}

@@ -282,6 +282,17 @@ local function applyClientFeatures(version)
             g_game.enableFeature(GameEffectSource)
         end
 
+        -- Modern layouts remain profile-overridable for custom forks.
+        if version >= 1525 and (not g_game.getProtocolVersion or g_game.getProtocolVersion() >= 1525) then
+            g_game.enableFeature(GameTacticsWithoutFightMode)
+        end
+        if version >= 1530 and (not g_game.getProtocolVersion or g_game.getProtocolVersion() >= 1530) then
+            g_game.enableFeature(GameCreatureIconV2)
+            g_game.enableFeature(GameCyclopediaMapData)
+            g_game.enableFeature(GameForgeCompactConfig)
+            g_game.enableFeature(GameProficiencyPerkShaping)
+        end
+
         if version >= 1520 then
             g_game.enableFeature(GameLevelPercentU16)
             g_game.enableFeature(GameTaskboard)
