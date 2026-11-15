@@ -1,6 +1,8 @@
 function translateNetworkError(errcode, connecting, errdesc)
     local text
-    if errcode == 111 or errcode == 61 then
+    if errdesc == 'CLIENT_PROTOCOL_MISMATCH' then
+        text = tr('The client could not read the server data.\nUpdate this server profile and its assets in Nexus Studio.\nDetails are available in packet.log.')
+    elseif errcode == 111 or errcode == 61 then
         text = tr('Connection refused, the server might be offline or restarting.\nPlease try again later.')
     elseif errcode == 110 then
         text = tr('Connection timed out. Either your network is failing or the server is offline.')

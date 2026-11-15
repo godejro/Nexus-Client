@@ -40,21 +40,9 @@ local function sampleCombat(msg)
 end
 
 function handleOpcode(opcode, msg)
-  if (opcode ~= 0xC1 and opcode ~= 0xB4) or not isActiveProfile() then return false end
-  if opcode == 0xB4 then sampleCombat(msg) return false end
-  if msg:getUnreadSize() < 1 or msg:peekU8() ~= 2 then return false end
-  -- Official VocationSpecificPlayerData subtype 2 is a list of U16 spell IDs,
-  -- not the legacy one-byte Monk virtue. Read exactly this payload, not the
-  -- following opcode. The other subtypes remain in the native parser.
-  if msg:getUnreadSize() < 2 then error('Truncated Vantoria virtue count') end
-  local count = math.floor(msg:peekU16() / 256)
-  if msg:getUnreadSize() < 2 + count * 2 then error('Truncated Vantoria virtue list') end
-  msg:getU8()
-  msg:getU8()
-  local ids = {}
-  for i = 1, count do ids[i] = msg:getU16() end
-  virtueSpellIds = ids
-  return true
+  -- Vocation data is decoded by the common, profile-configurable native parser.
+  if opcode == 0xB4 and isActiveProfile() then sampleCombat(msg) end
+  return false
 end
 
 function terminate()

@@ -285,6 +285,7 @@ local function applyClientFeatures(version)
         -- Modern layouts remain profile-overridable for custom forks.
         if version >= 1525 and (not g_game.getProtocolVersion or g_game.getProtocolVersion() >= 1525) then
             g_game.enableFeature(GameTacticsWithoutFightMode)
+            g_game.enableFeature(GameVocationSpellList)
         end
         if version >= 1530 and (not g_game.getProtocolVersion or g_game.getProtocolVersion() >= 1530) then
             g_game.enableFeature(GameCreatureIconV2)
