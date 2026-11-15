@@ -1,30 +1,17 @@
-# Nexus Client v2026.11.15.3
+# Nexus Client v2026.11.15.4
 
-Naprawiono błąd „Invalid update request” podczas automatycznej instalacji na Windows. Ścieżki ze spacjami i końcowym ukośnikiem są poprawnie przekazywane do instalatora. Nowy EXE rozpoznaje także dokładny starszy format wywołania, dzięki czemu poprawkę może pobrać dotychczasowy klient. Walidacja manifestu, SHA256, dozwolonych plików i katalogu instalacji pozostaje aktywna.
+Naprawiono rozłączenie ERROR 134 podczas pojawienia się potworów raidu Echo, m.in. Crawlera, oraz ponownego logowania w ich pobliżu.
 
-Test argumentów wykorzystuje rzeczywisty parser Windows oraz ShellExecute: odtworzenie awarii, 10000 losowych przypadków i odrzucanie nieprawidłowych żądań. Zweryfikowano natywną instalację z dokładnym starszym wywołaniem, utworzenie kopii zapasowej i restart klienta. Uwzględniono dodatkową spację wstawianą przez Windows, która blokowała instalację wydania .2 ze starego klienta. Wydanie zawiera również poniższe poprawki logowania i pamięci z v2026.11.15.1.
+Klient odrzucał niepustą dodatkową listę oznaczeń potwora w opisie mapy. Nie odczytywał również aktualizacji tej listy (0x8B, typ 15), więc jej bajty stawały się nieprawidłowymi opcode'ami. Obie ścieżki korzystają teraz z jednego parsera listy identyfikatorów. Stan oznaczeń jest przechowywany niezależnie od głównych ikon; pusta lista usuwa poprzedni stan. Usunięte/nieznane stworzenie nie zaburza odczytu następnego pakietu. Nie zastosowano pomijania błędów ani zgadywania granicy kolejnego opcode'u.
 
-## Poprawki z v2026.11.15.1
-
-Naprawa logowania IgłaOTS oraz dalsze ograniczenie pamięci grafiki. Zmiany silnika działają wspólnie dla profili serwerów.
-
-- Poprawiono odczyt danych profesji: nowy format zawiera listę identyfikatorów U16. Jej niepełny odczyt powodował rozłączenie Igły po załadowaniu mapy (ERROR 134). Wspólny parser obsługuje format przez GameVocationSpellList; starszy format pozostaje dostępny przez wyłączenie tej funkcji w profilu. Usunięto osobne przechwytywanie tej listy tylko dla Vantorii.
-- Automatyczny rozmiar strony atlasu mapy wynosi teraz 4096×4096 zamiast maksymalnego rozmiaru GPU. Strona RGBA zajmuje 64 MiB zamiast 256 MiB przy 8192×8192. Jawne ustawienia użytkownika są respektowane.
-- Usunięto niewykorzystywane mipmapy generowanych tekstur obiektów i ich podwójne przechowywanie po przesłaniu do atlasu. Cztery maski outfitu są pakowane w kanały jednej maski z zachowaniem kolejności i sposobu kolorowania.
-- Nieaktywne, całkowicie puste strony atlasu zwalniają się po okresie ochronnym; pozostaje zapasowa strona. Aktywne zasoby i kolejki renderowania zachowują własność. Preload oraz retencja zasobów podczas zmiany piętra pozostają.
-- Nieobecne identyfikatory w rzadkim katalogu assets są teraz odrzucane od razu. Błąd odczytu protokołu ma osobny komunikat zamiast sugerowania wyłącznie awarii sieci.
-- Naprawiono pętlę zamykania mapy, która mogła pozostawić proces Nexusa po zamknięciu okna.
+Zmiana jest sterowana istniejącą funkcją profilu GameCreatureIconV2, bez zależności od nazwy serwera lub potwora. Starszy format pozostaje niezmieniony. Nie zmieniono assets, bota, renderowania, cache ani mechanizmów ruchu.
 
 ## Weryfikacja
 
-Kompilacja Windows x64 OpenGL: poprawna. Testy parsera obejmują przechwycony format Igły, granice następnego pakietu, pustą/wieloelementową listę, ucięte dane i starszy format. Testy cache, masek i czasu życia atlasów przeszły. Zweryfikowano też testy aktualizatora: SHA256, dozwolone ścieżki, kopię zapasową i cofnięcie częściowej instalacji.
+Kompilacja Windows x64 OpenGL zakończona poprawnie. Testy produkcyjnych funkcji parsera obejmują fragmenty zapisane przy błędzie Echo, zachowanie granicy następnego pakietu, pustą/wieloelementową/maksymalną listę, ucięte dane, usunięte stworzenie, rozdzielenie list ikon oraz kontrolę starszego profilu. Testy przeszły. Na prośbę użytkownika nie wykonywano ponownych testów rozgrywki; odtworzenie całego raidu pozostaje do weryfikacji przez gracza.
 
-Rzeczywisty test 15.11: logowanie Igła → Vantoria → Igła w jednym procesie, bez podmiany plików, z ruchem i przejściami między piętrami. W pierwszym zapisie Private Working Set wyniósł 784–1281 MiB, Private Bytes 875–1349 MiB; zakres obejmuje logowanie i zmianę profilu. Nie jest to gwarancja limitu pamięci podczas każdej długiej sesji. W powtórnej próbie schodów w Thais pierwsze trzy przejścia miały maksymalne czasy klatki 12,6–12,9 ms w oknach ±2 s. Nie potwierdzamy celu 500–700 MB ani uniwersalnego limitu 1 GB.
+Zachowano poprawki logowania, pamięci grafiki i aktualizatora z v2026.11.15.3. Paczka programu nie zawiera haseł, kont, profili ani assets serwerów.
 
-## Instalacja
+## Aktualizacja
 
-Wyloguj postać i uruchom ponownie Nexus Client.exe. Wbudowany aktualizator pobierze nowe wydanie. W starszej instalacji uruchom URUCHOM_NEXUS.cmd; jeśli pojawią się Update oraz Restart and install, użyj ich kolejno.
-
-Paczka zawiera program, nie assets serwerów, konta ani ustawienia gracza. Profile i konfiguracja bota pozostają lokalne. Vantoria wymaga aktualnych zasobów ze swojego launchera; sam stary publiczny ZIP Vantoria15_25 może nie zawierać nowych przedmiotów. Studio Sync jest dołączone w dotychczasowej wersji.
-
-Po aktualizacji sprawdź dłuższą sesję, powroty między profilami, outfity i efekty oraz pamięć po ustabilizowaniu. Optymalizacja nie ogranicza FPS, jakości grafiki ani częstotliwości akcji bota.
+Wyloguj się i zamknij klienta. Uruchom ponownie Nexus Client.exe — aktualizator pobierze wydanie i uruchomi klienta ponownie. Profile i ustawienia bota pozostają lokalne. Po aktualizacji sprawdź wejście do obszaru raidu Echo i ponowne logowanie obok tych potworów.
