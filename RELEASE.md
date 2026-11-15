@@ -1,8 +1,8 @@
-# Nexus Client v2026.11.15.2
+# Nexus Client v2026.11.15.3
 
 Naprawiono błąd „Invalid update request” podczas automatycznej instalacji na Windows. Ścieżki ze spacjami i końcowym ukośnikiem są poprawnie przekazywane do instalatora. Nowy EXE rozpoznaje także dokładny starszy format wywołania, dzięki czemu poprawkę może pobrać dotychczasowy klient. Walidacja manifestu, SHA256, dozwolonych plików i katalogu instalacji pozostaje aktywna.
 
-Test argumentów wykorzystuje rzeczywisty parser Windows: odtworzenie awarii, 10000 losowych przypadków oraz odrzucanie nieprawidłowych żądań. Wydanie zawiera również poniższe poprawki logowania i pamięci z v2026.11.15.1.
+Test argumentów wykorzystuje rzeczywisty parser Windows oraz ShellExecute: odtworzenie awarii, 10000 losowych przypadków i odrzucanie nieprawidłowych żądań. Zweryfikowano natywną instalację z dokładnym starszym wywołaniem, utworzenie kopii zapasowej i restart klienta. Uwzględniono dodatkową spację wstawianą przez Windows, która blokowała instalację wydania .2 ze starego klienta. Wydanie zawiera również poniższe poprawki logowania i pamięci z v2026.11.15.1.
 
 ## Poprawki z v2026.11.15.1
 
