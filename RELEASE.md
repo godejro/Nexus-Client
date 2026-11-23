@@ -1,7 +1,9 @@
-# Nexus Client v2026.11.23.2
+# Nexus Client v2026.11.23.3
 
-W Bot Config ponownie dostępna jest opcja **Mini bot**. Podczas gry wyświetla małe, przesuwalne okno NEXUS BOT z ikonami i przełącznikami 11 kategorii. Najedź na ikonę lub przełącznik, aby zobaczyć nazwę kategorii. Duże okno można zamknąć i nadal korzystać z mini panelu.
+Przy zmianie serwera klient wyświetla „Loading world map…” do pierwszej wyrenderowanej klatki nowego świata. Podczas poruszania się między piętrami nadal korzysta z buforowania mapy.
 
-Panel korzysta z tych samych ustawień kategorii co duże okno. Klient zapamiętuje położenie panelu i odczytuje dotychczasowy wybór Mini bot. Przywrócenie sprawdzono w interfejsie klienta offline.
+W CaveBot → Config jest nowy przełącznik **Avoid parcels / fields**. Domyślnie jest wyłączony. CaveBot może wtedy przejść przez paczki i pola, po których da się chodzić. Włącz go, aby planował trasę z ich pominięciem.
 
-Po wylogowaniu zamknij klienta i uruchom ponownie Nexus Client.exe, aby pobrać aktualizację.
+Poprawiono naliczanie wysokości stosów przedmiotów, rysowanie postaci na sąsiedniej kratce przy dużych ciałach i zachowanie kroku przy aktualizacji stosu pod postacią.
+
+Po wylogowaniu uruchom ponownie Nexus Client.exe i pobierz aktualizację.

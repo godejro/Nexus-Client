@@ -19,18 +19,19 @@ function N.beginTick()
 end
 -- Use the client's explored minimap for remote route recovery. Send only the
 -- currently visible, checked prefix; discover/revalidate the next part on ACK.
-function N.mappedPath(start,goal,transition,visibleOnly)
+function N.mappedPath(start,goal,transition,visibleOnly,avoidItems)
   if not g_map.findPath or not start or not goal or start.z~=goal.z or A.distance(start,goal)>64 then return nil end
   if (N.nativeBudget or 0)<=0 then return nil end
   N.nativeBudget=N.nativeBudget-1
-  local path=g_map.findPath(start,goal,2000,0)
+  local flags=avoidItems==false and PathFindFlags.AllowNonPathable or 0
+  local path=g_map.findPath(start,goal,2000,flags)
   if type(path)~='table' or #path==0 then return nil end
   if not visibleOnly then return path end
   local result={} local p={x=start.x,y=start.y,z=start.z}
   for _,direction in ipairs(path) do
     local d=N.directions[direction+1] if not d then return nil end
     p={x=p.x+d[1],y=p.y+d[2],z=p.z}
-    if not N.safeTile(p,transition and A.distance(p,goal)==0) then break end
+    if not N.safeTile(p,transition and A.distance(p,goal)==0,avoidItems) then break end
     result[#result+1]=direction
     if #result>=12 then break end
   end
@@ -45,28 +46,51 @@ function N.transition(tile)
     if not kind and g_things and g_things.getThingType then kind=g_things.getThingType(item:getId(),ThingCategoryItem or 0) end
     if A.call(kind,'hasFloorChange',false) then return true end
     local id=item:getId()
-    if id==1946 or id==1947 or id==1387 or (id>=2118 and id<=2132) then return true end
+    if id==1946 or id==1947 or id==1387 then return true end
   end
   return false
+end
+local function isField(item)
+  local id=item:getId()
+  return (id>=2118 and id<=2132) or A.call(item,'isMagicField',false)
 end
 function N.hazard(tile)
   if not tile or N.transition(tile) then return true end
   for _,item in ipairs(A.call(tile,'getItems',{})) do
-    if A.call(item,'isMagicField',false) then return true end
+    if isField(item) then return true end
   end
   return false
 end
-function N.safeTile(p,allowTransition)
+local function caveTileAllowed(tile,allowTransition,avoidItems)
+  if N.transition(tile) then return allowTransition==true end
+  if avoidItems then
+    if not tile:isPathable() then return false end
+    for _,item in ipairs(tile:getItems()) do
+      if (item:isContainer() and not item:isNotMoveable()) or isField(item) then return false end
+    end
+  elseif not tile:isPathable() then
+    -- Ignore path-avoid flags on top of the ground, keeping terrain restrictions.
+    local ground=tile:getGround()
+    local kind=ground and g_things.getThingType(ground:getId(),ThingCategoryItem)
+    return kind~=nil and not kind:isNotPathable()
+  end
+  return true
+end
+function N.safeTile(p,allowTransition,avoidItems)
   if N.blocked and (N.blocked[A.key(p)] or 0)>NexusBot.now() then return false end
-  local key=A.key(p)..(allowTransition and ':transition' or ':normal')
+  local key=A.key(p)..(allowTransition and ':transition' or ':normal')..tostring(avoidItems)
   if N.tileCache and N.tileCache[key]~=nil then return N.tileCache[key] end
   local tile=g_map.getTile(p)
   local safe=tile~=nil and A.call(tile,'isWalkable',false,false)
-  if safe and not allowTransition then safe=not N.hazard(tile) and A.call(tile,'isPathable',true) end
+  if safe and avoidItems~=nil then
+    safe=caveTileAllowed(tile,allowTransition,avoidItems)
+  elseif safe and not allowTransition then
+    safe=not N.hazard(tile) and A.call(tile,'isPathable',true)
+  end
   if N.tileCache then N.tileCache[key]=safe end
   return safe
 end
-function N.path(start,goal,range,transition,constraint)
+function N.path(start,goal,range,transition,constraint,avoidItems)
   if not start or not goal or start.z~=goal.z then return nil end
   range=range or 0
   if A.distance(start,goal)<=range then return {} end
@@ -101,7 +125,7 @@ function N.path(start,goal,range,transition,constraint)
       local cost=node.g+(d[1]~=0 and d[2]~=0 and 30 or 10)
       if (not costs[key] or cost<costs[key]) and A.distance(start,p)<=18 then
         local final=A.distance(p,goal)==0
-        local safe=(not constraint or constraint(p)) and N.safeTile(p,transition and final)
+        local safe=(not constraint or constraint(p)) and N.safeTile(p,transition and final,avoidItems)
         -- Like the native OTC pathfinder, validate the destination itself.
         -- Adjacent decorations do not make a free diagonal tile unwalkable.
         if safe then
@@ -113,7 +137,7 @@ function N.path(start,goal,range,transition,constraint)
     end
   end
 end
-function N.walk(goal,range,transition,routeWalk,constraint)
+function N.walk(goal,range,transition,routeWalk,constraint,avoidItems)
   local player=g_game.getLocalPlayer() local pos=A.position() local now=NexusBot.now()
   if not pos or not goal or pos.z~=goal.z then return false,'Different floor; add a transition waypoint.' end
   if A.distance(pos,goal)<=(range or 0) then N.pending=nil return true,'arrived' end
@@ -147,10 +171,10 @@ function N.walk(goal,range,transition,routeWalk,constraint)
     else return false,'waiting' end
   end
   if now<N.nextWalk or (not routeWalk and A.call(player,'isWalking',false)) then return false,'waiting' end
-  local path=N.path(pos,goal,range,transition,constraint)
+  local path=N.path(pos,goal,range,transition,constraint,avoidItems)
   local config=A.CaveBot and A.CaveBot.Config and A.CaveBot.Config.values
   if not path and routeWalk and not constraint and config and config.autoNavigate then
-    path=N.mappedPath(pos,goal,transition,true)
+    path=N.mappedPath(pos,goal,transition,true,avoidItems)
   end
   N.nextWalk=now+math.max(0,tonumber(config and config.stepDelay) or 180)
   if not path or not path[1] then return false,'No safe visible path. Move closer or add intermediate waypoints.' end
@@ -177,7 +201,7 @@ function N.walk(goal,range,transition,routeWalk,constraint)
   N.pending={from=A.key(pos),destination=A.key({x=pos.x+step[1],y=pos.y+step[2],z=pos.z}),untilTime=now+math.max(350,duration*2+ping*3)}
   return false,'walking'
 end
-function N.walkRoute(goal,range,transition,constraint) return N.walk(goal,range,transition,true,constraint) end
+function N.walkRoute(goal,range,transition,constraint,avoidItems) return N.walk(goal,range,transition,true,constraint,avoidItems) end
 function N.onCancelWalk()
   local pending=N.pending
   if not pending then return end

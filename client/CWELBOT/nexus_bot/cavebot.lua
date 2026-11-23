@@ -280,6 +280,11 @@ function UI.create()
         input:getParent().label:setWidth(135) input:getParent():setHeight(29)
       end
       U.toggle(right,'Auto navigate',C.Config.values.autoNavigate==true,function(v) C.Config.values.autoNavigate=v C.save() end)
+      U.toggle(right,'Avoid parcels / fields',C.Config.values.avoidItems==true,function(v)
+        C.Config.values.avoidItems=v
+        if C.isOn() or NexusBot.Features.AutoExplore.running then A.Navigation.reset() end
+        C.save()
+      end)
       U.toggle(left,'Debug Cave',C.Config.values.debugCave==true,function(v) C.Config.values.debugCave=v C.save() A.Walker.drawDebug() end)
       U.toggle(left,'Show shortest path',C.Config.values.debugPath==true,function(v) C.Config.values.debugPath=v C.save() A.Walker.drawDebug() end)
     end
@@ -770,7 +775,7 @@ local A=NexusBot.Automation
 local N=A.Navigation
 A.Walker={state=nil,recording=false,trade={}}
 local W=A.Walker
-W.defaults={loop=true,stepDelay=0,actionTimeout=15000,useDelay=900,maxUseRetries=4,recordDistance=3,ropeId=3003,shovelId=3457,allowLua=false,talkDelay=700,debugCave=false,debugPath=false,autoNavigate=false}
+W.defaults={loop=true,stepDelay=0,actionTimeout=15000,useDelay=900,maxUseRetries=4,recordDistance=3,ropeId=3003,shovelId=3457,allowLua=false,talkDelay=700,debugCave=false,debugPath=false,autoNavigate=false,avoidItems=false}
 
 function W.clearDebug()
   for tile,text in pairs(W.debugTiles or {}) do
@@ -798,7 +803,7 @@ function W.drawDebug()
   if C.Config.values.debugPath and goal and goal.z==pos.z then
     local budget,cache=N.budget,N.tileCache
     N.beginTick()
-    local path=N.path(pos,goal,0,true)
+    local path=N.path(pos,goal,0,true,nil,C.Config.values.avoidItems==true)
     N.budget,N.tileCache=budget,cache
     local point=NexusBot.copy(pos)
     for _,direction in ipairs(path or {}) do
@@ -867,8 +872,8 @@ function W.nearestReachable(pos,exclude)
   local best,bestCost
   for _,candidate in ipairs(candidates) do
     if N.budget and N.budget<=0 then break end
-    local path=N.path(pos,candidate.goal,candidate.goal.radius or 0,candidate.goal.radius==0)
-    if not path and A.CaveBot.Config.values.autoNavigate then path=N.mappedPath(pos,candidate.goal,candidate.goal.radius==0,false) end
+    local path=N.path(pos,candidate.goal,candidate.goal.radius or 0,candidate.goal.radius==0,nil,A.CaveBot.Config.values.avoidItems==true)
+    if not path and A.CaveBot.Config.values.autoNavigate then path=N.mappedPath(pos,candidate.goal,candidate.goal.radius==0,false,A.CaveBot.Config.values.avoidItems==true) end
     if path then
       local cost=0 for _,direction in ipairs(path) do cost=cost+(direction>=4 and 3 or 1) end
       if not bestCost or cost<bestCost then best,bestCost=candidate.entry,cost end
@@ -928,7 +933,7 @@ function W.registerActions()
     local transition=goal.radius==0
     if transition and (A.position().z~=s.startZ or (s.lastPos and A.distance(s.lastPos,A.position())>2 and A.distance(s.lastPos,goal)<=1)) then return true end
     s.lastPos=NexusBot.copy(A.position())
-    local arrived,why=N.walkRoute(goal,goal.radius or 0,transition)
+    local arrived,why=N.walkRoute(goal,goal.radius or 0,transition,nil,C.Config.values.avoidItems==true)
     if why~='waiting' and why~='walking' and not arrived then C.status=why end
     return arrived or 'retry'
   end)
@@ -936,11 +941,11 @@ function W.registerActions()
     if A.position().z~=s.startZ then return true end
     if s.lastPos and A.distance(s.lastPos,A.position())>2 and A.distance(s.lastPos,A.parsePosition(v))<=1 then return true end
     s.lastPos=NexusBot.copy(A.position())
-    local arrived=N.walkRoute(A.parsePosition(v),0,true) return arrived or 'retry'
+    local arrived=N.walkRoute(A.parsePosition(v),0,true,nil,C.Config.values.avoidItems==true) return arrived or 'retry'
   end)
   register('stairs','Enter transition tile x,y,z and confirm a floor change.','100,100,7',position,function(v,s)
     if A.position().z~=s.startZ then return true end
-    N.walkRoute(A.parsePosition(v),0,true) return 'retry'
+    N.walkRoute(A.parsePosition(v),0,true,nil,C.Config.values.avoidItems==true) return 'retry'
   end)
   register('use','Use door/ladder/object at x,y,z. Retries are bounded.','100,100,7',position,function(v,s) return W.useAt(s,A.parsePosition(v)) end)
   register('usewith','Use item on tile: itemId,x,y,z.','3003,100,100,7',function(v) local n=parseNumbers(v,4) return n and n[1]>=100 and n[4]<=15 end,function(v,s)
@@ -1347,7 +1352,7 @@ function E.choose(pos,now)
     end
     for _,d in ipairs(N.directions) do
       local p={x=node.p.x+d[1],y=node.p.y+d[2],z=pos.z} local k=A.key(p)
-      if not seen[k] and math.abs(p.x-pos.x)<=8 and math.abs(p.y-pos.y)<=6 and E.allowed(p) and N.safeTile(p,false) then
+      if not seen[k] and math.abs(p.x-pos.x)<=8 and math.abs(p.y-pos.y)<=6 and E.allowed(p) and N.safeTile(p,false,A.CaveBot.Config.values.avoidItems==true) then
         seen[k]=true queue[#queue+1]={p=p,depth=node.depth+1}
       end
     end
@@ -1369,8 +1374,8 @@ function E.tick(pos,now)
     if A.distance(pos,c.to)==0 then E.connector=nil E.goal=nil N.reset() E.nextScan=0 return end
     if now-E.started>10000 then E.failures['connector:'..A.key(c.from)]=now+30000 E.connector=nil N.reset() return end
     if pos.z~=c.from.z then A.CaveBot.setOff() A.CaveBot.status='Unexpected connector exit; review connection.' return end
-    if c.kind=='walk' then N.walkRoute(c.from,0,true,E.allowed)
-    elseif A.distance(pos,c.from)>1 then N.walkRoute(c.from,1,false,E.allowed)
+    if c.kind=='walk' then N.walkRoute(c.from,0,true,E.allowed,A.CaveBot.Config.values.avoidItems==true)
+    elseif A.distance(pos,c.from)>1 then N.walkRoute(c.from,1,false,E.allowed,A.CaveBot.Config.values.avoidItems==true)
     elseif now>=(E.nextUse or 0) then
       local tile=g_map.getTile(c.from) local thing=tile and tile:getTopUseThing()
       if thing then
@@ -1386,7 +1391,7 @@ function E.tick(pos,now)
     if A.distance(pos,E.goal)==0 then E.goal=nil E.nextScan=0
     elseif now-E.started>8000 then E.failures[A.key(E.goal)]=now+15000 E.goal=nil N.reset()
     else
-      N.walkRoute(E.goal,0,false,E.allowed) A.CaveBot.status='Explore '..A.key(E.goal)..' / visited '..E.visitedCount return
+      N.walkRoute(E.goal,0,false,E.allowed,A.CaveBot.Config.values.avoidItems==true) A.CaveBot.status='Explore '..A.key(E.goal)..' / visited '..E.visitedCount return
     end
   end
   if now<(E.nextScan or 0) then return end E.nextScan=now+500
@@ -1394,7 +1399,7 @@ function E.tick(pos,now)
   if not E.goal then
     for _,entry in ipairs(E.config().connectors) do
       if entry.from.z==pos.z and E.allowed(entry.from) and E.allowed(entry.to) and (E.failures['connector:'..A.key(entry.from)] or 0)<=now then
-        local path=N.path(pos,entry.from,entry.kind=='walk' and 0 or 1,true,E.allowed)
+        local path=N.path(pos,entry.from,entry.kind=='walk' and 0 or 1,true,E.allowed,A.CaveBot.Config.values.avoidItems==true)
         if path then E.connector=entry E.nextUse=0 break end
       end
     end
