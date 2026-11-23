@@ -64,6 +64,7 @@ function NexusBot.init(fromSetup)
     onGameStart=function()
       NexusBot.Categories.entries.settings.autoLoadForCharacter()
       if NexusBot.enabled then NexusBot.Actions.start() end
+      NexusBot.Launcher.refreshMini()
     end,
     onGameEnd=function()
       NexusBot.Features.Modern.alert('disconnected','Connection lost.')
@@ -78,6 +79,7 @@ function NexusBot.init(fromSetup)
   if NexusBot.button and NexusBot.button.setOn then NexusBot.button:setOn(NexusBot.enabled) end
   NexusBot.Logger.info('Core','Loaded '..NexusBot.Metadata.version)
   if not fromSetup and g_game.isOnline() then NexusBot.Categories.entries.settings.autoLoadForCharacter() end
+  NexusBot.Launcher.refreshMini()
 end
 
 function NexusBot.terminate()

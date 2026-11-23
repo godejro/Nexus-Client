@@ -4,7 +4,7 @@ local hotkeyWindow
 
 -- ==================== GUI / LAYOUT ====================
 category.open = function()
-  local w,p=NexusBot.Features.Modern.shared.formWindow('BOT CONFIG',250)
+  local w,p=NexusBot.Features.Modern.shared.formWindow('BOT CONFIG',282)
   w:setWidth(340)
   NexusBot.UI.combo(p,'Bot icon',{{'Above HP / Mana','docked'},{'Floating icon','floating'}},
     g_settings.getString('nexusBotLauncherMode')=='floating' and 'floating' or 'docked',function(value)
@@ -15,6 +15,10 @@ category.open = function()
       if modules.game_mainpanel then modules.game_mainpanel.reloadMainPanelSizes() end
     end)
   local key=NexusBot.Storage.get().settings.windowHotkey or ''
+  NexusBot.UI.toggle(p,'Mini bot',NexusBot.Storage.get().settings.miniBotEnabled==true,function(value)
+    NexusBot.Storage.get().settings.miniBotEnabled=value NexusBot.Storage.touch()
+    NexusBot.Launcher.refreshMini()
+  end)
   local input=NexusBot.UI.textInput(p,'Show/Hide bot window',key,function() end)
   input:getParent().label:setWidth(160)
   NexusBot.UI.button(p,'Apply shortcut',function()

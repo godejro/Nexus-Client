@@ -43,7 +43,7 @@ function W.track(id, widget)
     assert(W.tracked[widget].id==id,'A window cannot have two position keys')
     return widget
   end
-  local saved=id=='launcher' and positions()[id] or nil
+  local saved=(id=='launcher' or id=='mini_bot') and positions()[id] or nil
   if id=='heal_friends' and saved then
     local neighbour=W.instances.launcher
     if neighbour and not neighbour:isDestroyed() and neighbour:isVisible() then
@@ -56,7 +56,7 @@ function W.track(id, widget)
   if saved then
     local position={x=tonumber(saved.x),y=tonumber(saved.y)}
     if valid(position) then widget:setPosition(position) end
-  elseif id ~= 'launcher' then
+  elseif id ~= 'launcher' and id ~= 'mini_bot' then
     previous = NexusBot.Categories.entries[id] and W.instances.launcher or (W.lastOpened or W.instances.launcher)
     while previous and W.tracked[previous] and W.tracked[previous].after and not NexusBot.Categories.entries[W.tracked[previous].id] do previous=W.tracked[previous].after end
     if previous and (previous:isDestroyed() or not previous:isVisible()) then previous=W.instances.launcher end
@@ -69,7 +69,7 @@ function W.track(id, widget)
   W.clamp(widget)
   -- Restore a dock relationship only for saved windows that are still adjacent.
   -- A deliberately moved window keeps its own saved position.
-  if saved and id~='launcher' then
+  if saved and id~='launcher' and id~='mini_bot' then
     local p=widget:getPosition()
     for candidate in pairs(W.tracked) do
       if candidate~=widget and not candidate:isDestroyed() and candidate:isVisible() then
@@ -126,7 +126,9 @@ function W.attach(id, widget)
     widget.closeButton.onClick=function() widget:hide() return true end
     widget.onEscape=widget.closeButton.onClick
   end
-  widget:show() widget:raise() widget:focus()
+  widget:show() widget:raise()
+  if id=='mini_bot' then return widget end
+  widget:focus()
   if id~='launcher' then W.dockBesideLauncher(widget) end
   W.lastOpened=widget
   return widget
@@ -184,7 +186,10 @@ end
 function W.close(id)
   local widget=W.instances[id]
   if widget and not widget:isDestroyed() then
-    remember(id,widget:getPosition())
+    local pos=widget:getPosition()
+    -- Geometry notifications can still be queued when a panel closes.
+    if W.tracked[widget] then W.tracked[widget].last=pos end
+    remember(id,pos)
     widget:destroy()
   end
   W.instances[id]=nil
@@ -197,8 +202,8 @@ function W.closeAll()
 end
 
 function W.hideAll()
-  for _,widget in pairs(W.instances) do
-    if not widget:isDestroyed() then widget:hide() end
+  for id,widget in pairs(W.instances) do
+    if id~='mini_bot' and not widget:isDestroyed() then widget:hide() end
   end
 end
 

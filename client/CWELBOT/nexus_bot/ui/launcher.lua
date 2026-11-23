@@ -10,6 +10,54 @@ function NexusBot.Launcher.refresh()
   end
 end
 
+function NexusBot.Launcher.refreshMini()
+  local L=NexusBot.Launcher
+  local enabled=NexusBot.Storage.get().settings.miniBotEnabled==true and g_game.isOnline()
+  if not enabled then
+    NexusBot.WindowManager.close('mini_bot') L.mini=nil
+    return
+  end
+  if L.mini and not L.mini:isDestroyed() then L.mini:show() return end
+  local w=g_ui.createWidget('NexusWindow',rootWidget)
+  L.mini=w w:setId('nexusMiniBot') w:setText('NEXUS BOT')
+  w:setWidth(104) w:setPadding(8) w:setPaddingTop(30)
+  local rows={}
+  for _,entry in ipairs(NexusBot.Categories.list()) do
+    if entry.setEnabled and entry.getEnabled then
+      local row=g_ui.createWidget('UIWidget',w)
+      row:setHeight(26) row:addAnchor(AnchorLeft,'parent',AnchorLeft) row:addAnchor(AnchorRight,'parent',AnchorRight)
+      row:addAnchor(AnchorTop,'parent',AnchorTop) row:setMarginTop(#rows*26)
+      local icon=g_ui.createWidget('UIWidget',row) icon:setSize({width=22,height=22})
+      icon:addAnchor(AnchorLeft,'parent',AnchorLeft) icon:addAnchor(AnchorVerticalCenter,'parent',AnchorVerticalCenter)
+      icon:setImageSource(NexusBot.Assets.get(entry.id)) icon:setImageSmooth(true)
+      icon:setTooltip(entry.title)
+      local power=g_ui.createWidget('NexusPowerSwitch',row)
+      power:addAnchor(AnchorRight,'parent',AnchorRight) power:addAnchor(AnchorVerticalCenter,'parent',AnchorVerticalCenter)
+      power:setTooltip(entry.title)
+      power.onClick=function()
+        NexusBot.Categories.setEnabled(entry,not (NexusBot.enabled and entry.getEnabled()))
+        power:setOn(NexusBot.enabled and entry.getEnabled()) return true
+      end
+      rows[#rows+1]={power=power,category=entry}
+    end
+  end
+  w:setHeight(38+#rows*26)
+  local function refresh()
+    for _,row in ipairs(rows) do
+      local on=NexusBot.enabled and row.category.getEnabled() or false
+      if row.power:isOn()~=on then row.power:setOn(on) end
+    end
+  end
+  refresh() NexusBot.Features.Modern.shared.ownTimer(w,refresh,150)
+  local oldDestroy=w.onDestroy
+  w.onDestroy=function(widget)
+    if g_tooltip then g_tooltip.hide() end L.mini=nil
+    if oldDestroy then oldDestroy(widget) end
+  end
+  w.onEscape=function() return true end
+  NexusBot.WindowManager.attach('mini_bot',w)
+end
+
 function NexusBot.Launcher.create()
   local window=NexusBot.loadUI('launcher',rootWidget)
   NexusBot.Launcher.window=window
