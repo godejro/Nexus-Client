@@ -236,6 +236,7 @@ GameProficiencyPerkShaping = 139
 GameTacticsWithoutFightMode = 140
 GameAttackCancelAdditionalData = 141
 GameVocationSpellList = 142
+GameSplitImpactDamage = 143
 
 TextColors = {
     red = '#f55e5e',    -- '#c83200'

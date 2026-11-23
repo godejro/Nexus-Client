@@ -489,13 +489,13 @@ function onSupplyTracker(itemId)
   SupplyAnalyser:addSuppliesItems(itemId)
 end
 
-function onImpactTracker(analyzerType, amount, effect, target)
+function onImpactTracker(analyzerType, amount, effect, target, typedAmount, typedEffect)
   if analyzerType == ANALYZER_HEAL then
     HuntingAnalyser:addHealing(amount)
     ImpactAnalyser:addHealing(amount)
   elseif analyzerType == ANALYZER_DAMAGE_DEALT then
-    HuntingAnalyser:addDealDamage(amount)
-    ImpactAnalyser:addDealDamage(amount, effect)
+    HuntingAnalyser:addDealDamage(amount + (typedAmount or 0))
+    ImpactAnalyser:addDealDamage(amount, effect, typedAmount, typedEffect)
   elseif analyzerType == ANALYZER_DAMAGE_RECEIVED then
     InputAnalyser:addInputDamage(amount, effect, target)
   end

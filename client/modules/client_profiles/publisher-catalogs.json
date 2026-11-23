@@ -1,0 +1,25 @@
+[
+  {
+    "host": "login.iglaots.net",
+    "client": 1530,
+    "protocol": 1530,
+    "items": [
+      63688
+    ],
+    "url": "https://season.iglaots.net/updates/new/assets.zip",
+    "sha256": "5ab7894182cf342f6b6ce636be2b58a5b7ef71f06c41dba671ef8bd972a5a663",
+    "catalog": "2a4368624b3ad1bffc6aca87ee56df6bdc95a626fd7c267ce2b91246740886e9"
+  },
+  {
+    "host": "vantoria.net",
+    "client": 1525,
+    "protocol": 1525,
+    "items": [
+      64200,
+      64201
+    ],
+    "url": "https://vantoria.net/downloads/assets-1.0.38.zip",
+    "sha256": "6752893a0cc67fa9fca19261fc5a9177a0cb685401c57ca670a7d6965e356386",
+    "catalog": "6101be8f14c423bff8286a29cfe0d41612169e252309933828a52f3b8af72a16"
+  }
+]

@@ -445,6 +445,9 @@ function getSoundPath(clientVersion)
 end
 
 function getRsaPath(clientVersion)
+    if activeProfile and profiles[activeProfile.id] and tonumber(activeProfile.clientVersion) == tonumber(clientVersion) then
+        return profiles[activeProfile.id].assetPath .. 'rsa.txt'
+    end
     return getAssetPath(clientVersion) .. 'rsa.txt'
 end
 
@@ -482,6 +485,7 @@ function applyProfile(id)
     g_things.waitForPendingTextureLoads()
     local previousProfile = activeProfile
     local candidateProfile = clone(profile)
+    candidateProfile.assetPath = rememberedRevision(profile) or candidateProfile.assetPath
     local modulesOk, moduleError = loadProfileModules(candidateProfile)
     if not modulesOk then
         activeProfile = previousProfile
@@ -504,6 +508,10 @@ function applyProfile(id)
         g_game.setClientVersionString(activeProfile.clientVersionString)
     end
 
+    -- Studio marks native Windows imports with the negotiated client OS.
+    if clientVersion == 1532 and protocolVersion == 1532 and tonumber(activeProfile.clientOs) == 2 then
+        g_game.enableFeature(GameSplitImpactDamage)
+    end
     local featureOverrides = activeProfile.features or {}
     applyFeatureList(featureOverrides.disable, false)
     applyFeatureList(featureOverrides.enable, true)
@@ -536,6 +544,16 @@ function applyProfile(id)
         return false, { errorMessage }, warnings
     end
 
+    local catalogOk, catalogError, repairable = checkLoadedCatalog(activeProfile, thingsModule)
+    if not catalogOk then
+        unloadProfileModules()
+        activeProfile = nil
+        g_game.setActiveProfileId('')
+        return false, { catalogError }, warnings, repairable
+    end
+    if trim(activeProfile.clientVersionString) ~= '' then
+        g_game.setClientVersionString(activeProfile.clientVersionString)
+    end
     configureTransport(activeProfile)
     g_game.setActiveProfileId(activeProfile.id)
     g_settings.set('active-profile', id)
@@ -577,6 +595,7 @@ function clearActiveProfile()
 end
 
 function init()
+    connect(g_game, {onMissingCatalogItem = recordMissingItem})
     startupProfileId = parseStartupProfile()
     reload()
     local profileCount = 0
@@ -592,6 +611,8 @@ function init()
 end
 
 function terminate()
+    disconnect(g_game, {onMissingCatalogItem = recordMissingItem})
+    stopCatalogCheck()
     g_things.waitForPendingTextureLoads()
     unloadProfileModules()
     configureTransport(nil)

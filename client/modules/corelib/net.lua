@@ -1,7 +1,9 @@
 function translateNetworkError(errcode, connecting, errdesc)
     local text
     if errdesc == 'CLIENT_PROTOCOL_MISMATCH' then
-        text = tr('The client could not read the server data.\nUpdate this server profile and its assets in Nexus Studio.\nDetails are available in packet.log.')
+        local manager = modules.client_profiles
+        text = (manager and manager.takeCatalogError and manager.takeCatalogError()) or
+            tr('The client could not read the server data.\nThe server message format did not match this profile.\nDetails are available in packet.log.')
     elseif errcode == 111 or errcode == 61 then
         text = tr('Connection refused, the server might be offline or restarting.\nPlease try again later.')
     elseif errcode == 110 then

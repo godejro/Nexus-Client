@@ -221,3 +221,88 @@ function Install-NexusPackage([string]$ClientRoot,[string]$Zip,[object]$Manifest
     }
     return $done.Count
 }
+
+# Install the verified publisher catalog off the game thread. Publish a complete
+# revision with one directory rename, so open atlases and other profiles are safe.
+function Install-NexusProfileCatalog([string]$Root,[string]$Profile,[string]$Session) {
+    if($Profile -notmatch '^[a-z0-9][a-z0-9._-]{0,95}$' -or $Profile.Contains('..') -or $Session -notmatch '^\d+-\d+$'){throw 'Invalid profile repair request'}
+    $rootPath=[IO.Path]::GetFullPath($Root).TrimEnd('\')
+    function SafePath([string]$relative) {
+        $path=[IO.Path]::GetFullPath([IO.Path]::Combine($rootPath,$relative))
+        if(!$path.StartsWith($rootPath+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Invalid repair path'}
+        $ancestor=$path
+        while($ancestor.Length -ge $rootPath.Length){
+            try {
+                if([IO.File]::GetAttributes($ancestor) -band [IO.FileAttributes]::ReparsePoint){throw 'Reparse point in repair path'}
+            } catch [IO.FileNotFoundException] {} catch [IO.DirectoryNotFoundException] {}
+            $ancestor=[IO.Path]::GetDirectoryName($ancestor)
+            if(!$ancestor){break}
+        }
+        return $path
+    }
+    $sessionDir=SafePath "updater\sessions\$Session"
+    [IO.Directory]::CreateDirectory($sessionDir) | Out-Null
+    $resultPath=SafePath "updater\sessions\$Session\asset-result.json"
+    $stage=$null
+    $archive=$null
+    $download=$null
+    $ok=$false
+    $detail=''
+    try {
+        $config=Get-Content -LiteralPath (SafePath "profiles\$Profile\profile.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+        $rules=Get-Content -LiteralPath (SafePath 'modules\client_profiles\publisher-catalogs.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        $matchesForProfile=@($rules | Where-Object {$_.host -eq $config.host -and $_.client -eq $config.clientVersion -and $_.protocol -eq $config.protocolVersion})
+        if($matchesForProfile.Count -ne 1){throw 'Unknown publisher for profile. Update the source client and import its folder in Studio.'}
+        $rule=$matchesForProfile[0]
+        $sha=$rule.sha256
+        if($sha -notmatch '^[0-9a-f]{64}$' -or ([Uri]$rule.url).Scheme -ne 'https'){throw 'Invalid publisher descriptor'}
+        $parent=SafePath ("data\things\{0}\{1}\revisions" -f $rule.client,$Profile)
+        [IO.Directory]::CreateDirectory($parent) | Out-Null
+        $dest=SafePath ("data\things\{0}\{1}\revisions\{2}" -f $rule.client,$Profile,$sha)
+        if(![IO.File]::Exists("$dest\complete.txt")){
+            $download=SafePath "updater\sessions\$Session\publisher.zip"
+            $curl=Join-Path ([Environment]::SystemDirectory) 'curl.exe'
+            & $curl -fsSL --proto '=https' --proto-redir '=https' --retry 1 --max-time 240 --max-filesize 536870912 -o $download $rule.url
+            if($LASTEXITCODE -ne 0){throw 'Publisher download failed. Retry or update the original client in Studio.'}
+            if((Get-NexusSHA256 $download) -ne $sha){throw 'Publisher archive has changed. Update the original client and import its folder in Studio.'}
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $archive=[IO.Compression.ZipFile]::OpenRead($download)
+            $stage=SafePath ("data\things\{0}\{1}\revisions\pending-{2}" -f $rule.client,$Profile,[Guid]::NewGuid().ToString('N'))
+            [IO.Directory]::CreateDirectory($stage) | Out-Null
+            $catalog=$archive.GetEntry('assets/catalog-content.json')
+            if(!$catalog){throw 'Missing publisher catalog'}
+            [IO.Compression.ZipFileExtensions]::ExtractToFile($catalog,"$stage\catalog-content.json")
+            if((Get-NexusSHA256 "$stage\catalog-content.json") -ne $rule.catalog){throw 'Incorrect catalog digest'}
+            $rows=Get-Content -LiteralPath "$stage\catalog-content.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+            $entries=[Collections.Generic.List[object]]::new()
+            $names=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            foreach($name in @('catalog-content.json') + @($rows.file)){
+                if($name -notmatch '^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\.(dat|bmp\.lzma|json|jpg|png)$' -or !$names.Add($name)){throw 'Unexpected catalog entry'}
+                $entry=$archive.GetEntry("assets/$name")
+                if(!$entry -or $entry.Length -le 0){throw "Missing publisher file: $name"}
+                $out=[IO.Path]::Combine($stage,$name)
+                if($name -ne 'catalog-content.json'){[IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$out)}
+                $hash=(Get-NexusSHA256 $out)
+                $entries.Add(@{localfile="assets/$name";unpack=$false;packedhash=$hash;unpackedhash=$hash;packedsize=$entry.Length;unpackedsize=$entry.Length})
+            }
+            $manifest=@{files=$entries;publisherArchiveSha256=$sha} | ConvertTo-Json -Depth 4 -Compress
+            [IO.File]::WriteAllText("$stage\assets.json",$manifest)
+            [IO.File]::WriteAllText("$stage\assets.json.sha256",(Get-NexusSHA256 "$stage\assets.json"))
+            [IO.File]::WriteAllText("$stage\complete.txt",$sha)
+            try {[IO.Directory]::Move($stage,$dest);$stage=$null}
+            catch {if(![IO.File]::Exists("$dest\complete.txt")){throw}}
+        }
+        if([IO.File]::ReadAllText("$dest\complete.txt") -ne $sha){throw 'Incomplete local catalog'}
+        $ok=$true
+    } catch {$detail=$_.Exception.Message}
+    finally {
+        if($archive){$archive.Dispose()}
+        if($download -and [IO.File]::Exists($download)){[IO.File]::Delete($download)}
+        if($stage -and $parent -and [IO.Path]::GetDirectoryName($stage) -eq $parent -and [IO.Path]::GetFileName($stage) -match '^pending-[0-9a-f]{32}$' -and [IO.Directory]::Exists($stage)){
+            [IO.Directory]::Delete($stage,$true)
+        }
+        $tmp=$resultPath+'.'+[Guid]::NewGuid().ToString('N')
+        [IO.File]::WriteAllText($tmp,(@{ok=$ok;message=$detail} | ConvertTo-Json -Compress))
+        [IO.File]::Move($tmp,$resultPath)
+    }
+}

@@ -506,7 +506,12 @@ function ImpactAnalyser:updateGraphics()
 	ImpactAnalyser.window.contentsPanel.graphHealPanel:addValue(1, curHPS)
 end
 
-function ImpactAnalyser:addDealDamage(amount, effect)
+function ImpactAnalyser:addDealDamage(amount, effect, typedAmount, typedEffect)
+    ImpactAnalyser.damageEffect[effect] = (ImpactAnalyser.damageEffect[effect] or 0) + amount
+    if typedAmount and typedAmount > 0 then
+        ImpactAnalyser.damageEffect[typedEffect] = (ImpactAnalyser.damageEffect[typedEffect] or 0) + typedAmount
+        amount = amount + typedAmount
+    end
 	if amount > ImpactAnalyser.allTimeHightDps then
 		ImpactAnalyser.allTimeHightDps = amount
 	end
@@ -516,11 +521,7 @@ function ImpactAnalyser:addDealDamage(amount, effect)
 	ImpactAnalyser.damageTicks[#ImpactAnalyser.damageTicks + 1] = {amount = amount, tick = currentTime}
 	ImpactAnalyser.sessionDamageTicks[#ImpactAnalyser.sessionDamageTicks + 1] = {amount = amount, tick = currentTime}
 	
-	if not ImpactAnalyser.damageEffect[effect] then
-		ImpactAnalyser.damageEffect[effect] = 0
-	end
 
-	ImpactAnalyser.damageEffect[effect] = ImpactAnalyser.damageEffect[effect] + amount
 end
 
 function ImpactAnalyser:addHealing(amount)

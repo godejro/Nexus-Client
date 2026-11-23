@@ -1,9 +1,9 @@
-# Nexus Client i Nexus Studio v2026.11.22.1
+# Nexus Client v2026.11.23.1
 
-Studio dodaje lub aktualizuje profil po wybraniu folderu oryginalnego klienta. Weryfikuje kopie plików, sprawdza limit wersji zainstalowanego Nexusa oraz dostępność adresu logowania. Przy błędzie brakującego przedmiotu na mapie sprawdza, czy źródłowy katalog zawiera zgłoszony identyfikator. Szczegóły zapisuje w profile-reports/last-import.json.
+Na Thornii profil natywnego klienta 15.32 odczytuje pełny komunikat o zadanych obrażeniach. W poprzednim wydaniu trafienie potwora mogło przerwać sesję z błędem 134. Analizator uwzględnia teraz oba składniki trafienia. Profile ze starszym formatem nadal korzystają z dotychczasowego odczytu.
 
-Nexus przyjmuje profil klienta i protokołu 15.32. Dla Thornii wybierz aktualny katalog Client 15. Na profilu dodanym przez Studio potwierdzono logowanie na konto, wybór postaci, wejście do świata Nova, wczytanie mapy i ekwipunku oraz ruch postaci.
+Przed logowaniem Nexus sprawdza obecność przedmiotów wymaganych przez znane katalogi Season IgłaOTS i Vantorii. Gdy brakuje wpisu, pobiera pasujący katalog wydawcy, sprawdza SHA256 i zapisuje go w osobnym folderze profilu. Przy nierozpoznanym przyszłym katalogu nadal można użyć importu aktualnego klienta w Nexus Studio.
 
-W depo na Season IgłaOTS pojawił się Minor Alchemical Duplicator (63688). Zaktualizuj oryginalny klient Season jego launcherem i ponownie wybierz folder w Studio, aby zainstalować aktualne dane profilu. Sam aktualizator programu zachowuje lokalne zasoby serwerów.
+Sprawdzono na żywo na Thornii wejście do świata, leczenie i obrażenia obszarowe w walce ze szczurami. Test lokalny potwierdził ponowne wczytanie naprawionych katalogów podczas przełączania profili.
 
-Okna bota przekazują klawisze ruchu grze. Kliknięcie pola tekstowego pozwala wpisać ID lub nazwę. Sprawdzono w działającym interfejsie offline wpisywanie oraz obsługę ruchu przy otwartej liście i po wybraniu opcji.
+Zamknij klienta i uruchom ponownie Nexus Client.exe, aby pobrać aktualizację.

@@ -946,12 +946,16 @@ function EnterGame.doLogin()
     local activeProfile
 
     if selectedProfileId ~= '' and manager then
-        local success, applied, profileErrors, profileWarnings = pcall(manager.applyProfile, selectedProfileId)
+        local success, applied, profileErrors, profileWarnings, repairable = pcall(manager.applyProfile, selectedProfileId)
         if not success then
             displayErrorBox(tr('Profile Error'), tostring(applied))
             return
         end
         if not applied then
+            if repairable then
+                manager.fetchProfileCatalog(selectedProfileId, EnterGame.doLogin)
+                return
+            end
             local errorBox = displayErrorBox(tr('Profile Error'), table.concat(profileErrors or {}, '\n'))
             connect(errorBox, { onOk = EnterGame.show })
             return

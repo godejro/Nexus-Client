@@ -4,5 +4,5 @@ Module
   author: OTClient team
   website: https://github.com/opentibiabr/otclient
   sandboxed: true
-  scripts: [ profilemanager ]
+  scripts: [ catalogrepair, profilemanager ]
   @onUnload: terminate()
