@@ -1,9 +1,5 @@
-# Nexus Client v2026.11.23.3
+# Nexus Client v2026.11.23.4
 
-Przy zmianie serwera klient wyświetla „Loading world map…” do pierwszej wyrenderowanej klatki nowego świata. Podczas poruszania się między piętrami nadal korzysta z buforowania mapy.
+Poprawiono rozłączenie na Thornii po odblokowaniu czaru. Czytnik wiadomości 0x75 obsługuje identyfikator czaru oraz zdarzenia zadań bounty i tygodniowych. Po zdarzeniu kontynuuje odczyt statystyk gracza i dalszych wiadomości.
 
-W CaveBot → Config jest nowy przełącznik **Avoid parcels / fields**. Domyślnie jest wyłączony. CaveBot może wtedy przejść przez paczki i pola, po których da się chodzić. Włącz go, aby planował trasę z ich pominięciem.
-
-Poprawiono naliczanie wysokości stosów przedmiotów, rysowanie postaci na sąsiedniej kratce przy dużych ciałach i zachowanie kroku przy aktualizacji stosu pod postacią.
-
-Po wylogowaniu uruchom ponownie Nexus Client.exe i pobierz aktualizację.
+Przy błędzie protokołu packet.log zapisuje czas, profil i wersję, funkcję odczytującą wiadomość, pozycję błędu oraz historię do ośmiu poprzednich wiadomości. Dla zdarzeń klienta podaje numer podtypu, a przy brakujących danych liczbę wymaganych i dostępnych bajtów. Po osiągnięciu 2 MiB zachowuje poprzedni log jako packet.log.1 i zapisuje kolejne zdarzenia w packet.log.
