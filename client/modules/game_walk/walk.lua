@@ -50,6 +50,13 @@ local function cancelWalkEvent()
     nextWalkDir = nil
 end
 
+-- UI text entry takes ownership of the keyboard, including a previously queued
+-- keyboard step. Automated movement has its own controller and is unaffected.
+function resetKeyboardWalk()
+    stopSmartWalk()
+    cancelWalkEvent()
+end
+
 --- Generalized floor change check.
 local function canChangeFloor(pos, deltaZ)
     if deltaZ == 0 then

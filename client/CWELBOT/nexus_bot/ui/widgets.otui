@@ -49,6 +49,7 @@ NexusToggle < NexusPowerSwitch
   size: 38 22
 
 NexusTextInput < UITextEdit
+  @onSetup: NexusBot.UI.configureKeyboardInput(self)
   font: verdana-11px-antialised
   height: 28
   color: #e2eeff
@@ -64,7 +65,7 @@ NexusSearchBox < NexusTextInput
 
 NexusScrollPanel < UIScrollArea
   phantom: false
-  auto-focus: first
+  auto-focus: none
   @onSetup: |
     self.onMouseWheel=function(self, pos, direction)
       local offset=self:getVirtualOffset()
@@ -84,6 +85,7 @@ NexusComboBox < UIComboBox
   padding-right: 10
 
 NexusComboBoxPopupMenu < PopupMenu
+  @onSetup: NexusBot.UI.configureKeyboardPopup(self)
   image-source: @NEXUS_ASSETS@/surface
   image-border: 12
   background-color: #0e192b
@@ -108,6 +110,7 @@ NexusNumberInput < UITextEdit
   padding: 4
   @onSetup: |
     NexusBot.UI.configureNumber(self)
+    NexusBot.UI.configureKeyboardInput(self)
 
 NexusScrollThumb < UIButton
   id: sliderButton

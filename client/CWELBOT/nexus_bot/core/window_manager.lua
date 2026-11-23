@@ -35,6 +35,7 @@ end
 
 function W.track(id, widget)
   if not widget or widget:isDestroyed() then return widget end
+  if NexusBot.UI and NexusBot.UI.configureKeyboardWindow then NexusBot.UI.configureKeyboardWindow(widget) end
   if id~='launcher' and widget.getText and widget.setText then
     widget:setText(string.upper(widget:getText() or ''))
   end

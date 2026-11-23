@@ -1,34 +1,9 @@
-SEASON IGLAOTS W NEXUS CLIENT â€” v2026.11.3.1
+Dodawanie serwera w Nexus Studio
 
-1. Uruchom Nexus Client.exe w swoim dotychczasowym folderze gry.
-   Poczekaj na automatyczna aktualizacje i ponowne uruchomienie.
-   W razie potrzeby uzyj Nexus updates w gornym menu.
-   Bardzo stary klient bez updatera: pobierz nexus-launcher.zip z tego
-   samego wydania, wypakuj do folderu gry i uruchom URUCHOM_NEXUS.cmd.
+1. Zaktualizuj oryginalny klient wybranego serwera jego launcherem. Zamknij grę i Nexus Client.
+2. Uruchom Nexus Studio Sync.exe. Jeśli Studio znajduje się poza instalacją Nexusa, wskaż najpierw katalog z Nexus Client.exe.
+3. Kliknij „Wybierz folder klienta” i wskaż folder oryginalnego klienta lub jego bin. Studio wykryje ustawienia, sprawdzi pliki i zapisze profil. Jeśli serwer zmienił pliki względem manifestu, Studio zapyta, czy użyć tej lokalnej kopii.
+4. Przeczytaj wynik. Po zapisaniu profilu Studio sprawdzi adres logowania bez wysyłania danych konta. W razie błędu szczegóły ostatniej próby są w profile-reports/last-import.json w folderze Nexusa.
+5. Uruchom Nexus Client.exe i wybierz profil z listy serwerów. Dla Season IgłaOTS wybierz login.iglaots.net, dla Low Rate loginlowrate.iglaots.net, a dla Thornii thornia.online.
 
-2. Pobierz nexus-studio-sync.zip z tego samego wydania GitHub.
-   Wypakuj do osobnego folderu; uruchom Nexus Studio Sync.exe.
-   Wskaz jako Katalog OTClient swoj folder z Nexus Client.exe.
-
-3. Pobierz oficjalnego klienta SEASON IglaOTS i pozwol jego launcherowi
-   dokonczyc pobieranie/aktualizowanie plikow. Zamknij oba klienty.
-   W Studio otworz Synchronizacja i wskaz folder Season_Launcher
-   albo zagniezdzony IglaOTS/bin. Nie wybieraj klienta Low Rate.
-
-4. Kliknij 1. Rozpoznaj klienta (folder launchera lub bin).
-   Sprawdz wykryty profil: login.iglaots.net, wersja danych 15.30.
-   Kliknij 2. Dodaj serwer automatycznie.
-   Jesli dostaniesz komunikat o lokalnie zmodyfikowanych assetsach,
-   a sa to kompletne pliki pobrane z launchera serwera, zaznacz
-   Import lokalnych modyfikacji assets i ponow import.
-   Ta opcja nie naprawia brakujacych plikow; wtedy dokonczenie
-   pobierania w launcherze jest konieczne.
-
-5. Po komunikacie Serwer dodany uruchom Nexus Client.exe.
-   Wybierz login.iglaots.net i zaloguj sie swoim kontem.
-   loginlowrate.iglaots.net to inny serwer â€” Low Rate.
-
-Aktualizacja programu NIE zawiera assetsow ani kont serwerow.
-Studio importuje je z lokalnego klienta. Nie musisz kopiowac plikow
-recznie ani wpisywac RSA, wersji protokolu czy adresow proxy.
-Dotychczasowe profile i ustawienia gracza zostaja zachowane.
+Na drugim komputerze zaktualizuj Nexus Client i pobierz nexus-studio-sync.zip z tego samego wydania. Wypakuj Studio w folderze Nexusa. Każdy komputer importuje zasoby ze swojej aktualnej kopii klienta serwera.

@@ -1,3 +1,85 @@
+-- Bot panels participate in the game's normal focus tree. Unhandled keys
+-- bubble to the existing movement/hotkey bindings; no synthetic key repeats.
+local function focusedEditor(window)
+  local child=window:getFocusedChild()
+  while child and not child:isDestroyed() and child:isVisible() and child:isEnabled() do
+    if child.isEditable and child:isEditable() then return child end
+    child=child:getFocusedChild()
+  end
+end
+
+local function leaveEditor(window)
+  local editor=focusedEditor(window)
+  if editor then editor:getParent():focusChild(nil,ActiveFocusReason) end
+end
+
+function NexusBot.UI.configureKeyboardInput(input)
+  if input.nexusKeyboardInput then return end
+  input.nexusKeyboardInput=true
+  local parent=input:getParent()
+  if parent then
+    parent:setAutoFocusPolicy(AutoFocusNone)
+    if input:isFocused() then parent:focusChild(nil,ActiveFocusReason) end
+  end
+  connect(input,{onMousePress=function()
+    -- Releasing only keyboard walking also cancels a queued key step when an
+    -- editor is clicked. It does not alter targeting, CaveBot or game packets.
+    if modules.game_walk and modules.game_walk.resetKeyboardWalk then
+      modules.game_walk.resetKeyboardWalk()
+    end
+    return false -- UITextEdit still handles cursor, selection and text normally.
+  end},true)
+end
+
+function NexusBot.UI.configureKeyboardWindow(window)
+  if window.nexusKeyboardWindow then return end
+  window.nexusKeyboardWindow=true
+  local game=modules.game_interface and modules.game_interface.getRootPanel()
+  if game and window:getParent()==rootWidget then
+    local position=window:getPosition()
+    window:setParent(game)
+    window:setPosition(position)
+    if game:isVisible() then game:focus() end
+  end
+  window:setAutoFocusPolicy(AutoFocusNone)
+  local function prepare(parent)
+    for _,child in ipairs(parent:getChildren()) do
+      if child.isEditable and child:isEditable() then NexusBot.UI.configureKeyboardInput(child) end
+      prepare(child)
+    end
+  end
+  prepare(window)
+  leaveEditor(window)
+  connect(window,{
+    onMousePress=function() leaveEditor(window) return false end,
+    onVisibilityChange=function() leaveEditor(window) end,
+    onFocusChange=function(_,focused,reason)
+      if focused and reason==ActiveFocusReason then leaveEditor(window) end
+    end,
+    onKeyDown=function() return focusedEditor(window)~=nil end,
+    onKeyPress=function(_,key)
+      if not focusedEditor(window) then return false end
+      if key==KeyEscape or key==KeyEnter then leaveEditor(window) end
+      return true -- Unhandled edit keys must not activate game hotkeys/WASD.
+    end,
+    onKeyUp=function() return focusedEditor(window)~=nil end
+  },true)
+end
+
+function NexusBot.UI.configureKeyboardPopup(menu)
+  local display=menu.display
+  menu.display=function(self,...)
+    display(self,...)
+    if self:isDestroyed() then return end
+    local game=modules.game_interface and modules.game_interface.getRootPanel()
+    if game then
+      local position=self:getPosition()
+      self:setParent(game) self:setPosition(position)
+      game:focus() self:focus()
+    end
+  end
+end
+
 -- All category and rule switches share the same solid, accessible capsule.
 function NexusBot.UI.configureSwitch(widget)
   local nativeSetOn=widget.setOn
@@ -39,7 +121,6 @@ function NexusBot.UI.prompt(title, label, callback, defaultValue)
   window:show()
   window:raise()
   window:focus()
-  window.value:focus()
   NexusBot.WindowManager.attach('input_prompt',window)
   return window
 end

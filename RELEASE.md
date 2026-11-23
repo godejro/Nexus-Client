@@ -1,17 +1,9 @@
-# Nexus Client v2026.11.15.4
+# Nexus Client i Nexus Studio v2026.11.22.1
 
-Naprawiono rozłączenie ERROR 134 podczas pojawienia się potworów raidu Echo, m.in. Crawlera, oraz ponownego logowania w ich pobliżu.
+Studio dodaje lub aktualizuje profil po wybraniu folderu oryginalnego klienta. Weryfikuje kopie plików, sprawdza limit wersji zainstalowanego Nexusa oraz dostępność adresu logowania. Przy błędzie brakującego przedmiotu na mapie sprawdza, czy źródłowy katalog zawiera zgłoszony identyfikator. Szczegóły zapisuje w profile-reports/last-import.json.
 
-Klient odrzucał niepustą dodatkową listę oznaczeń potwora w opisie mapy. Nie odczytywał również aktualizacji tej listy (0x8B, typ 15), więc jej bajty stawały się nieprawidłowymi opcode'ami. Obie ścieżki korzystają teraz z jednego parsera listy identyfikatorów. Stan oznaczeń jest przechowywany niezależnie od głównych ikon; pusta lista usuwa poprzedni stan. Usunięte/nieznane stworzenie nie zaburza odczytu następnego pakietu. Nie zastosowano pomijania błędów ani zgadywania granicy kolejnego opcode'u.
+Nexus przyjmuje profil klienta i protokołu 15.32. Dla Thornii wybierz aktualny katalog Client 15. Na profilu dodanym przez Studio potwierdzono logowanie na konto, wybór postaci, wejście do świata Nova, wczytanie mapy i ekwipunku oraz ruch postaci.
 
-Zmiana jest sterowana istniejącą funkcją profilu GameCreatureIconV2, bez zależności od nazwy serwera lub potwora. Starszy format pozostaje niezmieniony. Nie zmieniono assets, bota, renderowania, cache ani mechanizmów ruchu.
+W depo na Season IgłaOTS pojawił się Minor Alchemical Duplicator (63688). Zaktualizuj oryginalny klient Season jego launcherem i ponownie wybierz folder w Studio, aby zainstalować aktualne dane profilu. Sam aktualizator programu zachowuje lokalne zasoby serwerów.
 
-## Weryfikacja
-
-Kompilacja Windows x64 OpenGL zakończona poprawnie. Testy produkcyjnych funkcji parsera obejmują fragmenty zapisane przy błędzie Echo, zachowanie granicy następnego pakietu, pustą/wieloelementową/maksymalną listę, ucięte dane, usunięte stworzenie, rozdzielenie list ikon oraz kontrolę starszego profilu. Testy przeszły. Na prośbę użytkownika nie wykonywano ponownych testów rozgrywki; odtworzenie całego raidu pozostaje do weryfikacji przez gracza.
-
-Zachowano poprawki logowania, pamięci grafiki i aktualizatora z v2026.11.15.3. Paczka programu nie zawiera haseł, kont, profili ani assets serwerów.
-
-## Aktualizacja
-
-Wyloguj się i zamknij klienta. Uruchom ponownie Nexus Client.exe — aktualizator pobierze wydanie i uruchomi klienta ponownie. Profile i ustawienia bota pozostają lokalne. Po aktualizacji sprawdź wejście do obszaru raidu Echo i ponowne logowanie obok tych potworów.
+Okna bota przekazują klawisze ruchu grze. Kliknięcie pola tekstowego pozwala wpisać ID lub nazwę. Sprawdzono w działającym interfejsie offline wpisywanie oraz obsługę ruchu przy otwartej liście i po wybraniu opcji.

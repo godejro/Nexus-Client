@@ -9,6 +9,8 @@ NexusWindow < UIWindow
   text-offset: 0 12
   focusable: true
   draggable: true
+  auto-focus: none
+  @onSetup: NexusBot.UI.configureKeyboardWindow(self)
   @onEscape: self:hide()
 
 NexusPanel < UIWidget
