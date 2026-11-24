@@ -171,11 +171,12 @@ function controllerNpcTrader:onTradeListRendered()
             end
             list.onScrollEventConnected = true
         end
+        local equipped = self.tradeMode == controllerNpcTrader.SELL and self.ignoreEquipped and self:getEquippedCounts() or nil
         for i = 1, list:getChildCount() do
             local child = list:getChildByIndex(i)
             local item = child.tradeItem
             if item then
-                local canTrade = self:canTradeItem(item)
+                local canTrade = self:canTradeItem(item, equipped)
                 local color = canTrade and '#c0c0c0' or '#707070'
                 local infoBlock = child:getChildByIndex(2)
                 if infoBlock then
@@ -332,37 +333,47 @@ function controllerNpcTrader:getPlayerMoney()
     return player:getTotalMoney()
 end
 
-function controllerNpcTrader:getSellQuantity(itemPtr)
+-- Counts of equipped items by "id_subtype". Read once per list refresh instead of
+-- ten inventory lookups for every quantity check (the sell list sort used to do
+-- this thousands of times per refresh).
+function controllerNpcTrader:getEquippedCounts()
+    local counts = {}
+    local player = g_game.getLocalPlayer()
+    if not player then
+        return counts
+    end
+    for i = 1, 10 do
+        local item = player:getInventoryItem(i)
+        if item then
+            local key = item:getId() .. "_" .. item:getSubType()
+            counts[key] = (counts[key] or 0) + item:getCount()
+        end
+    end
+    return counts
+end
+
+function controllerNpcTrader:getSellQuantity(itemPtr, equipped)
     if not itemPtr then
         return 0
     end
-    local id = itemPtr:getId()
-    local subType = itemPtr:getSubType()
-    local key = id .. "_" .. subType
+    local key = itemPtr:getId() .. "_" .. itemPtr:getSubType()
     local inventoryTotal = self.playerItems and self.playerItems[key] or 0
 
-    if self.ignoreEquipped then
-        local player = g_game.getLocalPlayer()
-        local equippedCount = 0
-        for i = 1, 10 do
-            local item = player:getInventoryItem(i)
-            if item and item:getId() == id and item:getSubType() == subType then
-                equippedCount = equippedCount + item:getCount()
-            end
-        end
-        return math.max(0, inventoryTotal - equippedCount)
+    if self.ignoreEquipped and inventoryTotal > 0 then
+        equipped = equipped or self:getEquippedCounts()
+        return math.max(0, inventoryTotal - (equipped[key] or 0))
     end
 
     return inventoryTotal
 end
 
-function controllerNpcTrader:canTradeItem(item)
+function controllerNpcTrader:canTradeItem(item, equipped)
     if self.tradeMode == controllerNpcTrader.BUY then
         local playerMoney = self:getPlayerMoney()
         -- Add capacity check if needed, but for now we'll just check price
         return playerMoney >= item.price
     else
-        return self:getSellQuantity(item.ptr) > 0
+        return self:getSellQuantity(item.ptr, equipped) > 0
     end
 end
 
@@ -378,8 +389,20 @@ function controllerNpcTrader:onPlayerGoods(money, items)
         local count = itemData[2]
         newPlayerItems[key] = (newPlayerItems[key] or 0) + count
     end
+    local changed = not self.playerItems
+    if not changed then
+        for key, count in pairs(newPlayerItems) do
+            if self.playerItems[key] ~= count then changed = true break end
+        end
+        if not changed then
+            for key in pairs(self.playerItems) do
+                if newPlayerItems[key] == nil then changed = true break end
+            end
+        end
+    end
     self.playerItems = newPlayerItems
-    self:refreshPlayerGoods()
+    -- Money-only updates (and repeats of the same goods) keep the rendered list.
+    self:refreshPlayerGoods(not changed)
     self:quickSellGoodsUpdated()
 end
 
@@ -437,9 +460,14 @@ function controllerNpcTrader:filterTradeList(searchText)
     end
 
     if self.tradeMode == controllerNpcTrader.SELL then
+        local equipped = self.ignoreEquipped and self:getEquippedCounts() or nil
+        local quantity = {}
+        for _, item in ipairs(filteredItems) do
+            quantity[item] = self:getSellQuantity(item.ptr, equipped)
+        end
         table.sort(filteredItems, function(a, b)
-            local qtyA = self:getSellQuantity(a.ptr)
-            local qtyB = self:getSellQuantity(b.ptr)
+            local qtyA = quantity[a]
+            local qtyB = quantity[b]
             if qtyA ~= qtyB then
                 return qtyA > qtyB
             end
@@ -453,6 +481,20 @@ function controllerNpcTrader:filterTradeList(searchText)
         end)
     else
         self:sortTradeItems(filteredItems)
+    end
+
+    -- Same items in the same order: keep the existing rows and only recolour
+    -- them, instead of destroying and rebuilding every row widget.
+    local previous = self.currentList
+    local same = previous and #previous == #filteredItems and self.tradeItems and #self.tradeItems > 0
+    if same then
+        for i = 1, #filteredItems do
+            if previous[i] ~= filteredItems[i] then same = false break end
+        end
+    end
+    if same then
+        self:onTradeListRendered()
+        return
     end
 
     self.currentList = filteredItems

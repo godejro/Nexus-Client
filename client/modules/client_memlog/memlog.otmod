@@ -1,0 +1,10 @@
+Module
+  name: client_memlog
+  description: Records process memory and cache sizes once a minute to find what grows over long sessions
+  author: Nexus
+  sandboxed: true
+  autoload: true
+  autoload-priority: 1007
+  scripts: [ memlog ]
+  @onLoad: init()
+  @onUnload: terminate()
