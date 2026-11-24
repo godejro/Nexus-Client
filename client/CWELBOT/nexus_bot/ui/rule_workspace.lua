@@ -66,6 +66,7 @@ end
 function U.referenceEditor(controller,rule)
   if controller.editor and not controller.editor:isDestroyed() then controller.editor:destroy() end
   local def=controller.definition
+  local compact=def.id=='magic_shooter'
   local w=g_ui.createWidget('NexusWindow',rootWidget)
   w:setText((def.title or def.id):upper())
   w:setSize({width=450,height=math.min(620,rootWidget:getHeight()-30)})
@@ -78,13 +79,20 @@ function U.referenceEditor(controller,rule)
   local body=g_ui.createWidget('NexusScrollPanel',w) body:setId('fields')
   body:addAnchor(AnchorTop,'tabs',AnchorBottom) body:setMarginTop(8)
   body:addAnchor(AnchorLeft,'parent',AnchorLeft) body:addAnchor(AnchorRight,'parent',AnchorRight) body:addAnchor(AnchorBottom,'parent',AnchorBottom)
-  body:setLayout(UIVerticalLayout.create(body)) body:getLayout():setSpacing(7) U.scrollbar(body)
+  body:setLayout(UIVerticalLayout.create(body)) body:getLayout():setSpacing(compact and 3 or 7) U.scrollbar(body)
   local buttons={} controller.editor=w controller.selectedRule=rule
   function controller:showTab(id)
     if w:isDestroyed() then return end
     self.editorTab=id U.clear(body) body:setVirtualOffset({x=0,y=0})
     for key,b in pairs(buttons) do b:setOn(id==key) end
     def.renderInspector(self,id,rule,body)
+    if compact then
+      local h=90
+      for _,field in ipairs(body:getChildren()) do h=h+field:getHeight()+3 end
+      w:setHeight(math.min(rootWidget:getHeight()-20,h))
+      local pos=w:getPosition()
+      w:setPosition({x=pos.x,y=math.max(0,math.min(pos.y,rootWidget:getHeight()-w:getHeight()))})
+    end
   end
   for _,tab in ipairs(def.tabs or {{'Action','action'},{'Conditions','conditions'},{'Advanced','advanced'}}) do
     local b=U.button(tabs,tab[1],function() controller:showTab(tab[2]) end)
@@ -112,8 +120,9 @@ function U.openReference(definition)
     end
     return refreshProfiles(self)
   end
-  w:setSize({width=math.min(960,rootWidget:getWidth()-24),height=490})
-  w.inspector:hide() w.profiles:setWidth(185)
+  local compact=definition.id=='magic_shooter'
+  w:setSize({width=math.min(compact and 715 or 960,rootWidget:getWidth()-24),height=490})
+  w.inspector:hide() w.profiles:setWidth(compact and 135 or 185)
   w.profiles.current:hide()
   w.profiles.search:hide()
   w.profiles.list:addAnchor(AnchorTop,'heading',AnchorBottom)
@@ -141,7 +150,7 @@ function U.openReference(definition)
       local width=total/#values
       local offset=44
       for i,l in ipairs(result) do
-        local cellWidth=definition.id=='magic_shooter' and total*({0.16,0.46,0.14,0.24})[i] or width
+        local cellWidth=definition.id=='magic_shooter' and total*({0.25,0.45,0.14,0.16})[i] or width
         l:breakAnchors() l:addAnchor(AnchorLeft,'parent',AnchorLeft) l:addAnchor(AnchorVerticalCenter,'parent',AnchorVerticalCenter)
         l:setMarginLeft(math.floor(offset)) l:setWidth(math.max(1,math.floor(cellWidth)-4))
         offset=offset+cellWidth
@@ -164,7 +173,7 @@ function U.openReference(definition)
       if rule then
       local d=definition.describe(rule)
       if query=='' or (tostring(d.action)..' '..tostring(d.target)..' '..tostring(d.type)):lower():find(query,1,true) then
-        local row=g_ui.createWidget('NexusButton',w.actions.list) row:setHeight(50)
+        local row=g_ui.createWidget('NexusButton',w.actions.list) row:setHeight(compact and 32 or 50)
         row:setOn(self.selectedRule==rule)
         local data=definition.rowValues and definition.rowValues(rule) or {d.type,d.action,d.target,NexusBot.Conditions.summary(rule.conditions)}
         local labels=cells(row,data)
@@ -189,14 +198,19 @@ function U.openReference(definition)
       end
       end
     end
+    if compact then
+      local profileHeight=#w.profiles.list:getChildren()*40
+      local rowHeight=#self.rows*38
+      w:setHeight(math.min(rootWidget:getHeight()-24,math.max(202,math.min(460,124+math.max(profileHeight,rowHeight)))))
+    end
   end
   w.actions.add.onClick=function()
     local rule=definition.newRule(c:profile()) NexusBot.Storage.touch() c:refreshRules() c:select(rule)
   end
-  local destroy=w.onDestroy
-  w.onDestroy=function(widget) if c.editor and not c.editor:isDestroyed() then c.editor:destroy() end if destroy then destroy(widget) end end
-  local hide=w.onVisibilityChange
-  w.onVisibilityChange=function(widget,visible) if not visible and c.editor and not c.editor:isDestroyed() then c.editor:destroy() end if hide then hide(widget,visible) end end
+  local function closeEditor()
+    if c.editor and not c.editor:isDestroyed() then c.editor:destroy() end
+  end
+  connect(w,{onDestroy=closeEditor,onVisibilityChange=function(_,visible) if not visible then closeEditor() end end})
   c:refreshAll()
   return w,c
 end

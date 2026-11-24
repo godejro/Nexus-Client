@@ -64,11 +64,19 @@ local realTibiaPresets={
   ['exevo tempo mas san']={name='Divine Grenade',actionType='area_spell',minimumMonsters=3,range=4,radius=4,mana=160},
   ['exevo ulus frigo']={name='Ice Burst',actionType='area_spell',minimumMonsters=3,range=4,radius=4,mana=230},
   ['exevo ulus tera']={name='Terra Burst',actionType='area_spell',minimumMonsters=3,range=4,radius=4,mana=230},
-  ['utito tempo']={name='Blood Rage',actionType='empowerment',minimumMonsters=3,range=3,radius=3,mana=20}
+  ['exeta res']={name='Challenge',actionType='absolute_spell',supportRadius=1,range=1,mana=30},
+  ['exeta amp res']={name='Chivalrous Challenge',actionType='absolute_spell',supportRadius=7,range=7,mana=80},
+  ['exana amp res']={name='Divine Dazzle',actionType='absolute_spell',supportRadius=7,range=7,mana=80},
+  ['utito tempo']={name='Blood Rage',actionType='empowerment',range=3,mana=290}
 }
 
 local function normalizedWords(words)
   return tostring(words or ''):lower():gsub('^%s+',''):gsub('%s+$',''):gsub('%s+',' ')
+end
+
+function NexusBot.Spells.supportRadius(words)
+  local preset=realTibiaPresets[normalizedWords(words)]
+  return preset and preset.supportRadius
 end
 
 function NexusBot.Spells.getPreset(words)
@@ -88,7 +96,7 @@ function NexusBot.Spells.getPreset(words)
     return copy
   end
   local spell=NexusBot.Spells.entries[key]
-  if spell and spell.category=='support' then
+  if spell and (spell.category=='support' or spell.category=='buff') then
     return {words=key,name=spell.name,source=spell.source,actionType='empowerment',range=7,mana=tonumber(spell.mana)}
   end
   if spell and spell.category=='attack' then
@@ -130,6 +138,7 @@ local function category(info)
   local name = tostring(info.name or ''):lower()
   if name:find('heal') or words:find('exura') then return 'healing' end
   if name:find('haste') or name:find('buff') or words:find('utito') or words:find('utamo') then return 'buff' end
+  if info.group and info.group[3] and not info.group[1] then return 'support' end
   if spellType == 'conjure' or name:find('light') or name:find('support') then return 'support' end
   return 'attack'
 end
@@ -146,7 +155,7 @@ function NexusBot.Spells.init()
           id = tostring(info.id or key), name = info.name or displayName, words = words,
           type = info.type, category = category(info), mana = info.mana, soul = info.soul,
             cooldown = info.exhaustion, groups = NexusBot.copy(info.group or {}),
-            range = info.range, requiresTarget = info.needTarget,
+            range = info.range, requiresTarget = info.needTarget, wheel = info.special==true,
           vocations = NexusBot.copy(info.vocations or {}), clientId = info.clientId, iconSource = info.iconSource,
           profile = profileName, source = 'SpellInfo'
         }

@@ -2,24 +2,43 @@ NexusBot.Actions = { providers = {}, lastUse = {}, lastSignature = {}, loop = ni
 local A=NexusBot.Actions
 A.serverSpells, A.serverGroups, A.sentGroups = {}, {}, {}
 A.turns={}
+A.lastGroupRule={}
 A.receivesCooldowns=false
+A.confirmedSpellTimers={}
 A.predictedSpells={}
 
 function A.init()
   if A.connections then return end
   A.connections={
-    onSpellCooldown=function(id,duration) A.receivesCooldowns=true A.serverSpells[tonumber(id)]=NexusBot.now()+duration A.predictedSpells[tonumber(id)]=nil end,
+    onSpellCooldown=function(id,duration)
+      id=tonumber(id)
+      A.receivesCooldowns=true
+      A.confirmedSpellTimers[id]=true
+      A.serverSpells[id]=NexusBot.now()+duration
+      A.predictedSpells[id]=nil
+    end,
     onSpellGroupCooldown=function(id,duration) A.receivesCooldowns=true A.serverGroups[tonumber(id)]=NexusBot.now()+duration A.sentGroups[tonumber(id)]=nil end,
     onGameEnd=function()
+      A.lastGroupRule={} A.confirmedSpellTimers={} A.availableWheel=nil
       A.serverSpells={} A.serverGroups={} A.sentGroups={} A.predictedSpells={} A.lastUse={} A.lastSignature={} A.turns={} A.receivesCooldowns=false
       if NexusBot.Features and NexusBot.Features.EquipmentManager then NexusBot.Features.EquipmentManager.slotLocks={} end
     end
   }
+  A.playerConnections={onSpellsChange=function(player,ids)
+    if player~=g_game.getLocalPlayer() then return end
+    local available={}
+    for _,id in ipairs(ids or {}) do available[id]=true end
+    -- Modern servers mark locked entries with zero. OTS sending no list
+    -- or just legacy byte IDs retain the normal cooldown-based behaviour.
+    A.availableWheel=GameUshortSpell and g_game.getFeature(GameUshortSpell) and available[0] and available or nil
+  end}
+  connect(LocalPlayer,A.playerConnections)
   connect(g_game,A.connections)
 end
 
 function A.terminate()
   A.stop()
+  if A.playerConnections then disconnect(LocalPlayer,A.playerConnections) A.playerConnections=nil end
   if A.connections then disconnect(g_game,A.connections) A.connections=nil end
 end
 
@@ -127,6 +146,35 @@ function NexusBot.Actions.execute(rule, context)
   return false
 end
 
+-- Independent spell groups have independent rotations. Inside a group the
+-- list starts at highest priority, then resumes after the last submitted rule.
+-- Keep item rules and the relative slots of different groups in list order.
+local function rotationGroup(rule)
+  local spell=NexusBot.Spells.get(rule.action.spell)
+  local groups=spell and spell.groups
+  if groups and groups[1] then return 1 end
+  if groups and groups[3] then return 3 end
+end
+
+local function rotateGroups(rules)
+  local lanes={}
+  for index,rule in ipairs(rules) do
+    local group=rule.enabled and rotationGroup(rule)
+    if group and A.lastGroupRule[group] then
+      local lane=lanes[group] or {slots={},rules={}}
+      lanes[group]=lane
+      table.insert(lane.slots,index)
+      table.insert(lane.rules,rule)
+      if rule.id==A.lastGroupRule[group] then lane.previous=#lane.rules end
+    end
+  end
+  for _,lane in pairs(lanes) do
+    if lane.previous then
+      for i,slot in ipairs(lane.slots) do rules[slot]=lane.rules[(lane.previous+i-1)%#lane.rules+1] end
+    end
+  end
+end
+
 function NexusBot.Actions.tick()
   if not NexusBot.enabled or not g_game.isOnline() then return end
   local context = NexusBot.Conditions.buildContext()
@@ -154,6 +202,7 @@ function NexusBot.Actions.tick()
         if a.priority==b.priority then return order[a]<order[b] end
         return (a.priority or 100)<(b.priority or 100)
       end)
+      if provider.id=='magic_shooter' and next(A.lastGroupRule) then rotateGroups(validRules) end
       for _, rule in ipairs(validRules) do
         if rule.enabled and NexusBot.Actions.execute(rule, context) then return end
       end
@@ -170,6 +219,7 @@ local function speak(context, action, rule)
     if not cost or cost<=0 then cost=tonumber(spell.mana) or 0 end
     if context.mana<cost then return false end
     local id=tonumber(spell.id) or -1
+    if context.providerId=='magic_shooter' and spell.wheel and A.availableWheel and not A.availableWheel[id] then return false end
     if (A.serverSpells[id] or 0)>context.now or (A.predictedSpells[id] or 0)>context.now then return false end
     for group in pairs(spell.groups or {}) do
       group=tonumber(group)
@@ -190,13 +240,25 @@ local function speak(context, action, rule)
     A.turns[rule.id]=nil
   end
   if g_game.talk(words)==false then return false end
+  if context.providerId=='magic_shooter' then
+    local group=rotationGroup(rule)
+    if group then A.lastGroupRule[group]=rule.id end
+  end
   -- Brief prediction bridges network latency; server cooldown events then win.
   -- No UI visibility dependency and no extra loop per healing rule.
   local offensive=context.providerId=='magic_shooter' or context.providerId=='combo'
   if offensive and spell and tonumber(spell.id) then
     -- Bridge missing/delayed packets with this spell's own known cooldown.
     -- A real server cooldown replaces this prediction immediately, even if shorter.
-    A.predictedSpells[tonumber(spell.id)]=context.now+math.max(250,tonumber(spell.cooldown) or 250)
+    local id=tonumber(spell.id)
+    local duration=tonumber(spell.cooldown) or 250
+    if A.confirmedSpellTimers[id] then
+      -- A rejected cast has no acknowledgement. Allow another attempt after
+      -- latency and the group guard instead of predicting a multi-hour buff.
+      local ping=g_game.getPing and tonumber(g_game.getPing()) or 0
+      duration=math.min(duration,math.max(1000,ping*2+250))
+    end
+    A.predictedSpells[id]=context.now+math.max(250,duration)
   end
   for group,duration in pairs(spell and spell.groups or {}) do
     A.sentGroups[tonumber(group)]=context.now+(offensive and (tonumber(duration) or 250) or math.min(250,tonumber(duration) or 250))

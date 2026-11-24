@@ -1,4 +1,5 @@
 -- CAVEBOT: GUI first; implementation and initialization below.
+local retiredActions={inwithdraw=true,dpwithdraw=true,follow=true,imbuing=true}
 local category = NexusBot.Categories.define('cavebot', 'CAVEBOT', 5, false)
 category.getEnabled=function() return NexusBot.Automation.CaveBot.isOn() end
 category.setEnabled=function(v)
@@ -187,7 +188,7 @@ function UI.create()
     captions['goto']='Node'
     local hidden={rushlure=true,cleartile=true,withdraw=true,walk=true,waitz=true,buy=true,stop=true,lure=true,stairs=true,depositor=true}
     local visible=0
-    for _,name in ipairs(order) do if C.Actions[name] and not hidden[name] then
+    for _,name in ipairs(order) do if C.Actions[name] and not hidden[name] and not retiredActions[name] then
       visible=visible+1
       local button=U.button(visible%2==1 and left or right,captions[name] or name:gsub('^%l',string.upper),function() edit(nil,name) end)
       button:setHeight(22) U.actionColor(button,A.CaveExtensions.colors[name] or '#c9d9ed') button:setTooltip(nil)
@@ -210,8 +211,13 @@ function UI.create()
       input=U.textInput(list,'Position:',entry and value or A.key(p),function() end)
       input:getParent().label:setWidth(70)
     elseif draftAction=='function' then
-      dialog:setHeight(340)
-      input=g_ui.createWidget('NexusTextInputMulti',list) input:setHeight(190) input:setText(value)
+      dialog:setSize({width=455,height=370})
+      local choices={{'Choose an example',''}}
+      for _,example in ipairs(NexusBot.RouteFunctions.examples) do choices[#choices+1]=example end
+      U.combo(list,'Examples',choices,'',function(code) if code~='' then input:setText(code) end end)
+      local help=U.label(list,'prev, retries, storage, delay(ms), gotoLabel(name)\nReturn true, false or "retry".')
+      help:setTextWrap(true) help:setHeight(34)
+      input=g_ui.createWidget('NexusTextInputMulti',list) input:setHeight(180) input:setText(value)
     else
       if not entry and draftAction=='poscheck' then value=A.key(A.position())..',hunt' end
       if not entry and draftAction=='usewith' then value=C.Config.values.ropeId..','..A.key(A.position()) end
@@ -650,7 +656,7 @@ function C.actions(left,right,runtime,edit)
   local function refresh()
     U.clear(list)
     local names={} for name in pairs(runtime.CaveBot.Actions or {}) do names[#names+1]=name end table.sort(names)
-    for _,name in ipairs(names) do if name:lower():find(search:getText():lower(),1,true) then
+    for _,name in ipairs(names) do if not retiredActions[name] and name:lower():find(search:getText():lower(),1,true) then
       U.button(list,name,function() edit(nil,name) end)
     end end
   end
@@ -1053,14 +1059,24 @@ function W.registerActions()
   register('function','Sandboxed Lua. Helpers: pos, countItem, suppliesLow, gotoLabel, delay, say; return true or "retry".','return true',function(v) return #v<=16000 end,function(v,s)
     if not debug or not debug.sethook or not setfenv or not loadstring then return false,'Client cannot safely limit Lua actions.' end
     if NexusBot.now()<(s.nextUse or 0) then return 'retry' end
-    local fn,err=loadstring(v,'CWELBOT route') if not fn then return false,err end
-    if jit and jit.off then jit.off(fn,true) end
+    if not s.fn then
+      if v:byte(1)==27 then return false,'Expected Lua source text.' end
+      local fn,err=loadstring(v,'Nexus route function')
+      if not fn then return false,err end
+      if jit and jit.off then jit.off(fn,true) end
+      s.fn=fn
+    end
+    local fn=s.fn
     local jumped=false
     local env={math=NexusBot.copy(math),string=NexusBot.copy(string),table=NexusBot.copy(table),tonumber=tonumber,tostring=tostring,pairs=pairs,ipairs=ipairs,type=type,
       retries=s.retries,pos=A.position,countItem=A.countItem,suppliesLow=W.suppliesLow,
       gotoLabel=function(label) jumped=W.gotoLabel(label) return jumped end,
-      delay=function(ms) s.nextUse=NexusBot.now()+math.max(100,math.min(120000,tonumber(ms) or 100)) end,
-      say=function(words) if s.spoken then return false end g_game.talk(tostring(words):sub(1,200)) s.spoken=true return true end}
+      delay=function(ms) s.nextUse=NexusBot.now()+math.max(20,math.min(120000,tonumber(ms) or 20)) end,
+      say=function(words)
+        if s.spokenAt==s.retries then return false end
+        g_game.talk(tostring(words):sub(1,200)) s.spokenAt=s.retries return true
+      end}
+    NexusBot.RouteFunctions.bind(env,s)
     env.string.rep=nil env.string.gsub=nil env.table.sort=nil
     setfenv(fn,env)
     local oldHook,oldMask,oldCount=debug.gethook()
@@ -1068,9 +1084,14 @@ function W.registerActions()
     local ok,result=pcall(fn)
     debug.sethook(oldHook,oldMask,oldCount)
     if not ok then return false,tostring(result) end
-    if jumped then return 'jump' end
+    W.nextTick=math.max(W.nextTick or 0,s.nextUse or 0)
+    if s.started and result=='retry' and s.nextUse then
+      s.started=s.started+math.max(0,s.nextUse-NexusBot.now())
+    end
+    if jumped then W.previousResult=true return 'jump' end
+    if result==false then return 'scriptFalse' end
     if result==true or result=='retry' then return result end
-    return false,'Lua action must return true or "retry".'
+    return false,'Lua action must return true, false or "retry".'
   end)
   register('stop','Stop the route.','',function() return true end,function() stop('Stopped by route') return 'jump' end)
 end
@@ -1078,7 +1099,11 @@ function W.init()
   local C={independent=true,enabled=false,status='OFF',actionList=A.newList(),Actions={},Editor={Actions={}},Extensions={},Config={values={},value_setters={}},Recorder={}}
   A.CaveBot=C
   C.isOn=function() return C.enabled end C.isOff=function() return not C.enabled end
-  C.setOff=function() W.lureStart=nil W.lureEnd=nil W.holdEnd=nil C.enabled=false C.status='OFF' W.state=nil N.reset()
+  C.setOff=function()
+    NexusBot.RouteFunctions.releaseTracker()
+    A.Targeting.routeLuringDisabled=nil
+    W.previousResult=true
+    W.lureStart=nil W.lureEnd=nil W.holdEnd=nil C.enabled=false C.status='OFF' W.state=nil N.reset()
     if NexusBot.Features.AutoExplore then NexusBot.Features.AutoExplore.reset() end
   end
   C.setOn=function(fromCurrent)
@@ -1130,7 +1155,7 @@ function W.init()
     local ok,err=NexusBot.Features.CaveTools.validateRoute(data,C) if not ok then error(err) end
     local cfg={} for _,entry in ipairs(data) do if entry[1]=='config' then cfg=json.decode(entry[2]) end end
     cfg=W.config(cfg)
-    C.setOff() C.Recorder.disable() C.actionList:clear() C.Config.values=cfg
+    C.setOff() C.Recorder.disable() C.actionList:clear() C.Config.values=cfg W.scriptStorage={}
     for _,entry in ipairs(data) do if C.Actions[entry[1]] then C.addAction(entry[1],entry[2]) end end
     C.actionList:focusChild(C.actionList.entries[1]) A.data().activeCave=name NexusBot.Storage.touch()
   end
@@ -1145,9 +1170,15 @@ function W.init()
   W.registerActions()
   if A.CaveExtensions then A.CaveExtensions.register() end
   C.setCurrentProfile(A.data().activeCave)
-  A.connections={onOpenNpcTrade=function(items)
-    W.trade={} for _,offer in ipairs(items or {}) do local item=offer[1] if item then W.trade[item:getId()]={item=item,buy=tonumber(offer[4]) or 0,sell=tonumber(offer[5]) or 0} end end
-  end,onCloseNpcTrade=function() W.trade={} end}
+  A.connections={onUpdateImbuementTracker=NexusBot.RouteFunctions.onImbues,
+  onGameEnd=function()
+    W.trade={} W.tradeNpc=nil W.scriptStorage={}
+    A.Targeting.routeLootBags=nil
+    NexusBot.RouteFunctions.imbues=nil NexusBot.RouteFunctions.requested=nil
+  end,onOpenNpcTrade=function(items,_,currencyName,npcName)
+    W.tradeNpc=npcName
+    W.trade={} for _,offer in ipairs(items or {}) do local item=offer[1] if item then W.trade[item:getId()]={item=item,name=tostring(offer[2] or ''),buy=tonumber(offer[4]) or 0,sell=tonumber(offer[5]) or 0} end end
+  end,onCloseNpcTrade=function() W.trade={} W.tradeNpc=nil end}
   A.connections.onWalk=function(direction)
     local prediction=W.recordPrediction W.recordPrediction=nil
     local d=N.directions[direction+1]
@@ -1199,6 +1230,7 @@ function W.tick()
     local seconds=tonumber(entry.value:match('^[^,]+,([^,]+),')) or 0
     timeout=math.max(timeout,seconds*1000+2000)
   end
+  if entry.action=='function' and state.nextUse and now<state.nextUse then return end
   if entry.action~='delay' and now-state.started>timeout then
     if not W.lureEnd and C.Config.values.autoNavigate and (entry.action=='goto' or entry.action=='walk') then
       local nearest=W.nearestReachable(pos,entry)
@@ -1211,7 +1243,7 @@ function W.tick()
   C.status='Waypoint '..(C.actionList:getChildIndex(entry) or 0)..': '..entry.action
   local ok,result,err=pcall(C.Actions[entry.action].callback,entry.value,state)
   if not ok then W.pauseFailure('Action error: '..tostring(result),now) return end
-  if result==true then W.next()
+  if result==true or result=='scriptFalse' then W.previousResult=result==true W.next()
   elseif result=='retry' then state.retries=state.retries+1
   elseif result~='jump' then W.pauseFailure(err or 'Action failed: '..entry.action,now) end
 end

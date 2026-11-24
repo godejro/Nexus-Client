@@ -29,6 +29,10 @@ end
 local function renderPattern(c,p,r)
   local U=NexusBot.UI local G=NexusBot.Geometry local a=r.action
   local shape=G.shape(r)
+  if NexusBot.Spells.supportRadius(a.spell) and not a.customMask then
+    U.label(p,'Nearby monsters within the configured range')
+    return
+  end
   if shape=='target' or shape=='chain' or r.type=='custom_action' or r.type=='empowerment' or r.type=='item' then
     U.label(p,shape=='target' and 'Single target' or 'No damage footprint')
     return
@@ -76,7 +80,6 @@ local definition={
     if tab=='action' then
       U.combo(p,'Action template',actionTypes,r.type,function(value) changeType(r,value) c:refreshRules() c:renderInspector() end)
       if r.type=='rune' or r.type=='item' then
-        U.itemPicker(p,r.type=='rune' and 'Rune' or 'Item',a.itemId,function(id) a.itemId=id c:refreshRules() c:renderInspector() end)
         U.numberInput(p,'Item ID',a.itemId or 0,0,65535,function(id) a.itemId=id c:refreshRules() end)
         U.combo(p,'Use on',{{'Current target','target'},{'Self','self'}},a.target or 'target',function(value) a.target=value end)
         if r.type=='rune' then
@@ -173,7 +176,7 @@ applySpellPreset=function(rule,words)
     kept[#kept+1]={type='monster_count',operator='>=',value=tonumber(preset.minimumMonsters),radius=tonumber(preset.radius) or tonumber(preset.range) or 5,autoSpellPreset=true}
   end
   rule.conditions.children=kept
-  rule.autoPreset={words=preset.words,name=preset.name,source=preset.source,minimumMonsters=preset.minimumMonsters}
+  rule.autoPreset={supportVersion=1,words=preset.words,name=preset.name,source=preset.source,minimumMonsters=preset.minimumMonsters}
   NexusBot.Storage.touch()
   return true
 end
@@ -201,6 +204,23 @@ function NexusBot.Features.MagicShooter.init()
   for _,profile in ipairs(NexusBot.Profiles.list('magic_shooter')) do
     for _,rule in ipairs(profile.actions or {}) do
       local words=(rule.action or {}).spell
+      if rule.autoPreset and not rule.autoPreset.supportVersion and rule.type~='custom_action' then
+        local radius=NexusBot.Spells.supportRadius(words)
+        local preset=NexusBot.Spells.getPreset(words)
+        if radius or (preset and preset.actionType=='empowerment') then
+          local v=rule.advanced or {}
+          rule.advanced=v
+          if radius and (v.range==-1 or v.range==99) then v.range=radius end
+          if rule.type=='absolute_spell' and preset then rule.type=preset.actionType end
+          local children=(rule.conditions or {}).children or {}
+          for i=#children,1,-1 do
+            if children[i].autoSpellPreset then table.remove(children,i) end
+          end
+          if words=='utito tempo' and v.minimumMana==20 then v.minimumMana=preset.mana end
+          rule.autoPreset.supportVersion=1
+          NexusBot.Storage.touch()
+        end
+      end
       if rule.type~='custom_action' and rule.autoPreset and (rule.autoPreset.geometryVersion or 0)<3
         and (NexusBot.Geometry.chain[words] or NexusBot.Geometry.centered[words] or words=='exori scu') then
         local preset=NexusBot.Spells.getPreset(words)

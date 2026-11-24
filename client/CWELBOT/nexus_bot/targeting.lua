@@ -1029,6 +1029,7 @@ function T.reposition(rule,pos)
   return false
 end
 function T.luring(candidate,pos,count,holdPosition)
+  if T.routeLuringDisabled then return false end
   local rule=candidate.rule local now=NexusBot.now()
   if T.lureRule~=rule then T.lureRule=rule T.lureState=false T.anchor=nil T.caveDelayUntil=0 end
   if rule.dynamicLure then
@@ -1127,6 +1128,8 @@ function T.lootTick(pos,nearbyOnly)
     for id,bag in pairs(bags) do
       local item=bag:getContainerItem()
       if not pending.existing[id] and item and item:getId()==pending.id then
+        T.routeLootBags=T.routeLootBags or setmetatable({},{__mode='v'})
+        T.routeLootBags[id]=bag
         T.lootOpened[id]=true T.pendingOpen=nil break
       end
     end

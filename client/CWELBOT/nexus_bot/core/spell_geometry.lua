@@ -33,6 +33,8 @@ G.spells={['exori']='adjacent',['exori gran']='adjacent',['exori min']='sweep',
   ['exevo gran mas frigo']='diamond5',['exevo gran mas tera']='diamond6',
   ['exori mas pug']='flurry',['exori gran mas pug']='greater_flurry',['exori mas nia']='sweeping',
   ['exevo ulus frigo']='burst',['exevo ulus tera']='burst'}
+G.spells['exevo max mort']='beam6'
+G.spells['exevo tempo mas san']='circle2'
 G.spells['exori scu']='adjacent'
 G.spells['exevo fur frigo']='chain'
 G.spells['exevo fur tera']='chain'
@@ -120,6 +122,14 @@ end
 function G.plan(rule,context,direction,center)
   local action=rule.action or {} local shape=G.shape(rule)
   local range=tonumber((rule.advanced or {}).range) or 5
+  if NexusBot.Spells.supportRadius(action.spell) and not action.customMask and not action.geometryPreset then
+    local count=0
+    for _,creature in ipairs(context.spectators or {}) do
+      local pos=creature:getPosition()
+      if pos and pos.z==context.position.z and distance(context.position,pos)<=range and G.matchesMonster(rule,creature) then count=count+1 end
+    end
+    return {valid=true,count=count,players=0,center=context.position}
+  end
   if shape=='chain' then return G.chainPlan(rule,context) end
   if shape=='target' then
     local t=context.target local p=t and t:getPosition()
@@ -129,6 +139,13 @@ function G.plan(rule,context,direction,center)
   end
   local offsets=G.offsets(rule)
   if not offsets then return {valid=false,count=0,players=0,reason='Configure an exact area mask.'} end
+  if not center and words(action.spell)=='exevo tempo mas san' then
+    local target=context.target and context.target:getPosition()
+    if not target or distance(context.position,target)>range or not context.target:canShoot() then
+      return {valid=false,count=0,players=0}
+    end
+    center=distance(context.position,target)<=4 and target or context.position
+  end
   if not center and G.centered[words(action.spell)] then
     center=context.target and context.target:getPosition() or context.position
     if distance(context.position,center)>range or not G.visible(context.position,center) then return {valid=false,count=0,players=0} end
