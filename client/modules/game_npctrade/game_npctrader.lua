@@ -23,12 +23,6 @@ function controllerNpcTrader:getSellExclusions()
     end
     return ids
 end
-function controllerNpcTrader:sellAllFromUi()
-    local exclusions=self:getSellExclusions()
-    if not exclusions then displayErrorBox('Sell All','Enter item IDs separated by commas.') return end
-    if self:isLegacyMode() then sellAllLegacy(exclusions) else self:sellAll(true,exclusions) end
-end
-
 function controllerNpcTrader:isLegacyMode()
     return self.legacyMode
 end
@@ -48,6 +42,7 @@ function controllerNpcTrader:onGameStart()
             onNpcChatWindow(data)
         end,
         onOpenNpcTrade = function(...)
+            self:closeQuickSell()
             if self:isLegacyMode() then
                 onOpenNpcTrade(...)
             else
@@ -61,20 +56,8 @@ function controllerNpcTrader:onGameStart()
                 self:onPlayerGoods(money, items)
             end
         end,
-        onNpcChatWindowClose = function()
-            if self:isLegacyMode() then
-                self:legacy_hide()
-            else
-                self:onCloseNpcTrade()
-            end
-        end,
-        onCloseNpcTrade = function()
-            if self:isLegacyMode() then
-                self:legacy_hide()
-            else
-                self:onCloseNpcTrade()
-            end
-        end
+        onNpcChatWindowClose = function() self:onCloseNpcTrade() end,
+        onCloseNpcTrade = function() self:onCloseNpcTrade() end
     })
 end
 
@@ -101,6 +84,7 @@ function controllerNpcTrader:disconnectNpcTalkEvent()
 end
 
 function controllerNpcTrader:onTerminate()
+    self:closeQuickSell()
     if self:isLegacyMode() then
         self:legacy_terminate()
     else
@@ -109,19 +93,17 @@ function controllerNpcTrader:onTerminate()
 end
 
 function controllerNpcTrader:onGameEnd()
-    if self:isLegacyMode() then
-        self:legacy_hide()
-    else
-        self:onCloseNpcTrade()
-    end
+    self:onCloseNpcTrade()
+    if self:isLegacyMode() then self:legacy_terminate() end
 end
 
 function controllerNpcTrader:onCloseNpcTrade()
+    self:closeQuickSell()
     if self:isLegacyMode() then
         self:legacy_hide()
     else
         self:disconnectNpcTalkEvent()
-        if controllerNpcTrader.ui and controllerNpcTrader.ui:isVisible() then
+        if controllerNpcTrader.ui then
             controllerNpcTrader:unloadHtml()
         end
         controllerNpcTrader.isTradeOpen = false

@@ -31,7 +31,7 @@ local ignoreCapacity = nil
 local ignoreEquipped = nil
 local showAllItems = nil
 local sellAllButton = nil
-local sellExclusions = nil
+local pendingShow
 
 local playerFreeCapacity = 0
 local playerMoney = 0
@@ -64,10 +64,6 @@ function controllerNpcTrader:legacy_init()
     ignoreEquipped = npcWindow:recursiveGetChildById('ignoreEquipped')
     showAllItems = npcWindow:recursiveGetChildById('showAllItems')
     sellAllButton = npcWindow:recursiveGetChildById('sellAllButton')
-    sellExclusions = npcWindow:recursiveGetChildById('sellExclusions')
-    sellExclusions:setText(self:getSellExclusionsText())
-    sellExclusions.onTextChange=function(_,text) self:setSellExclusionsText(text) end
-
     buyTab = npcWindow:getChildById('buyTab')
     sellTab = npcWindow:getChildById('sellTab')
 
@@ -92,6 +88,8 @@ function controllerNpcTrader:legacy_init()
 end
 
 function controllerNpcTrader:legacy_terminate()
+    if not initialized then return end
+    self:legacy_hide()
     initialized = false
     if npcWindow then
         npcWindow:destroy()
@@ -117,7 +115,16 @@ function controllerNpcTrader:legacy_show()
     end
 end
 
+function controllerNpcTrader:legacyIgnoreEquipped()
+    return ignoreEquipped:isChecked()
+end
+
 function controllerNpcTrader:legacy_hide()
+    self:closeQuickSell()
+    if pendingShow then removeEvent(pendingShow) pendingShow=nil end
+    tradeItems = {[BUY] = {}, [SELL] = {}}
+    playerItems = {}
+    selectedItem = nil
     if npcWindow then
         npcWindow:hide()
     end
@@ -154,7 +161,6 @@ function onTradeTypeChange(radioTabs, selected, deselected)
     ignoreEquipped:setVisible(currentTradeType == SELL)
     showAllItems:setVisible(currentTradeType == SELL)
     sellAllButton:setVisible(currentTradeType == SELL)
-    sellExclusions:setVisible(currentTradeType == SELL)
 
     refreshTradeItems()
     refreshPlayerGoods()
@@ -268,6 +274,11 @@ function getItemPrice(item, single)
         end
     end
     return item.price * amount
+end
+
+function controllerNpcTrader:quickSellStock(item)
+    if self:isLegacyMode() then return playerItems[item:getId()] or 0 end
+    return (self.playerItems or {})[item:getId() .. '_' .. item:getSubType()] or 0
 end
 
 function getSellQuantityLegacy(item)
@@ -404,7 +415,10 @@ function refreshPlayerGoods()
     end
 end
 
-function onOpenNpcTrade(items)
+function onOpenNpcTrade(items, currencyId, currencyName, npcName)
+    if pendingShow then removeEvent(pendingShow) end
+    CURRENCY = currencyName and currencyName ~= '' and currencyName or 'gold'
+    npcWindow:setText(npcName and npcName ~= '' and npcName or tr('NPC Trade'))
     tradeItems[BUY] = {}
     tradeItems[SELL] = {}
 
@@ -429,7 +443,8 @@ function onOpenNpcTrade(items)
     end
 
     refreshTradeItems()
-    addEvent(function()
+    pendingShow = addEvent(function()
+        pendingShow=nil
         controllerNpcTrader:legacy_show()
     end) -- player goods has not been parsed yet
 end
@@ -457,6 +472,7 @@ function onPlayerGoods(money, items)
     end
 
     refreshPlayerGoods()
+    controllerNpcTrader:quickSellGoodsUpdated()
 end
 
 function onFreeCapacityChange(localPlayer, freeCapacity, oldFreeCapacity)
@@ -495,36 +511,14 @@ function getTradeItemData(id, type)
 end
 
 function checkSellAllTooltip()
-    sellAllButton:setEnabled(true)
-    sellAllButton:removeTooltip()
-
-    local total = 0
-    local info = ''
-    local first = true
-
-    for key, amount in pairs(playerItems) do
-        local data = getTradeItemData(key, SELL)
-        if data then
-            amount = getSellQuantityLegacy(data.ptr)
-            if amount > 0 then
-                if data and amount > 0 then
-                    info = info .. (not first and '\n' or '') .. amount .. ' ' .. data.name .. ' (' .. data.price *
-                               amount .. ' gold)'
-
-                    total = total + (data.price * amount)
-                    if first then
-                        first = false
-                    end
-                end
-            end
+    sellAllButton:setTooltip('Review the items this NPC will buy.')
+    for _, offer in ipairs(tradeItems[SELL]) do
+        if getSellQuantityLegacy(offer.ptr) > 0 then
+            sellAllButton:setEnabled(true)
+            return
         end
     end
-    if info ~= '' then
-        info = info .. '\nTotal: ' .. total .. ' gold'
-        sellAllButton:setTooltip(info)
-    else
-        sellAllButton:setEnabled(false)
-    end
+    sellAllButton:setEnabled(false)
 end
 
 function formatCurrency(amount)

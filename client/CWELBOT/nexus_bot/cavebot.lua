@@ -180,10 +180,10 @@ function UI.create()
   local function actionPalette()
     local left,right=columns() local names={}
     for name in pairs(C.Actions) do names[#names+1]=name end
-    local order={'label','delay','gotolabel','goto','use','usewith','say','follow','npcsay','function','travel','buysupplies','rushlure','imbuing','supplycheck','poscheck','cleartile','inwithdraw','opendoors','tasker','withdraw','bank','depositor','lure','dpwithdraw','sellall','walk','stairs','rope','shovel','waitz','deposit','buy','sell','stop'}
+    local order={'label','delay','gotolabel','goto','startlure','endlure','use','usewith','say','follow','npcsay','function','travel','buysupplies','rushlure','imbuing','supplycheck','poscheck','cleartile','inwithdraw','opendoors','tasker','withdraw','bank','depositor','lure','dpwithdraw','sellall','walk','stairs','rope','shovel','waitz','deposit','buy','sell','stop'}
     local known={} for _,name in ipairs(order) do known[name]=true end
     table.sort(names) for _,name in ipairs(names) do if not known[name] then order[#order+1]=name end end
-    local captions={gotolabel='Go to label',usewith='Use with',npcsay='NPC say',buysupplies='Buy supplies',rushlure='Rush lure',supplycheck='Supply check',poscheck='Position check',cleartile='Clear tile',opendoors='Open doors',sellall='Sell all',inwithdraw='Inbox withdraw',dpwithdraw='Depot withdraw'}
+    local captions={startlure='Start Lure',endlure='End Lure',gotolabel='Go to label',usewith='Use with',npcsay='NPC say',buysupplies='Buy supplies',rushlure='Rush lure',supplycheck='Supply check',poscheck='Position check',cleartile='Clear tile',opendoors='Open doors',sellall='Sell all',inwithdraw='Inbox withdraw',dpwithdraw='Depot withdraw'}
     captions['goto']='Node'
     local hidden={rushlure=true,cleartile=true,withdraw=true,walk=true,waitz=true,buy=true,stop=true,lure=true,stairs=true,depositor=true}
     local visible=0
@@ -203,7 +203,7 @@ function UI.create()
     local dialog,list=NexusBot.Features.Modern.shared.formWindow(draftAction=='goto' and 'NODE' or draftAction:upper(),260)
     dialog:setWidth(380)
     local value=entry and entry.value or meta.value or ''
-    local coordinates=(draftAction=='goto' or draftAction=='walk' or draftAction=='stairs' or draftAction=='use' or draftAction=='rope' or draftAction=='shovel')
+    local coordinates=(draftAction=='startlure' or draftAction=='endlure' or draftAction=='goto' or draftAction=='walk' or draftAction=='stairs' or draftAction=='use' or draftAction=='rope' or draftAction=='shovel')
     local input
     if coordinates then
       local p=(entry and A.parsePosition(value)) or A.position() or {x=100,y=100,z=7}
@@ -857,10 +857,19 @@ function W.gotoLabel(name)
   for _,entry in ipairs(A.CaveBot.actionList.entries) do if entry.action=='label' and entry.value==name then A.CaveBot.actionList:focusChild(entry) return true end end
   return false
 end
+function W.lureEntrance(list,entry)
+  -- Auto-navigation entering a segment must visit its exact start first.
+  for i=list:getChildIndex(entry),1,-1 do
+    local marker=list.entries[i]
+    if marker.action=='endlure' and marker~=entry then break end
+    if marker.action=='startlure' then return marker end
+  end
+  return entry
+end
 function W.nearestReachable(pos,exclude)
   local candidates={}
   for _,entry in ipairs(A.CaveBot.actionList.entries) do
-    if entry~=exclude and (entry.action=='goto' or entry.action=='walk' or entry.action=='stairs') then
+    if entry~=exclude and (entry.action=='goto' or entry.action=='walk' or entry.action=='stairs' or entry.action=='startlure' or entry.action=='endlure') then
       local goal=A.parsePosition(entry.value)
       if goal and goal.z==pos.z and A.distance(pos,goal)<=64 then
         candidates[#candidates+1]={entry=entry,goal=goal,distance=A.distance(pos,goal)}
@@ -928,6 +937,34 @@ function W.registerActions()
   local position=function(v) return A.parsePosition(v)~=nil end
   local nonempty=function(v) return v:match('%S')~=nil and #v<=200 end
   local C=A.CaveBot
+  local function exactPosition(value)
+    local goal=A.parsePosition(value)
+    return goal and (not goal.radius or goal.radius==0)
+  end
+  local function reachMarker(value)
+    return N.walkRoute(A.parsePosition(value),0,false,nil,C.Config.values.avoidItems==true)
+  end
+  register('startlure','Stand here and gather until End Lure.','100,100,7',exactPosition,function(value)
+    if not reachMarker(value) then return 'retry' end
+    local list=C.actionList
+    for i=list:getChildIndex(list:getFocusedChild())+1,#list.entries do
+      local marker=list.entries[i]
+      if marker.action=='startlure' then break end
+      if marker.action=='endlure' then
+        W.lureStart=list:getFocusedChild() W.lureEnd=marker
+        A.Targeting.suspendForRoute()
+        return true
+      end
+    end
+    return false,'Add an End Lure after Start Lure.'
+  end)
+  register('endlure','Stand exactly here before resuming targeting.','100,100,7',exactPosition,function(value)
+    if not reachMarker(value) then return 'retry' end
+    W.lureStart=nil W.lureEnd=nil
+    W.holdEnd=A.TargetBot.isOn() or nil
+    if W.holdEnd then A.Targeting.blockCave=true end
+    return true
+  end)
   register('goto','Position x,y,z[,distance]. Add ,0 to explicitly enter stairs or teleport.','100,100,7',position,function(v,s)
     local goal=A.parsePosition(v)
     local transition=goal.radius==0
@@ -1041,10 +1078,11 @@ function W.init()
   local C={independent=true,enabled=false,status='OFF',actionList=A.newList(),Actions={},Editor={Actions={}},Extensions={},Config={values={},value_setters={}},Recorder={}}
   A.CaveBot=C
   C.isOn=function() return C.enabled end C.isOff=function() return not C.enabled end
-  C.setOff=function() C.enabled=false C.status='OFF' W.state=nil N.reset()
+  C.setOff=function() W.lureStart=nil W.lureEnd=nil W.holdEnd=nil C.enabled=false C.status='OFF' W.state=nil N.reset()
     if NexusBot.Features.AutoExplore then NexusBot.Features.AutoExplore.reset() end
   end
   C.setOn=function(fromCurrent)
+    W.lureStart=nil W.lureEnd=nil W.holdEnd=nil
     if NexusBot.Features.AutoExplore then NexusBot.Features.AutoExplore.reset() end
     A.legacyConflict('CaveBot')
     if #C.actionList.entries==0 then C.status='Add waypoints first.' return end
@@ -1052,15 +1090,28 @@ function W.init()
     C.Recorder.disable() C.enabled=true C.status='Running' W.state=nil W.nextTick=0 N.reset()
     local pos=A.position() local nearest,best
     for _,entry in ipairs(C.actionList.entries) do
-      if entry.action=='goto' or entry.action=='walk' or entry.action=='stairs' then
+      if entry.action=='goto' or entry.action=='walk' or entry.action=='stairs' or entry.action=='startlure' or entry.action=='endlure' then
         local distance=A.distance(pos,A.parsePosition(entry.value))
         if distance<math.huge and (not best or distance<best) then nearest,best=entry,distance end
       end
     end
     if C.Config.values.autoNavigate then nearest=W.nearestReachable(pos) or nearest end
-    C.actionList:focusChild((fromCurrent and C.actionList:getFocusedChild()) or nearest or C.actionList:getFocusedChild() or C.actionList.entries[1])
+    local list=C.actionList
+    local first=(fromCurrent and list:getFocusedChild()) or nearest or list:getFocusedChild() or list.entries[1]
+    list:focusChild(W.lureEntrance(list,first))
   end
-  C.actionList.onFocus=function() W.state=nil end
+  C.actionList.onFocus=function(entry)
+    W.state=nil
+    if W.lureEnd then
+      local list=C.actionList
+      local index=list:getChildIndex(entry)
+      local first=list:getChildIndex(W.lureStart)
+      local last=list:getChildIndex(W.lureEnd)
+      if not index or not first or not last or index<=first or index>last then
+        stop('Route left the lure segment before End Lure')
+      end
+    end
+  end
   C.Config.get=function(key) return C.Config.values[key] end
   C.Config.save=function() return NexusBot.copy(C.Config.values) end
   C.getCurrentProfile=function() return A.data().activeCave end
@@ -1119,7 +1170,10 @@ function W.tick()
     W.recordPosition(pos,W.recordObserved)
   end
   if not C.enabled then return end
-  if A.Targeting.allowCave and now<(A.Targeting.caveDelayUntil or 0) then
+  if W.lureEnd and W.lureEnd:isDestroyed() then stop('End Lure was removed') return end
+  local active=C.actionList:getFocusedChild()
+  local atStart=not W.holdEnd and active and active.action=='startlure' and A.distance(pos,A.parsePosition(active.value))==0
+  if not W.lureEnd and not atStart and A.Targeting.allowCave and now<(A.Targeting.caveDelayUntil or 0) then
     if NexusBot.Features.AutoExplore.running then NexusBot.Features.AutoExplore.pause(now) end
     if N.pending and N.pending.route then N.reset() end
     if W.state then W.state.started=W.state.started+math.max(0,now-(W.lastTick or now)) end
@@ -1132,7 +1186,7 @@ function W.tick()
   end
   local entry=C.actionList:getFocusedChild()
   if not entry or entry:isDestroyed() then stop('No active waypoint') return end
-  if A.Targeting.blockCave and entry.action~='rushlure' and entry.action~='lure' then
+  if not W.lureEnd and not atStart and A.Targeting.blockCave and entry.action~='rushlure' and entry.action~='lure' then
     if N.pending and N.pending.route then N.reset() end
     if W.state then W.state.started=W.state.started+math.max(0,now-(W.lastTick or now)) end
     W.lastTick=now C.status='Waiting for Targeting / loot' return
@@ -1146,9 +1200,9 @@ function W.tick()
     timeout=math.max(timeout,seconds*1000+2000)
   end
   if entry.action~='delay' and now-state.started>timeout then
-    if C.Config.values.autoNavigate and (entry.action=='goto' or entry.action=='walk') then
+    if not W.lureEnd and C.Config.values.autoNavigate and (entry.action=='goto' or entry.action=='walk') then
       local nearest=W.nearestReachable(pos,entry)
-      if nearest then N.reset() C.actionList:focusChild(nearest) C.status='Auto navigate' return end
+      if nearest then N.reset() C.actionList:focusChild(W.lureEntrance(C.actionList,nearest)) C.status='Auto navigate' return end
     end
     W.pauseFailure('Waypoint timed out: '..entry.action..' '..entry.value,now) return
   end

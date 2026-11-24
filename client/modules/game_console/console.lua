@@ -818,6 +818,7 @@ function removeTab(tab)
         end
     elseif tab:getText() == 'NPCs' then
         g_game.closeNpcChannel()
+        if modules.game_npctrade then modules.game_npctrade.controllerNpcTrader:onCloseNpcTrade() end
     end
 
     if getCurrentTab() == tab then
@@ -1649,6 +1650,9 @@ function sendMessage(message, tab)
         end
 
         g_game.talkChannel(SpeakTypesSettings[speaktypedesc].speakType, channel, message)
+        if tab == defaultTab and speaktypedesc == 'say' and message:lower():match('^%s*bye[.!]?%s*$') and modules.game_npctrade then
+            modules.game_npctrade.controllerNpcTrader:onCloseNpcTrade()
+        end
         return
     else
         local isPrivateCommand = false
@@ -1680,6 +1684,9 @@ function sendMessage(message, tab)
         local speaktype = SpeakTypesSettings[speaktypedesc]
         local player = g_game.getLocalPlayer()
         g_game.talkPrivate(speaktype.speakType, name, message)
+        if speaktype.speakType == MessageModes.NpcTo and message:lower():match('^%s*bye[.!]?%s*$') and modules.game_npctrade then
+            modules.game_npctrade.controllerNpcTrader:onCloseNpcTrade()
+        end
         if not dontAdd then
             message = applyMessagePrefixies(g_game.getCharacterName(), player:getLevel(), message)
             addPrivateText(message, speaktype, tabname, isPrivateCommand, g_game.getCharacterName())

@@ -1,5 +1,7 @@
-# Nexus Client v2026.11.23.4
+# Nexus Client v2026.11.24.1
 
-Poprawiono rozłączenie na Thornii po odblokowaniu czaru. Czytnik wiadomości 0x75 obsługuje identyfikator czaru oraz zdarzenia zadań bounty i tygodniowych. Po zdarzeniu kontynuuje odczyt statystyk gracza i dalszych wiadomości.
+Quick Sell w handlu z NPC pokazuje przedmioty, ilości i wartość sprzedaży. Zaznacz pozycje i kliknij Sell. Klient sprzedaje po jednej sztuce. Pasek pokazuje liczbę sztuk potwierdzonych zmianą stanu ekwipunku. Możesz przerwać kolejkę przyciskiem Cancel. Zakończenie rozmowy zamyka handel i zatrzymuje kolejkę.
 
-Przy błędzie protokołu packet.log zapisuje czas, profil i wersję, funkcję odczytującą wiadomość, pozycję błędu oraz historię do ośmiu poprzednich wiadomości. Dla zdarzeń klienta podaje numer podtypu, a przy brakujących danych liczbę wymaganych i dostępnych bajtów. Po osiągnięciu 2 MiB zachowuje poprzedni log jako packet.log.1 i zapisuje kolejne zdarzenia w packet.log.
+W CaveBocie dodano Start Lure i End Lure. Pomiędzy tymi punktami Targeting i Magic Shooter przepuszczają potwory. Walka może się rozpocząć po osiągnięciu dokładnej kratki końcowej zgodnie z regułami targetingu.
+
+Odświeżenie stosu na kratce zachowuje animację czaru. Klient ogranicza pracę przy raportowaniu śmierci potwora i łupu, a analizator grupuje odświeżenia listy przedmiotów.

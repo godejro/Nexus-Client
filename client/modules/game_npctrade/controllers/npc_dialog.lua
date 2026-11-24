@@ -91,10 +91,13 @@ function controllerNpcTrader:onConsoleTextClicked(widget, text)
     local npcTab = modules.game_console.consoleTabBar:getTab("NPCs")
     if npcTab then
         modules.game_console.sendMessage(text, npcTab)
-        onNpcTalk(g_game.getCharacterName(), 0, MessageModes.NpcTo, text)
+    else
+        g_game.talkChannel(MessageModes.NpcTo, 0, text)
     end
-    if text == "bye" then
+    if text:lower():match('^%s*bye[.!]?%s*$') then
         controllerNpcTrader:onCloseNpcTrade()
+    else
+        onNpcTalk(g_game.getCharacterName(), 0, MessageModes.NpcTo, text)
     end
 end
 
@@ -162,13 +165,11 @@ function controllerNpcTrader:initNpcWindow(creature, buttons)
 end
 
 function onNpcChatWindow(data)
-    if controllerNpcTrader:isLegacyMode() then
-        controllerNpcTrader:legacy_show()
+    if type(data) ~= "table" or type(data.npcIds) ~= "table" then
         return
     end
-    if type(data) ~= "table" or type(data.npcIds) ~= "table" or #data.npcIds == 0 then
-        return
-    end
+    if #data.npcIds==0 then controllerNpcTrader:onCloseNpcTrade() return end
+    if controllerNpcTrader:isLegacyMode() then return end
     local creature = g_map.getCreatureById(data.npcIds[1])
     if creature then
         controllerNpcTrader:initNpcWindow(creature, data.buttons)

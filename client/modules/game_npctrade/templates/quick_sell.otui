@@ -1,0 +1,112 @@
+NpcQuickSellRow < Panel
+  height: 38
+  margin-bottom: 2
+  background-color: #283442
+  Item
+    id: icon
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 3
+    phantom: true
+  Label
+    id: caption
+    anchors.left: icon.right
+    anchors.right: remove.left
+    anchors.top: parent.top
+    margin-left: 6
+    margin-top: 3
+    text-auto-resize: false
+  Label
+    id: price
+    anchors.left: caption.left
+    anchors.top: caption.bottom
+    color: #dcc491
+  Button
+    id: remove
+    anchors.right: sell.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 6
+    size: 22 20
+    text: x
+    tooltip: Remove from this sale
+  CheckBox
+    id: sell
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 5
+    width: 43
+    text: Sell
+
+MainWindow
+  id: quickSell
+  text: Quick Sell Items List
+  size: 408 342
+
+  Label
+    id: hint
+    anchors.left: parent.left
+    anchors.top: parent.top
+    text: Select the items to sell.
+  ScrollablePanel
+    id: items
+    anchors.left: parent.left
+    anchors.right: bar.left
+    anchors.top: hint.bottom
+    anchors.bottom: editor.top
+    margin-top: 6
+    margin-bottom: 4
+    vertical-scrollbar: bar
+    layout: verticalBox
+  VerticalScrollBar
+    id: bar
+    anchors.right: parent.right
+    anchors.top: hint.bottom
+    anchors.bottom: editor.top
+    margin-top: 6
+    margin-bottom: 4
+    step: 38
+    pixels-scroll: true
+  TextEdit
+    id: editor
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: confirm.top
+    margin-bottom: 4
+    visible: false
+    placeholder: Excluded item IDs, separated by commas
+  ProgressBar
+    id: progress
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: confirm.top
+    margin-bottom: 4
+    height: 18
+    background-color: #38899b
+    color: white
+    visible: false
+  Button
+    id: cancel
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    width: 54
+    text: Cancel
+  Button
+    id: confirm
+    anchors.right: cancel.left
+    anchors.bottom: parent.bottom
+    margin-right: 4
+    width: 46
+    text: Sell
+  Button
+    id: blacklist
+    anchors.right: confirm.left
+    anchors.bottom: parent.bottom
+    margin-right: 4
+    width: 68
+    text: Black List
+  Label
+    id: total
+    anchors.left: parent.left
+    anchors.right: blacklist.left
+    anchors.verticalCenter: confirm.verticalCenter
+    text-auto-resize: false

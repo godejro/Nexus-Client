@@ -194,8 +194,7 @@
             <!-- Buy button (bottom right) -->
             <button id="toggleButton" class="tradeBuyButton fontTitle" text="Buy" onclick="self:executeTrade()"></button>
             <div style="position: absolute; left: 3px; bottom: 1px; height: 20px; width: 220px;" *visible="self.tradeMode == self.SELL">
-                <button style="width: 60px; height: 20px;" text="Sell All" onclick="self:sellAllFromUi()"></button>
-                <input style="position: absolute; left: 64px; width: 150px; height: 20px;" *text="self:getSellExclusionsText()" onchange="self:setSellExclusionsText(event.value)" tooltip="Excluded item IDs, separated by commas" />
+                <button style="width: 60px; height: 20px;" text="Quick Sell" onclick="self:sellAllFromUi()"></button>
             </div>
 
             <!-- Rows (left) -->

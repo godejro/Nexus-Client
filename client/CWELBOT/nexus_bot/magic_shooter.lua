@@ -240,6 +240,7 @@ function NexusBot.Features.MagicShooter.init()
   end
   NexusBot.registerModule(definition)
   NexusBot.Actions.registerProvider('magic_shooter',30,function()
+    if NexusBot.Automation.Walker.lureEnd then return {} end
     local profile=NexusBot.Profiles.getActive('magic_shooter')
     return profile and profile.enabled and profile.actions or {}
   end)

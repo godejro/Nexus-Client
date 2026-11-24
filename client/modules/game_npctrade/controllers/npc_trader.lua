@@ -1,8 +1,11 @@
-function controllerNpcTrader:onOpenNpcTrade(items, currencyId, currencyName)
+function controllerNpcTrader:onOpenNpcTrade(items, currencyId, currencyName, npcName)
+    if currencyName=='' then currencyName=nil end
+    if currencyId==0 then currencyId=nil end
     local ui = controllerNpcTrader.ui
     if not ui or not ui:isVisible() then
         controllerNpcTrader:initNpcWindow()
     end
+    if npcName and npcName ~= "" then self.creatureName=npcName end
     local isNewSession = not controllerNpcTrader.isTradeOpen
     if isNewSession then
         controllerNpcTrader.isTradeOpen = true
@@ -377,6 +380,7 @@ function controllerNpcTrader:onPlayerGoods(money, items)
     end
     self.playerItems = newPlayerItems
     self:refreshPlayerGoods()
+    self:quickSellGoodsUpdated()
 end
 
 function controllerNpcTrader:refreshPlayerGoods(skipFilter)

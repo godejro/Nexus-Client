@@ -78,6 +78,7 @@ function LootAnalyser:create()
 	LootAnalyser.gaugeVisible = true
 	LootAnalyser.graphVisible = true
 	LootAnalyser.lootedItems = {}
+	LootAnalyser.rowsDirty = false
 	LootAnalyser.forceUpdateBalance = false
 	LootAnalyser.updateBalance = true
 
@@ -160,6 +161,7 @@ function LootAnalyser:reset()
 	LootAnalyser.goldHour = 0
 	LootAnalyser.target = 0
 	LootAnalyser.lootedItems = {}
+	LootAnalyser.rowsDirty = false
 	LootAnalyser.forceUpdateBalance = false
 	LootAnalyser.updateBalance = true
 
@@ -212,8 +214,8 @@ function LootAnalyser:checkBalance()
 		LootAnalyser.forceUpdateBalance = false
 	end
 
-	if LootAnalyser.updateBalance or oldBalance ~= LootAnalyser.goldValue then
-		LootAnalyser:updateWindow(false)
+	if LootAnalyser.updateBalance or oldBalance ~= LootAnalyser.goldValue or LootAnalyser.rowsDirty then
+		LootAnalyser:updateWindow(LootAnalyser.rowsDirty)
 		LootAnalyser.updateBalance = false
 	end
 end
@@ -243,6 +245,7 @@ function LootAnalyser:updateWindow(updateScroll, ignoreVisible)
 		return
 	end
 
+	LootAnalyser.rowsDirty = false
 	local numOfItems = 0
 	local numOfLines = 0
 	if table.empty(LootAnalyser.lootedItems) and #contentsPanel.lootedItems:getChildren() then
@@ -458,9 +461,8 @@ function LootAnalyser:addLootedItems(item, name)
 	LootAnalyser.goldValue = LootAnalyser.goldValue + (itemInfo.basePrice * count)
 	LootAnalyser.updateBalance = true
 
-	LootAnalyser:checkBalance()
-	LootAnalyser:updateGraphics()
-	LootAnalyser:updateWindow(true)
+	-- The existing analyser tick batches the list and graph for a whole loot burst.
+	LootAnalyser.rowsDirty = true
 end
 
 function LootAnalyser:setLootPerHourGauge(value)

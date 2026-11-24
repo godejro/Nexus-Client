@@ -1028,7 +1028,7 @@ function T.reposition(rule,pos)
   if best then N.walk(best,0,false) T.nextReposition=NexusBot.now()+500 return true end
   return false
 end
-function T.luring(candidate,pos,count)
+function T.luring(candidate,pos,count,holdPosition)
   local rule=candidate.rule local now=NexusBot.now()
   if T.lureRule~=rule then T.lureRule=rule T.lureState=false T.anchor=nil T.caveDelayUntil=0 end
   if rule.dynamicLure then
@@ -1051,7 +1051,11 @@ function T.luring(candidate,pos,count)
     return true
   end
   if wants and rule.lure and not rule.lureCavebot and not T.lureState and count<(rule.lureCount or 1) then
-    if candidate.pathDistance<=5 then T.moveToBand(candidate,pos,5,6,false) A.TargetBot.status='Classic lure / '..count return true end
+    if candidate.pathDistance<=5 then
+      if not holdPosition then T.moveToBand(candidate,pos,5,6,false) end
+      A.TargetBot.status='Classic lure / '..count
+      return true
+    end
   end
   return false
 end
@@ -1176,10 +1180,19 @@ function T.lootTick(pos,nearbyOnly)
   T.pendingOpen={id=corpse:getId(),existing=existing,queued=queued,untilTime=now+1200}
   table.remove(T.corpses,index) return true
 end
+function T.suspendForRoute()
+  local target=g_game.getAttackingCreature()
+  if target and T.ownedAttack==target:getId() then g_game.cancelAttack() end
+  T.current=nil T.ownedAttack=nil T.anchor=nil T.lureState=false T.lureRule=nil
+  T.caveDelayUntil=0 T.blockCave=false T.allowCave=false
+end
 function T.tick()
   local engine=A.TargetBot T.blockCave=false T.allowCave=false
-  if not engine.enabled then return end
+  if not engine.enabled then A.Walker.holdEnd=nil return end
   local pos=A.position() if not pos then return end
+  local route=A.CaveBot and A.CaveBot.enabled and A.CaveBot.actionList:getFocusedChild()
+  local entering=route and route.action=='startlure' and not A.Walker.holdEnd and A.distance(pos,A.parsePosition(route.value))==0
+  if A.Walker.lureEnd or entering then engine.status='Following lure waypoints' return end
   local player=g_game.getLocalPlayer()
   if PlayerStates and PlayerStates.Pz and A.call(player,'hasState',false,PlayerStates.Pz) then
     T.current=nil T.anchor=nil T.lureState=false T.lureRule=nil T.caveDelayUntil=0
@@ -1195,6 +1208,14 @@ function T.tick()
   if engine.profileOptions and engine.profileOptions.retarget==false and currentTarget then
     for _,eligible in ipairs(candidates) do if eligible.creature:getId()==currentTarget:getId() then candidate=eligible break end end
   end
+  if A.Walker.holdEnd then
+    if not candidate then
+      A.Walker.holdEnd=nil
+    elseif T.luring(candidate,pos,#candidates,true) then
+      A.Walker.holdEnd=nil
+      return
+    end
+  end
   T.current=candidate and candidate.creature
   if candidate then
     T.blockCave=true engine.status='Attacking '..candidate.creature:getName()
@@ -1203,9 +1224,8 @@ function T.tick()
       g_game.attack(candidate.creature) T.ownedAttack=candidate.creature:getId() T.nextAttack=NexusBot.now()+350
     end
     if T.lootTick(pos,true) then T.blockCave=true engine.status='Looting / attacking' return end
-    local route=A.CaveBot and A.CaveBot.actionList:getFocusedChild()
-    if A.CaveBot and A.CaveBot.isOn() and route and route.action=='rushlure' then T.blockCave=false engine.status='Rush lure / attacking' return end
-    if not T.luring(candidate,pos,#candidates) then T.move(candidate,pos) end
+    if route and route.action=='rushlure' then T.blockCave=false engine.status='Rush lure / attacking' return end
+    if not A.Walker.holdEnd and not T.luring(candidate,pos,#candidates) then T.move(candidate,pos) end
   elseif T.lootTick(pos) then T.blockCave=true engine.status='Looting'
   else
     engine.status='Searching' T.anchor=nil T.lureState=false T.lureRule=nil T.caveDelayUntil=0
