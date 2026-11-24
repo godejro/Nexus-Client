@@ -1,112 +1,269 @@
-NpcQuickSellRow < Panel
-  height: 38
-  margin-bottom: 2
-  background-color: #283442
-  Item
-    id: icon
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    margin-left: 3
+NexusSellAllTab < Button
+  height: 32
+  font: verdana-11px-rounded
+  text-offset: 12 0
+  color: #c8c8c8
+  $on:
+    color: #ffffff
+  $!on:
+    color: #8c8c8c
+
+NexusSellAllCell < UIWidget
+  size: 38 38
+  image-source: /images/ui/item
+  image-border: 1
+  focusable: false
+
+  UIItem
+    id: item
+    anchors.fill: parent
+    margin: 2
     phantom: true
+    virtual: true
+
   Label
-    id: caption
-    anchors.left: icon.right
-    anchors.right: remove.left
-    anchors.top: parent.top
-    margin-left: 6
-    margin-top: 3
-    text-auto-resize: false
-  Label
-    id: price
-    anchors.left: caption.left
-    anchors.top: caption.bottom
-    color: #dcc491
-  Button
-    id: remove
-    anchors.right: sell.left
-    anchors.verticalCenter: parent.verticalCenter
-    margin-right: 6
-    size: 22 20
-    text: x
-    tooltip: Remove from this sale
-  CheckBox
-    id: sell
+    id: count
     anchors.right: parent.right
-    anchors.verticalCenter: parent.verticalCenter
-    margin-right: 5
-    width: 43
-    text: Sell
+    anchors.bottom: parent.bottom
+    margin-right: 3
+    margin-bottom: 1
+    font: verdana-11px-rounded
+    color: #ffffff
+    text-auto-resize: true
+    phantom: true
+
+  UIWidget
+    id: check
+    size: 12 9
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 2
+    margin-right: 2
+    image-source: /game_cyclopedia/images/checkmark-icon
+    phantom: true
+
+  UIWidget
+    id: lock
+    size: 8 12
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 2
+    margin-right: 3
+    image-source: /images/game/actionbar/locked
+    phantom: true
+    visible: false
+
+NexusSellAllGrid < ScrollablePanel
+  background-color: #2b2b2b
+  border-width: 1
+  border-color: #161616
+  padding: 4
+  layout:
+    type: grid
+    cell-size: 38 38
+    cell-spacing: 4
+    flow: true
 
 MainWindow
-  id: quickSell
-  text: Quick Sell Items List
-  size: 408 342
+  id: nexusSellAll
+  !text: tr('Sell All')
+  size: 452 384
 
-  Label
-    id: hint
-    anchors.left: parent.left
+  NexusSellAllTab
+    id: sellTab
     anchors.top: parent.top
-    text: Select the items to sell.
-  ScrollablePanel
-    id: items
     anchors.left: parent.left
-    anchors.right: bar.left
-    anchors.top: hint.bottom
-    anchors.bottom: editor.top
-    margin-top: 6
-    margin-bottom: 4
-    vertical-scrollbar: bar
-    layout: verticalBox
-  VerticalScrollBar
-    id: bar
+    anchors.right: parent.horizontalCenter
+    margin-right: 2
+    !text: tr('Sell All')
+    UIItem
+      id: icon
+      size: 26 26
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 6
+      phantom: true
+      virtual: true
+
+  NexusSellAllTab
+    id: blacklistTab
+    anchors.top: parent.top
+    anchors.left: parent.horizontalCenter
     anchors.right: parent.right
-    anchors.top: hint.bottom
-    anchors.bottom: editor.top
-    margin-top: 6
-    margin-bottom: 4
-    step: 38
-    pixels-scroll: true
-  TextEdit
-    id: editor
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.bottom: confirm.top
-    margin-bottom: 4
-    visible: false
-    placeholder: Excluded item IDs, separated by commas
+    margin-left: 2
+    !text: tr('BlackList')
+    UIWidget
+      id: icon
+      size: 16 24
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: 10
+      image-source: /images/game/actionbar/locked
+      phantom: true
+
   ProgressBar
     id: progress
+    anchors.top: sellTab.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.bottom: confirm.top
-    margin-bottom: 4
+    margin-top: 6
     height: 18
-    background-color: #38899b
-    color: white
+    background-color: #28b83a
+    color: #ffffff
+    !text: tr('Sale Progress')
+
+  Panel
+    id: sellPage
+    anchors.top: progress.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: valueLabel.top
+    margin-top: 6
+    margin-bottom: 8
+
+    NexusSellAllGrid
+      id: grid
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: gridBar.left
+      anchors.bottom: parent.bottom
+      vertical-scrollbar: gridBar
+
+    VerticalScrollBar
+      id: gridBar
+      anchors.top: parent.top
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      step: 42
+      pixels-scroll: true
+
+    Label
+      id: empty
+      anchors.centerIn: grid
+      color: #9a9a9a
+      !text: tr('Nothing to sell to this NPC.')
+      visible: false
+
+  Panel
+    id: blacklistPage
+    anchors.top: progress.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: valueLabel.top
+    margin-top: 6
+    margin-bottom: 8
     visible: false
+
+    Label
+      id: hint
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      text-auto-resize: false
+      color: #c0c0c0
+      !text: tr('Click an item to block or unblock it. Blocked items are never sold.')
+
+    NexusSellAllGrid
+      id: grid
+      anchors.top: hint.bottom
+      anchors.left: parent.left
+      anchors.right: gridBar.left
+      anchors.bottom: idInput.top
+      margin-top: 4
+      margin-bottom: 6
+      vertical-scrollbar: gridBar
+
+    VerticalScrollBar
+      id: gridBar
+      anchors.top: grid.top
+      anchors.right: parent.right
+      anchors.bottom: grid.bottom
+      step: 42
+      pixels-scroll: true
+
+    TextEdit
+      id: idInput
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      width: 110
+      placeholder: Item ID
+
+    Button
+      id: addId
+      anchors.left: idInput.right
+      anchors.verticalCenter: idInput.verticalCenter
+      margin-left: 4
+      width: 52
+      !text: tr('Block')
+
+    Button
+      id: clearIds
+      anchors.left: addId.right
+      anchors.verticalCenter: idInput.verticalCenter
+      margin-left: 4
+      width: 52
+      !text: tr('Clear')
+
+    TextEdit
+      id: delayInput
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      width: 44
+
+    Label
+      id: delayLabel
+      anchors.right: delayInput.left
+      anchors.verticalCenter: delayInput.verticalCenter
+      margin-right: 4
+      color: #c0c0c0
+      !text: tr('Delay (ms):')
+
+  Label
+    id: valueLabel
+    anchors.left: parent.left
+    anchors.verticalCenter: sellButton.verticalCenter
+    color: #c0c0c0
+    !text: tr('Sale value:')
+
+  Panel
+    id: valueBox
+    anchors.left: valueLabel.right
+    anchors.verticalCenter: sellButton.verticalCenter
+    margin-left: 6
+    size: 140 20
+    background-color: #1c1c1c
+    border-width: 1
+    border-color: #0e0e0e
+
+    UIItem
+      id: coin
+      size: 16 16
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      margin-right: 3
+      phantom: true
+      virtual: true
+
+    Label
+      id: value
+      anchors.right: coin.left
+      anchors.verticalCenter: parent.verticalCenter
+      margin-right: 4
+      color: #ffffff
+      text-auto-resize: true
+      text: 0
+
   Button
-    id: cancel
+    id: closeButton
     anchors.right: parent.right
     anchors.bottom: parent.bottom
-    width: 54
-    text: Cancel
+    width: 56
+    !text: tr('Close')
+
   Button
-    id: confirm
-    anchors.right: cancel.left
+    id: sellButton
+    anchors.right: closeButton.left
     anchors.bottom: parent.bottom
-    margin-right: 4
-    width: 46
-    text: Sell
-  Button
-    id: blacklist
-    anchors.right: confirm.left
-    anchors.bottom: parent.bottom
-    margin-right: 4
-    width: 68
-    text: Black List
-  Label
-    id: total
-    anchors.left: parent.left
-    anchors.right: blacklist.left
-    anchors.verticalCenter: confirm.verticalCenter
-    text-auto-resize: false
+    margin-right: 6
+    width: 64
+    !text: tr('Sell All')

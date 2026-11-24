@@ -1,5 +1,7 @@
-# Nexus Client v2026.11.24.2
+# Nexus Client v2026.11.24.3
 
-Magic Shooter rzuca gotowe czary według kolejności reguł w grupie. Exeta res i utito tempo dzielą cooldown wsparcia, a dostępny czar ataku może zadziałać w międzyczasie. Klient uwzględnia indywidualne cooldowny z serwera i rozpoznaje czary koła o numerach powyżej 255. Lista reguł i edytor dopasowują wysokość do zawartości.
+Handel z NPC ma nowe okno Sell All. Przycisk Sell All znajduje się w oknie handlu nad listą przedmiotów i działa z zakładek Buy i Sell. Okno sprzedaje kolejno każdy rodzaj posiadanego przedmiotu, który kupuje NPC, całą ilością naraz, i pokazuje postęp sprzedaży oraz jej wartość. Lewy klik pomija przedmiot w tej sprzedaży, prawy klik dodaje go do BlackListy. Przedmioty z BlackListy nigdy nie są sprzedawane. W zakładce BlackList można blokować przedmioty kliknięciem lub numerem ID i ustawić opóźnienie między sprzedażami. Dotychczasowe wykluczenia zostają zachowane.
 
-W CaveBot → Actions → Function wybierz przykład, edytuj kod i zapisz waypoint. Dziesięć przykładów obejmuje blokadę PZ, sprawdzanie staminy i imbuementów, zakup mikstur u Eryn, wiadomości z odstępem, sterowanie targetingiem i lurowaniem, wylogowanie oraz zamknięcie kontenerów z łupem. Cztery rzadko używane akcje usunięto z menu dodawania. Istniejące trasy nadal mogą ich używać.
+Okno handlu mieści się w ramce: przycisk sprzedaży nie wychodzi pod okno, a pola Amount, Price i Gold nie nachodzą na siebie.
+
+Wyszukiwarka przedmiotów w Cyclopedii pokazuje wyniki już po wpisaniu początku nazwy, np. „merc” znajduje Mercenary Sword. Najlepsze dopasowania są na górze. Można też wpisać kilka słów albo numer ID przedmiotu.

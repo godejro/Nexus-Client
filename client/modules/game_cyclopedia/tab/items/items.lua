@@ -1019,6 +1019,76 @@ function Cyclopedia.internalCreateItem(data)
     return item
 end
 
+-- Normalizes what the player typed: lower case, single spaces, no trailing
+-- punctuation such as "merc-" or "merc*".
+local function normalizeSearch(text)
+    text = string.lower(text or "")
+    text = text:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
+    text = text:gsub("[%-%*%.%?_,;:]+$", "")
+    return text
+end
+
+-- Returns {data, name, rank} for every item whose name matches, best first:
+-- 1 exact name, 2 name starts with the text, 3 a word starts with the text,
+-- 4 every typed word starts some word of the name, 5 text appears anywhere.
+-- A number also matches the item ID. One letter only matches word starts.
+function Cyclopedia.findItemsByName(text)
+    local query = normalizeSearch(text)
+    local results = {}
+    if query == "" then
+        return results
+    end
+
+    local queryId = tonumber(query)
+    local words = {}
+    for word in query:gmatch("%S+") do
+        table.insert(words, word)
+    end
+
+    for _, data in pairs(Cyclopedia.AllItemList or {}) do
+        local marketData = itemMarketData(data)
+        local name = string.lower(marketData and marketData.name or "")
+        local rank
+        if name ~= "" then
+            if name == query then
+                rank = 1
+            elseif name:sub(1, #query) == query then
+                rank = 2
+            elseif name:find(" " .. query, 1, true) or name:find("-" .. query, 1, true) then
+                rank = 3
+            elseif #words > 1 then
+                rank = 4
+                for _, word in ipairs(words) do
+                    if not (name:sub(1, #word) == word or name:find(" " .. word, 1, true)) then
+                        rank = nil
+                        break
+                    end
+                end
+            end
+            if not rank and #query >= 2 and name:find(query, 1, true) then
+                rank = 5
+            end
+        end
+        if not rank and queryId and data:getId() == queryId then
+            rank = 1
+        end
+        if rank then
+            table.insert(results, {data = data, name = name, rank = rank})
+        end
+    end
+
+    table.sort(results, function(a, b)
+        if a.rank ~= b.rank then
+            return a.rank < b.rank
+        end
+        if a.name ~= b.name then
+            return a.name < b.name
+        end
+        return a.data:getId() < b.data:getId()
+    end)
+    return results
+end
+
 function Cyclopedia.ItemSearch(text, clearTextEdit)
     UI.ItemListBase.List:destroyChildren()
     if text ~= "" then
@@ -1033,16 +1103,8 @@ function Cyclopedia.ItemSearch(text, clearTextEdit)
             oldSelected:setChecked(false)
         end
 
-        local searchTermLower = string.lower(text)
-
-        for _, data in pairs(Cyclopedia.AllItemList) do
-            local marketData = itemMarketData(data)
-            local itemNameLower = string.lower(marketData.name)
-            local _, endIndex = itemNameLower:find(searchTermLower, 1, true)
-
-            if endIndex and (itemNameLower:sub(endIndex + 1, endIndex + 1) == " " or endIndex == #itemNameLower) then
-                table.insert(searchedItems, data)
-            end
+        for _, match in ipairs(Cyclopedia.findItemsByName(text)) do
+            table.insert(searchedItems, match.data)
         end
 
         for _, data in ipairs(searchedItems) do

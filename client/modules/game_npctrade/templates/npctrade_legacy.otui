@@ -245,7 +245,7 @@ MainWindow
 
   Button
     id: sellAllButton
-    !text: tr('Quick Sell')
+    !text: tr('Sell All')
     width: 64
     anchors.right: next.left
     anchors.bottom: parent.bottom
