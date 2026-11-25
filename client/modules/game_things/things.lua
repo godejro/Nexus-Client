@@ -230,6 +230,42 @@ end
 ------------------------------------------------------------------------------
 local itemLooks = {}
 
+-- Cosmetics bundled with the client: they draw on every server, also where
+-- the server's assets do not have these items. Twins share the same frames.
+local BUNDLED_LOOKS = {
+    -- id = { file, frame time in ms }; names as in the bot
+    [56816] = {56816, 150}, -- Turquoise nebula
+    [56817] = {56817, 150}, -- Yellow-green nebula
+    [56819] = {56819, 150}, -- Purple nebula
+    [56821] = {56821, 150}, -- Red-gold nebula
+    [56823] = {56823, 150}, -- Navy nebula
+    [56825] = {56825, 150}, -- Blue lightning
+    [56843] = {56843, 150}, -- Bronze cube
+    [56844] = {56844, 150}, -- Blue cube
+    [56845] = {56845, 150}, -- Purple cube
+    [56846] = {56846, 150}, -- Red cube
+    [56815] = {56816, 150}, [56818] = {56817, 150}, [56820] = {56819, 150},
+    [56822] = {56821, 150}, [56824] = {56823, 150}, [56826] = {56825, 150},
+}
+local COSMETIC_NAMES = {
+    {56816, 'Turquoise nebula'}, {56817, 'Yellow-green nebula'}, {56819, 'Purple nebula'},
+    {56821, 'Red-gold nebula'}, {56823, 'Navy nebula'}, {56825, 'Blue lightning'},
+    {56843, 'Bronze cube'}, {56844, 'Blue cube'}, {56845, 'Purple cube'}, {56846, 'Red cube'},
+}
+-- Bundled cosmetics this client can draw: { {id=, name=}, ... }
+function getCosmeticLooks()
+    local list = {}
+    for _, entry in ipairs(COSMETIC_NAMES) do
+        if hasLook(entry[1]) then list[#list + 1] = {id = entry[1], name = entry[2]} end
+    end
+    return list
+end
+if g_things.loadItemLookImage then
+    for id, look in pairs(BUNDLED_LOOKS) do
+        g_things.loadItemLookImage(id, '/modules/game_things/itemlooks/' .. look[1] .. '.png', look[2])
+    end
+end
+
 local function nativeLooks()
     return g_things.setItemLook ~= nil
 end

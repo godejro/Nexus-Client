@@ -32,6 +32,14 @@ zostaje zastosowana ponownie tylko tam, gdzie wygląd istnieje.
 | `modules.game_things.clearItemLooks()` | przywraca wszystkie oryginały od razu |
 | `modules.game_things.getItemLooks()` | `{ [fromId] = toId, ... }` |
 | `modules.game_things.hasLook(itemId)` | `true`, gdy klient potrafi narysować ten wygląd |
+| `modules.game_things.getCosmeticLooks()` | `{ {id=56816, name='Turquoise nebula'}, ... }`: kosmetyki wbudowane w klienta |
+
+Kosmetyki wbudowane w klienta (rysują się na każdym serwerze, także gdy
+serwer nie ma tych przedmiotów w swoich assets; widzi je tylko ten gracz):
+56816 Turquoise nebula, 56817 Yellow-green nebula, 56819 Purple nebula,
+56821 Red-gold nebula, 56823 Navy nebula, 56825 Blue lightning,
+56843 Bronze cube, 56844 Blue cube, 56845 Purple cube, 56846 Red cube,
+oraz bliźniaki 56815, 56818, 56820, 56822, 56824, 56826 (te same klatki).
 
 Przykład (magic wall jako „Turquoise nebula”):
 
