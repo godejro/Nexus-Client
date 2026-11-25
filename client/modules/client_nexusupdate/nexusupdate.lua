@@ -2,6 +2,7 @@ local version='v2026.11.3.1'
 local repository='godejro/Nexus-Client'
 local window,button,operation,timer,session,state,automatic,manifest,release,stage,started
 local active=false
+local fallbackToFull
 local function request(fn,...)
   local timeout=HTTP.timeout HTTP.timeout=120
   local id=fn(...) HTTP.timeout=timeout return id
@@ -109,14 +110,17 @@ local function verifyFiles(index)
   local last=math.min(index+39,#manifest.files)
   for i=index,last do
     local file=manifest.files[i] local name=stage..'/'..file.path
-    if not g_resources.fileExistsInWorkDir(name) or g_resources.fileSha256InWorkDir(name)~=file.sha256 then fail('Downloaded file failed SHA256 verification: '..file.path) return end
+    if not g_resources.fileExistsInWorkDir(name) or g_resources.fileSha256InWorkDir(name)~=file.sha256 then
+      if manifest.delta then fallbackToFull('verify '..file.path) else fail('Downloaded file failed SHA256 verification: '..file.path) end
+      return
+    end
   end
   applyStatus({phase='verifying',message='Verifying program files...',done=last,total=#manifest.files,file=manifest.files[last].path,version=release.version})
   if last<#manifest.files then timer=scheduleEvent(function() verifyFiles(last+1) end,1) return end
   applyStatus({phase='ready',message='Update verified.',done=last,total=last,version=release.version})
   if automatic then install() end
 end
-local function download()
+local function fullDownload()
   active=automatic
   applyStatus({phase='downloading',message='Downloading update manifest...',version=release.version})
   operation=request(HTTP.getJSON,release.manifest,function(data,err)
@@ -138,6 +142,47 @@ local function download()
     end)
   end)
 end
+-- Small update: only the files changed since the previous release (delta.json
+-- names that release in "from"). Unchanged Nexus Client.exe/init.lua are marked
+-- "local" and copied from this installation into the stage, because the native
+-- installer runs from the staged EXE. Any problem falls back to the full package.
+fallbackToFull=function(reason)
+  g_logger.info('[NexusUpdate] small update not used: '..tostring(reason))
+  release.delta=nil manifest=nil
+  session=session..'f'
+  fullDownload()
+end
+local function deltaDownload()
+  active=automatic
+  local delta=release.delta
+  applyStatus({phase='downloading',message='Downloading update manifest...',version=release.version})
+  operation=request(HTTP.getJSON,delta.manifest,function(data,err)
+    if err then fallbackToFull(err) return end
+    local from=type(data)=='table' and tostring(data.from or ''):gsub('^v','') or ''
+    if from~=tostring(version):gsub('^v','') or not validateManifest(data) then fallbackToFull('made for '..from) return end
+    manifest=data manifest.delta=true
+    local base='updater/sessions/'..session stage=base..'/stage'
+    if not g_resources.writeFileContentsToWorkDir(base..'/update.json',json.encode(manifest)) then fallbackToFull('staging') return end
+    started=g_clock.millis()
+    operation=request(HTTP.download,delta.url,'nexus-delta-'..session,function(file,_,errorMessage)
+      if errorMessage then fallbackToFull(errorMessage) return end
+      if not g_resources.writeDownloadedFileToWorkDir(file,base..'/package.zip',false) or g_resources.fileSha256InWorkDir(base..'/package.zip')~=manifest.sha256 then fallbackToFull('package sha') return end
+      applyStatus({phase='verifying',message='Unpacking verified update...',version=release.version})
+      if not g_resources.extractDownloadedArchiveToWorkDir(file,stage,'',false) then fallbackToFull('unpack') return end
+      local root=g_resources.getWorkDir()
+      for _,entry in ipairs(manifest.files) do
+        if entry['local']==true and not g_platform.copyFile(root..entry.path,root..stage..'/'..entry.path) then fallbackToFull('copy '..entry.path) return end
+      end
+      verifyFiles(1)
+    end,function(percent)
+      local done=delta.size*math.max(0,math.min(100,tonumber(percent) or 0))/100
+      applyStatus({phase='downloading',message='Downloading update...',done=done,total=delta.size,speed=done/1048576/math.max(0.1,(g_clock.millis()-started)/1000),file='nexus-delta.zip',version=release.version})
+    end)
+  end)
+end
+local function download()
+  if release.delta then deltaDownload() else fullDownload() end
+end
 function check(auto)
   if not window or active then return end
   automatic=auto==true active=automatic
@@ -152,6 +197,10 @@ function check(auto)
     local zip,meta=assets['nexus-update.zip'],assets['update.json']
     if not zip or not meta or not releaseUrl(zip.browser_download_url) or not releaseUrl(meta.browser_download_url) or type(zip.size)~='number' or zip.size<=0 or zip.size>536870912 then fail('Release package is incomplete.') return end
     release={version=data.tag_name,url=zip.browser_download_url,manifest=meta.browser_download_url,size=zip.size}
+    local deltaZip,deltaMeta=assets['nexus-delta.zip'],assets['delta.json']
+    if deltaZip and deltaMeta and releaseUrl(deltaZip.browser_download_url) and releaseUrl(deltaMeta.browser_download_url) and type(deltaZip.size)=='number' and deltaZip.size>0 and deltaZip.size<zip.size then
+      release.delta={url=deltaZip.browser_download_url,manifest=deltaMeta.browser_download_url,size=deltaZip.size}
+    end
     if automatic then download() else applyStatus({phase='available',message='A new update is available.',version=release.version}) end
   end)
 end

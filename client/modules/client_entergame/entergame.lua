@@ -497,8 +497,8 @@ function EnterGame.terminate()
     EnterGame = nil
 end
 
--- Login window sits centered under the "N" logo of the client background,
--- a bit below its tip; falls back to the screen center without a background.
+-- Login window is centered on screen, moved down just enough to keep the "N" logo
+-- of the client background fully visible; screen center without a background.
 local placeEvent = nil
 
 local function placeUnderLogo()
@@ -514,8 +514,10 @@ local function placeUnderLogo()
     end
     local area = parent:getRect()
     local width, height = enterGame:getWidth(), enterGame:getHeight()
-    local gap = math.max(40, math.floor(area.height * 0.09))
-    local y = math.min(anchor.y + gap, area.y + area.height - height - 10)
+    -- As close to the screen center as possible, but never over the logo.
+    local centered = area.y + math.floor((area.height - height) / 2)
+    local y = math.max(centered, anchor.y + 12)
+    y = math.min(y, area.y + area.height - height - 10)
     y = math.max(y, area.y + 10)
     enterGame:breakAnchors()
     enterGame:setPosition({ x = anchor.x - math.floor(width / 2), y = y })

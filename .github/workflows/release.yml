@@ -83,6 +83,46 @@ jobs:
           Compress-Archive -Path ./client/URUCHOM_NEXUS.cmd,./client/updater -DestinationPath ./dist/nexus-launcher.zip
           Compress-Archive -Path ./studio/* -DestinationPath ./dist/nexus-studio-sync.zip
 
+      - name: Small update since the previous release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # nexus-delta.zip holds only files changed since the latest release.
+          # Clients on that release download it instead of the full package;
+          # unchanged Nexus Client.exe/init.lua are marked "local" (copied from
+          # the installation, the native installer runs from the staged EXE).
+          . ./build/Update-Library.ps1
+          Add-Type -AssemblyName System.IO.Compression,System.IO.Compression.FileSystem
+          $previous = gh api "repos/$env:GITHUB_REPOSITORY/releases/latest" --jq .tag_name
+          if ($LASTEXITCODE -ne 0 -or !$previous) { Write-Output 'No previous release; full package only.'; exit 0 }
+          gh release download $previous --repo $env:GITHUB_REPOSITORY --pattern update.json --dir prevmeta
+          if ($LASTEXITCODE -ne 0) { Write-Output 'Previous manifest missing; full package only.'; exit 0 }
+          $old = @{}
+          foreach ($f in (Get-Content prevmeta/update.json -Raw | ConvertFrom-Json).files) { $old[$f.path] = $f.sha256 }
+          $new = Get-Content dist/update.json -Raw | ConvertFrom-Json
+          $changed = @($new.files | Where-Object { $old[$_.path] -ne $_.sha256 })
+          if ($changed.Count -eq 0) { Write-Output 'Nothing changed; full package only.'; exit 0 }
+          $files = [System.Collections.Generic.List[object]]::new()
+          foreach ($f in $changed) { $files.Add(@{ path = $f.path; size = $f.size; sha256 = $f.sha256 }) }
+          foreach ($required in @('Nexus Client.exe', 'init.lua')) {
+            if (!($changed | Where-Object path -eq $required)) {
+              $entry = $new.files | Where-Object path -eq $required
+              $files.Add(@{ path = $entry.path; size = $entry.size; sha256 = $entry.sha256; local = $true })
+            }
+          }
+          $zip = Join-Path (Resolve-Path dist) 'nexus-delta.zip'
+          $archive = [IO.Compression.ZipFile]::Open($zip, [IO.Compression.ZipArchiveMode]::Create)
+          try {
+            foreach ($f in $changed) {
+              $null = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, (Join-Path (Resolve-Path client) $f.path), $f.path, [IO.Compression.CompressionLevel]::Optimal)
+            }
+          } finally { $archive.Dispose() }
+          $delta = @{ schema = 1; version = $new.version; from = $previous; sha256 = (Get-NexusSHA256 $zip); files = $files }
+          [IO.File]::WriteAllText((Join-Path (Resolve-Path dist) 'delta.json'), ($delta | ConvertTo-Json -Depth 6), [Text.UTF8Encoding]::new($false))
+          $kb = [Math]::Round((Get-Item $zip).Length / 1KB)
+          Write-Output "Small update from $previous`: $($changed.Count) files, $kb KB"
+
       - name: Publish verified package
         shell: pwsh
         env:
@@ -95,5 +135,7 @@ jobs:
           $botNotes = Get-Content bot-notes.md -Raw
           $body = "Wydanie: $trigger`n`n## Klient`n`n$client`n`n## Bot CWELBOT ($bot)`n`n$botNotes"
           Set-Content -Path release-notes.md -Value $body -Encoding utf8
-          gh release create $version ./dist/nexus-update.zip ./dist/update.json ./dist/nexus-launcher.zip ./dist/nexus-studio-sync.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Nexus Client $version" --notes-file release-notes.md --latest
+          $assets = @('./dist/nexus-update.zip', './dist/update.json', './dist/nexus-launcher.zip', './dist/nexus-studio-sync.zip')
+          if ((Test-Path ./dist/nexus-delta.zip) -and (Test-Path ./dist/delta.json)) { $assets += @('./dist/nexus-delta.zip', './dist/delta.json') }
+          gh release create $version @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Nexus Client $version" --notes-file release-notes.md --latest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

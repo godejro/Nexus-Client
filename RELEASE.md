@@ -1,3 +1,5 @@
+- **Mniejsze aktualizacje:** klient pobiera teraz tylko pliki zmienione od poprzedniej wersji zamiast całej paczki 34.8 MB. Pełna paczka zostaje jako zapas, gdy ktoś przeskoczył kilka wersji albo coś pójdzie nie tak.
+- **Okno logowania:** jest na środku ekranu w pionie, ale nigdy nie zasłania logo N.
 - **Spelle obszarowe na Igle:** cały wzór czaru (np. exevo mas san, GFB) jest znowu widoczny. Poprawka działa tylko tam, gdzie serwer pakuje obszar w jeden pakiet, więc inne serwery działają bez zmian.
 - **Lock Item:** prawy klik na przedmiot w plecaku, eq albo na liście handlu, potem pole „Lock Item”. Zablokowany przedmiot ma czerwoną ramkę w każdym otwartym plecaku i w eq. Sell All go pomija, na liście sprzedaży ma czerwoną nazwę, a ręczna sprzedaż prosi o potwierdzenie. Lista nazywa się teraz Locked Items (zakładka w oknie Sell All).
 - **Handel z NPC:** pełne menu opcji jak w zwykłym kliencie:
