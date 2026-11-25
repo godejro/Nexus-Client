@@ -306,6 +306,9 @@ function UIMinimap:onMouseRelease(pos, button)
         menu:addOption(tr('Create mark'), function()
             self:createFlagWindow(mapPos)
         end)
+        if modules.game_minimap and modules.game_minimap.downloadFullMinimap then
+            menu:addOption(tr('Download full minimap'), modules.game_minimap.downloadFullMinimap)
+        end
         if modules.game_minimap and modules.game_minimap.importMinimap then
             menu:addOption(tr('Import .otmm minimap'), modules.game_minimap.importMinimap)
         end

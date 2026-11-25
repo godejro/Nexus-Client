@@ -13,6 +13,7 @@ local WORLD_LOADING_MAX_MS = 30000  -- never hold the player longer than this
 local WORLD_LOADING_FADE_MS = 250
 local worldLoadingEvent = nil
 local worldLoadingStarted = 0
+local stopWorldLoading -- defined below; terminate() needs it too
 local worldReadySince = nil
 
 -- public functions
@@ -59,7 +60,7 @@ function terminate()
     clientVersionLabel = nil
 end
 
-local function stopWorldLoading()
+stopWorldLoading = function()
     if worldLoadingEvent then
         removeEvent(worldLoadingEvent)
         worldLoadingEvent = nil

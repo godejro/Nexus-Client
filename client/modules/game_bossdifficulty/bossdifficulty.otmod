@@ -1,0 +1,11 @@
+Module
+  name: game_bossdifficulty
+  description: Boss difficulty selection window (Tibia 15 Summer Update 2026 boss levers)
+  author: Nexus
+  sandboxed: true
+  autoload: true
+  autoload-priority: 1010
+  dependencies: [ game_interface ]
+  scripts: [ bossdifficulty ]
+  @onLoad: init()
+  @onUnload: terminate()

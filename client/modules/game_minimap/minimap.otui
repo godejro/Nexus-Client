@@ -37,11 +37,14 @@ PhantomMiniWindow
 
   UIWidget
     id: minimapBorder
+    // Map fills the window; the buttons below sit on top of it.
     anchors.top: parent.top
     anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
     margin-top: 23
     margin-left: 8
-    size: 115 111
+    margin-right: 4
     image-source: /images/ui/1pixel_down_frame
 
     Minimap
@@ -52,9 +55,10 @@ PhantomMiniWindow
   UIWidget
     id: layersPanel
     size: 20 68
-    anchors.bottom: parent.bottom
-    anchors.right: parent.right
-    margin-right: 7
+    anchors.bottom: minimapBorder.bottom
+    anchors.left: minimapBorder.left
+    margin-left: 3
+    margin-bottom: 3
 
     UIWidget
       id: automapLayers
@@ -101,9 +105,10 @@ PhantomMiniWindow
     id: fullMap
     image-source: /images/automap/automap_buttons
     image-clip: 0 0 20 20
-    anchors.right: layersPanel.left
-    anchors.bottom: minimapBorder.bottom
-    margin-right: 4
+    anchors.left: minimapBorder.left
+    anchors.top: minimapBorder.top
+    margin-left: 3
+    margin-top: 3
     size: 20 20
     @onClick: openCyclopediaMap()
 
@@ -117,9 +122,10 @@ PhantomMiniWindow
     id: zoomIn
     image-source: /images/automap/automap_buttons
     image-clip: 0 40 20 20
-    anchors.right: fullMap.right
-    anchors.bottom: fullMap.top
-    margin-bottom: 2
+    anchors.right: minimapBorder.right
+    anchors.bottom: minimapBorder.bottom
+    margin-right: 3
+    margin-bottom: 3
     size: 20 20
     @onClick: zoomIn()
 
@@ -133,7 +139,7 @@ PhantomMiniWindow
     id: zoomOut
     image-source: /images/automap/automap_buttons
     image-clip: 0 20 20 20
-    anchors.right: fullMap.right
+    anchors.right: zoomIn.right
     anchors.bottom: zoomIn.top
     margin-bottom: 2
     size: 20 20
@@ -148,7 +154,9 @@ PhantomMiniWindow
   UIWidget
     id: rosePanel
     anchors.top: minimapBorder.top
-    anchors.right: layersPanel.right
+    anchors.right: minimapBorder.right
+    margin-top: 2
+    margin-right: 2
     size: 43 43
 
     UIWidget

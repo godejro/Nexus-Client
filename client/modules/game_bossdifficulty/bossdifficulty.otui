@@ -1,0 +1,267 @@
+BossDiffBox < FlatPanel
+  padding: 0
+
+BossDiffHeader < Label
+  anchors.top: parent.top
+  anchors.left: parent.left
+  anchors.right: parent.right
+  height: 18
+  text-align: center
+  background-color: #1f1f1fdd
+  color: #c0c0c0
+
+BossDiffStat < Label
+  anchors.left: parent.left
+  anchors.right: parent.right
+  margin-left: 8
+  margin-right: 8
+  height: 16
+  color: #c0c0c0
+
+BossDiffStatValue < Label
+  anchors.right: parent.right
+  anchors.verticalCenter: prev.verticalCenter
+  margin-right: 8
+  text-align: right
+  text-auto-resize: true
+  color: #c0c0c0
+
+BossDiffModifier < Label
+  anchors.left: parent.left
+  anchors.right: parent.right
+  text-wrap: true
+  text-auto-resize: true
+  margin-bottom: 4
+  color: #c0c0c0
+
+BossDiffMember < Label
+  size: 120 22
+  text-align: center
+  color: #c0c0c0
+  background-color: #2a2a2acc
+  border-width: 1
+  border-color: #000000
+
+MainWindow
+  id: bossDifficultyWindow
+  !text: tr('Boss Difficulty Selection')
+  size: 580 420
+  @onEscape: modules.game_bossdifficulty.close()
+
+  BossDiffBox
+    id: bossBox
+    anchors.top: parent.top
+    anchors.left: parent.left
+    width: 200
+    height: 240
+
+    BossDiffHeader
+      id: bossName
+      !text: tr('Boss')
+
+    Creature
+      id: bossCreature
+      anchors.top: prev.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      margin-top: 6
+      size: 76 76
+
+    Label
+      id: selectLabel
+      anchors.top: prev.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      margin-top: 4
+      !text: tr('Select Difficulty:')
+      text-auto-resize: true
+      color: #c0c0c0
+
+    Panel
+      id: spinner
+      anchors.top: prev.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      margin-top: 4
+      size: 150 20
+
+      Button
+        id: first
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        size: 20 18
+        @onClick: modules.game_bossdifficulty.step('first')
+
+      Button
+        id: prev
+        anchors.left: prev.right
+        anchors.verticalCenter: parent.verticalCenter
+        margin-left: 2
+        size: 18 18
+        @onClick: modules.game_bossdifficulty.step(-1)
+
+      Label
+        id: value
+        anchors.left: prev.right
+        anchors.verticalCenter: parent.verticalCenter
+        margin-left: 2
+        size: 44 18
+        text-align: center
+        background-color: #111111
+        border-width: 1
+        border-color: #555555
+        color: #ffffff
+
+      Button
+        id: next
+        anchors.left: prev.right
+        anchors.verticalCenter: parent.verticalCenter
+        margin-left: 2
+        size: 18 18
+        @onClick: modules.game_bossdifficulty.step(1)
+
+      Button
+        id: last
+        anchors.left: prev.right
+        anchors.verticalCenter: parent.verticalCenter
+        margin-left: 2
+        size: 20 18
+        @onClick: modules.game_bossdifficulty.step('last')
+
+    Label
+      id: modeLabel
+      anchors.top: spinner.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 4
+      margin-left: 6
+      margin-right: 6
+      text-align: center
+      color: #9fb7d8
+
+    HorizontalSeparator
+      anchors.top: modeLabel.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 8
+      margin-left: 6
+      margin-right: 6
+
+    BossDiffStat
+      id: groupLabel
+      anchors.top: prev.bottom
+      margin-top: 6
+      !text: tr('Highest Difficulty in Group:')
+    BossDiffStatValue
+      id: groupValue
+
+    BossDiffStat
+      id: personalLabel
+      anchors.top: groupLabel.bottom
+      !text: tr('Personal Highest Difficulty:')
+    BossDiffStatValue
+      id: personalValue
+
+    BossDiffStat
+      id: badLuckLabel
+      anchors.top: personalLabel.bottom
+      !text: tr('Current Bad Luck Drop Bonus:')
+    BossDiffStatValue
+      id: badLuckValue
+
+  BossDiffBox
+    id: infoBox
+    anchors.top: parent.top
+    anchors.left: bossBox.right
+    anchors.right: parent.right
+    margin-left: 6
+    height: 240
+
+    BossDiffHeader
+      !text: tr('Difficulty Information')
+
+    Panel
+      id: penalties
+      anchors.top: prev.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin: 6 8 0 8
+      height: 108
+      layout:
+        type: verticalBox
+
+    HorizontalSeparator
+      anchors.top: penalties.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 2
+      margin-left: 6
+      margin-right: 6
+
+    Panel
+      id: bonuses
+      anchors.top: prev.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin: 6 8 4 8
+      layout:
+        type: verticalBox
+
+  BossDiffBox
+    id: partyBox
+    anchors.top: bossBox.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 6
+    height: 108
+
+    BossDiffMember
+      id: member1
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-top: 18
+      margin-left: 30
+
+    BossDiffMember
+      id: member2
+      anchors.top: parent.top
+      anchors.right: parent.right
+      margin-top: 18
+      margin-right: 30
+
+    BossDiffMember
+      id: member3
+      anchors.bottom: parent.bottom
+      anchors.left: parent.left
+      margin-bottom: 18
+      margin-left: 30
+
+    BossDiffMember
+      id: member4
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      margin-bottom: 18
+      margin-right: 30
+
+    BossDiffMember
+      id: member5
+      anchors.bottom: parent.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      margin-bottom: 8
+
+    Button
+      id: startButton
+      anchors.top: parent.top
+      anchors.horizontalCenter: parent.horizontalCenter
+      margin-top: 10
+      size: 150 46
+      !text: tr('Start Fight')
+      font: verdana-11px-rounded
+      color: #f0e0a0
+      @onClick: modules.game_bossdifficulty.startFight()
+
+  Button
+    id: closeButton
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    size: 60 21
+    !text: tr('Close')
+    @onClick: modules.game_bossdifficulty.close()

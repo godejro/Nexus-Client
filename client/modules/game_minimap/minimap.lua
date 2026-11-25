@@ -46,7 +46,6 @@ local function arrangeWideMap()
     mapController.ui:setWidth(width)
     mapController.ui:setPosition({x=main:getX()-extra:getWidth()-extra:getMarginRight()-root:getX(),
                                   y=main:getY()-root:getY()})
-    mapController.ui.minimapBorder:setWidth(math.max(115,width-58))
     if mainMapSpace then mainMapSpace:setHeight(height) end
     if extraMapSpace then extraMapSpace:setHeight(height) end
     mapController.ui:raise()
@@ -68,7 +67,6 @@ local function releaseWideMap()
         mapController.ui:setParent(main)
         main:moveChildToIndex(mapController.ui,1)
         mapController.ui:setWidth(main:getWidth())
-        mapController.ui.minimapBorder:setWidth(115)
         mapController.ui.widenMap:setText('<')
     end
     for _,widget in ipairs({mainMapSpace,extraMapSpace}) do
@@ -265,6 +263,164 @@ local function loadCurrentMinimap(showError)
             currentMinimapFile))
     end
     return false
+end
+
+------------------------------------------------------------------------------
+-- Full minimap from the server's own client files (Tibia 13+ asset format).
+-- The map-*.dat index (copied by Nexus Studio) lists minimap/satellite/subarea
+-- chunk files. Nexus Studio copies them on import; for servers imported
+-- earlier this copies the missing chunks from the server's original client
+-- folder into the profile's asset folder and reloads the minimap live.
+------------------------------------------------------------------------------
+local MAP_SOURCE_SETTING = 'nexusFullMapSource_'
+local mapDownload = nil
+
+local function mapChunkNames(assetsDir)
+    local names, seen = {}, {}
+    for _, file in ipairs(g_resources.listDirectoryFiles(assetsDir) or {}) do
+        if file:lower():match('^map%-%x+%.dat$') then
+            local data = g_resources.readFileContents(assetsDir .. '/' .. file) or ''
+            for _, pattern in ipairs({'minimap%-%d+%-%d+%-%d+%-%d+%-%x+%.bmp%.lzma',
+                'satellite%-%d+%-%d+%-%d+%-%d+%-%x+%.bmp%.lzma', 'subarea%-%d+%-%x+%.bmp%.lzma'}) do
+                for name in data:gmatch(pattern) do
+                    if not seen[name] then
+                        seen[name] = true
+                        names[#names + 1] = name
+                    end
+                end
+            end
+        end
+    end
+    return names
+end
+
+local function reloadFullMinimap()
+    g_satelliteMap.clear()
+    loadedStaticMinimapFloors = {}
+    staticMinimapAssetsDir = nil
+    local player = g_game.getLocalPlayer()
+    local pos = player and player:getPosition()
+    if pos then
+        ensureStaticMinimapFloor(pos.z)
+    end
+end
+
+local function finishMapDownload(copied, failed, missing, total)
+    mapDownload = nil
+    reloadFullMinimap()
+    if failed > 0 then
+        showMinimapError(tr('%d map files could not be copied into the client folder. Close programs that may lock it and try again.', failed))
+    elseif missing == total then
+        showMinimapError(tr('The selected folder has no map files of this server. Choose the folder of the server\'s own client (the one with the "assets" folder).'))
+    elseif missing > 0 then
+        displayInfoBox(tr('Full minimap'), tr('Copied %d of %d map files. %d are missing in the selected client, so parts of the map stay empty.', copied, total, missing))
+    else
+        displayInfoBox(tr('Full minimap'), tr('The full minimap of this server is ready.'))
+    end
+end
+
+-- Copies run in a hidden PowerShell/robocopy process, so the game keeps its
+-- frame rate; the client only polls for the result file.
+local function psQuote(text)
+    return "'" .. text:gsub("'", "''") .. "'"
+end
+
+local function copyMapChunks(sourceFolder, names, targetDir)
+    local resultName = '/nexus-map-copy-' .. getMinimapProfileKey() .. '.txt'
+    local resultPath = g_resources.getWriteDir():gsub('[/\\]+$', '') .. resultName
+    if g_resources.fileExists(resultName) then
+        g_resources.deleteFile(resultName)
+    end
+    local script = table.concat({
+        "$ErrorActionPreference='SilentlyContinue'",
+        '$src=' .. psQuote(sourceFolder:gsub('/', '\\')),
+        "if (Test-Path -LiteralPath (Join-Path $src 'assets')) { $src = Join-Path $src 'assets' }",
+        '$dst=' .. psQuote(targetDir:gsub('/', '\\')),
+        'robocopy $src $dst minimap-*.bmp.lzma satellite-*.bmp.lzma subarea-*.bmp.lzma /XC /XN /XO /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null',
+        '$code=$LASTEXITCODE',
+        'Set-Content -LiteralPath ' .. psQuote(resultPath:gsub('/', '\\')) .. ' -Value $code -Encoding ascii'
+    }, '; ')
+    local ok, started = pcall(g_platform.spawnProcess, 'powershell',
+        {'-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command', script})
+    if not ok or not started then
+        showMinimapError(tr('Windows did not start the copy (PowerShell is not available).'))
+        return
+    end
+    if modules.game_textmessage then
+        modules.game_textmessage.displayStatusMessage(tr('Copying the full minimap (%d files) in the background...', #names))
+    end
+    local started_at = g_clock.millis()
+    local function poll()
+        if not mapDownload then
+            return
+        end
+        if not g_resources.fileExists(resultName) then
+            if g_clock.millis() - started_at > 180000 then
+                mapDownload = nil
+                showMinimapError(tr('Copying the full minimap takes too long. Check the folder and try again.'))
+                return
+            end
+            mapDownload = scheduleEvent(poll, 300)
+            return
+        end
+        local code = tonumber((g_resources.readFileContents(resultName) or ''):match('%d+')) or 16
+        g_resources.deleteFile(resultName)
+        local copied, missing = 0, 0
+        for _, name in ipairs(names) do
+            if g_platform.fileExists(targetDir .. '/' .. name) then
+                copied = copied + 1
+            else
+                missing = missing + 1
+            end
+        end
+        -- robocopy: 0-7 success, 8 and above means some files failed.
+        finishMapDownload(copied, code >= 8 and missing or 0, code >= 8 and 0 or missing, #names)
+    end
+    mapDownload = scheduleEvent(poll, 300)
+end
+
+function downloadFullMinimap()
+    if mapDownload then
+        return
+    end
+    local assetsDir = getMinimapAssetsDir()
+    local names = mapChunkNames(assetsDir)
+    if #names == 0 then
+        showMinimapError(tr('This server\'s client files contain no full map. The minimap is filled while you explore.'))
+        return
+    end
+    local missingLocal = 0
+    for _, name in ipairs(names) do
+        if not g_resources.fileExists(assetsDir .. '/' .. name) then
+            missingLocal = missingLocal + 1
+        end
+    end
+    if missingLocal == 0 then
+        reloadFullMinimap()
+        displayInfoBox(tr('Full minimap'), tr('The full minimap of this server is already installed.'))
+        return
+    end
+    local realDir = g_resources.getRealDir(assetsDir)
+    if not realDir or realDir == '' then
+        showMinimapError(tr('The asset folder of this server could not be found.'))
+        return
+    end
+    local targetDir = (realDir:gsub('[/\\]+$', '')) .. assetsDir
+    local settingKey = MAP_SOURCE_SETTING .. getMinimapProfileKey()
+    local inputBox = UIInputBox.create(tr('Download full minimap'), function(sourceFolder)
+        sourceFolder = sourceFolder:gsub('^%s+', ''):gsub('%s+$', ''):gsub('^"(.*)"$', '%1'):gsub('\\', '/'):gsub('/+$', '')
+        if sourceFolder == '' then
+            return
+        end
+        g_settings.set(settingKey, sourceFolder)
+        copyMapChunks(sourceFolder, names, targetDir)
+    end)
+    if modules.game_textmessage then
+        modules.game_textmessage.displayStatusMessage(tr('Full minimap: %d map files are missing.', missingLocal))
+    end
+    inputBox:addLabel(tr('Folder of the server\'s own client:'))
+    inputBox:addLineEdit(nil, g_settings.getString(settingKey, ''))
+    inputBox:display()
 end
 
 function importMinimap()
@@ -484,6 +640,10 @@ function mapController:onGameStart()
 end
 
 function mapController:onGameEnd()
+    if mapDownload then
+        removeEvent(mapDownload)
+        mapDownload = nil
+    end
     -- Save Map
     if otmm then
         g_minimap.saveOtmm(currentMinimapFile or getMinimapFile())
