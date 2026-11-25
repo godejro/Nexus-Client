@@ -1,3 +1,5 @@
+- **Dwa paski w oknie aktualizacji:** osobno Nexus Client i CWELBOT. Od razu widać, która część dostaje aktualizację; druga pokazuje „Up to date”.
+- **Pobieranie pełnej minimapy bez okna PowerShella:** wyszukiwanie i kopiowanie idzie całkowicie w tle.
 - **Poprawka: aktualizacja zawieszała się na „Checking for updates”** i nie dało się zalogować. Naprawione.
 - **Klient i bot aktualizują się osobno:** aktualizacja klienta nie podmienia już bota, a aktualizacja bota nie cofa klienta. Wgrywa się tylko ta część, która się naprawdę zmieniła. Folder CWELBOT będący klonem gita (kopia programisty bota) nigdy nie jest nadpisywany.
 - **Nowy wygląd okna aktualizacji:** napis „Nexus Client Updating”, płynnie animowany pasek z procentami, bez prędkości, rozmiaru i numeru wersji.

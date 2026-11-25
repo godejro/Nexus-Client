@@ -26,18 +26,37 @@ local function enterGame()
   if not g_game.isOnline() and modules.client_entergame and modules.client_entergame.EnterGame then modules.client_entergame.EnterGame.show() end
 end
 function show() if window then window:show() window:raise() window:focus() startAnimator() end end
--- Smooth progress: the bar eases toward the real percent and a soft light
--- runs across the filled part while work is in progress.
-local shownPercent,targetPercent,sheenX,animator=0,0,0,nil
+-- Two bars, one for the client and one for CWELBOT. Each eases toward its
+-- percent and a soft light runs across it while that part is being updated;
+-- a part with nothing new shows "Up to date".
+local partUpdating={}
+local bars={}
+local targetPercent,animator=0,nil
+local function barState(key)
+  local bar=bars[key] if not bar then bar={shown=0,sheen=0} bars[key]=bar end
+  return bar
+end
+local function barTarget(key)
+  local updating=partUpdating[key]
+  if updating==false or (updating==nil and state=='current') then return 100,false end
+  if updating==nil then return state=='checking' and 0 or targetPercent,nil end
+  return targetPercent,true
+end
 local function drawProgress()
   if not window then return end
-  local track=window.progress
-  local width=math.max(0,track:getWidth()-4)
-  local fillWidth=math.floor(width*shownPercent/100+0.5)
-  track.fill:setWidth(fillWidth)
-  track.fill:setVisible(fillWidth>0)
-  track.percent:setText(string.format('%d%%',math.floor(shownPercent+0.5)))
-  track.fill.sheen:setMarginLeft(sheenX-48)
+  for _,key in ipairs({'client','bot'}) do
+    local widget=window[key..'Bar'] local bar=barState(key)
+    local _,updating=barTarget(key)
+    local width=math.max(0,widget:getWidth()-4)
+    local fillWidth=math.floor(width*bar.shown/100+0.5)
+    widget.fill:setWidth(fillWidth)
+    widget.fill:setVisible(fillWidth>0)
+    widget.fill:setOpacity(updating==false and 0.45 or 1)
+    widget.percent:setText(updating==false and 'Up to date' or string.format('%d%%',math.floor(bar.shown+0.5)))
+    widget.fill.sheen:setMarginLeft(bar.sheen-48)
+    local caption=window[key..'Caption']
+    caption:setColor(updating==true and '#ffffff' or '#8a96aa')
+  end
 end
 stopAnimator=function() if animator then removeEvent(animator) animator=nil end end
 startAnimator=function()
@@ -45,16 +64,20 @@ startAnimator=function()
   animator=cycleEvent(function()
     if not window or not window:isVisible() then stopAnimator() return end
     local busy=state=='checking' or state=='downloading' or state=='verifying' or state=='waiting'
-    local diff=targetPercent-shownPercent
-    if math.abs(diff)<0.2 then shownPercent=targetPercent else shownPercent=shownPercent+diff*0.12 end
-    if busy then
-      sheenX=sheenX+6
-      if sheenX>window.progress.fill:getWidth()+96 then sheenX=0 end
-    else
-      sheenX=0
+    local settled=true
+    for _,key in ipairs({'client','bot'}) do
+      local bar=barState(key) local target,updating=barTarget(key)
+      local diff=target-bar.shown
+      if math.abs(diff)<0.2 then bar.shown=target else bar.shown=bar.shown+diff*0.12 settled=false end
+      if busy and updating~=false then
+        bar.sheen=bar.sheen+6
+        if bar.sheen>window[key..'Bar'].fill:getWidth()+96 then bar.sheen=0 end
+      else
+        bar.sheen=0
+      end
     end
     drawProgress()
-    if not busy and shownPercent==targetPercent then stopAnimator() end
+    if not busy and settled then stopAnimator() end
   end,30)
 end
 local phaseText={checking='Checking for updates...',downloading='Downloading...',verifying='Verifying files...',
@@ -66,8 +89,8 @@ function applyStatus(data)
   local busy=state=='checking' or state=='downloading' or state=='verifying' or state=='waiting'
   local compact=automatic and state=='checking'
   local buttons=not busy and not compact
-  window:setSize({width=440,height=compact and 110 or buttons and 190 or 150})
-  window.progress:setVisible(not compact)
+  window:setSize({width=440,height=compact and 110 or buttons and 252 or 212})
+  for _,id in ipairs({'clientCaption','clientBar','botCaption','botBar'}) do window[id]:setVisible(not compact) end
   window.update:setVisible(buttons) window.close:setVisible(buttons)
   local important=state=='error' or (state=='ready' and tostring(data.message or ''):find('Log out',1,true))
   window.message:setText(important and (data.message or '') or phaseText[state] or data.message or '')
@@ -78,7 +101,7 @@ function applyStatus(data)
   elseif state=='verifying' then targetPercent=90+part*10
   elseif state=='waiting' or state=='ready' or state=='current' then targetPercent=100
   elseif state=='checking' or state=='available' then targetPercent=0 end
-  if state=='checking' and previous~='checking' then shownPercent=0 end
+  if state=='checking' and previous~='checking' then partUpdating={} bars={} end
   window.update:setText(state=='available' and 'Update' or state=='ready' and 'Restart and install' or 'Check for updates')
   window.update:setEnabled(not busy and (state~='ready' or not g_game.isOnline()))
   window.close:setText(automatic and 'Continue' or 'Close')
@@ -184,19 +207,20 @@ local function selectParts(data)
   local installed=readJson(PARTS_FILE) or {}
   local skipClient=type(data.clientHash)=='string' and installed.client==data.clientHash
   local skipBot=botIsDeveloperCopy() or (type(data.botHash)=='string' and installed.bot==data.botHash)
-  local files,real={},0
+  local files,real,clientReal,botReal={},0,0,0
   for _,entry in ipairs(data.files) do
     if isCoreFile(entry.path) and (skipClient or entry['local']==true) then
       local own=localEntry(entry.path)
       if not own then return nil,'missing '..entry.path end
       files[#files+1]=own
     elseif isBotPath(entry.path) then
-      if not skipBot then files[#files+1]=entry real=real+1 end
+      if not skipBot then files[#files+1]=entry real=real+1 botReal=botReal+1 end
     elseif not skipClient then
-      files[#files+1]=entry real=real+1
+      files[#files+1]=entry real=real+1 clientReal=clientReal+1
     end
   end
   data.files=files
+  partUpdating={client=clientReal>0,bot=botReal>0}
   local pending={version=data.version,client=data.clientHash or installed.client,bot=(botIsDeveloperCopy() and installed.bot) or data.botHash or installed.bot}
   if real==0 then
     g_resources.writeFileContentsToWorkDir('updater/installed-version.txt',data.version)

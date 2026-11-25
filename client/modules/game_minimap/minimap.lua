@@ -385,9 +385,21 @@ local function copyMapChunks(candidates, probe, names, targetDir)
         "if (-not $src) { Set-Content -LiteralPath $out -Value '99' -Encoding utf8; exit }",
         'robocopy $src $dst minimap-*.bmp.lzma satellite-*.bmp.lzma subarea-*.bmp.lzma /XC /XN /XO /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null',
         'Set-Content -LiteralPath $out -Value @([string]$LASTEXITCODE, $src) -Encoding utf8'
-    }, '; ')
-    local ok, started = pcall(g_platform.spawnProcess, 'powershell',
-        {'-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command', script})
+    }, '\r\n')
+    -- No visible window: the script goes to a .ps1 file and Windows Script
+    -- Host (which has no console) starts PowerShell with window style 0.
+    local writeDir = g_resources.getWriteDir():gsub('[/\\]+$', '')
+    local scriptName = '/nexus-map-copy.ps1'
+    local launcherName = '/nexus-map-copy.vbs'
+    local scriptPath = (writeDir .. scriptName):gsub('/', '\\')
+    local launcherPath = (writeDir .. launcherName):gsub('/', '\\')
+    local command = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File ""' .. scriptPath .. '""'
+    local written = g_resources.writeFileContents(scriptName, '\239\187\191' .. script)
+        and g_resources.writeFileContents(launcherName, 'CreateObject("WScript.Shell").Run "' .. command .. '", 0, False\r\n')
+    local ok, started = false, false
+    if written then
+        ok, started = pcall(g_platform.spawnProcess, 'wscript', {'//B', '//Nologo', launcherPath})
+    end
     if not ok or not started then
         mapDownload = nil
         showMinimapError(tr('Windows did not start the copy (PowerShell is not available).'))
