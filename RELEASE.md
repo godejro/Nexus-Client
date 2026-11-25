@@ -1,5 +1,12 @@
-# Nexus Client v2026.11.24.5
-
-Okno handlu z NPC otwiera się i odświeża płynniej. Lista sprzedaży liczy ilości jednym przebiegiem zamiast tysięcy odczytów ekwipunku przy każdym sortowaniu. Gdy przychodzi aktualizacja przedmiotów, a lista się nie zmieniła, klient tylko przekolorowuje wiersze zamiast budować je od nowa. Zmiana samego złota nie przebudowuje listy.
-
-Nowy moduł client_memlog co minutę zapisuje zużycie pamięci klienta, stron atlasu tekstur, pamięci Lua i liczby stworzeń. Plik nexus_memlog.csv w katalogu zapisu klienta zawiera ostatnie 12 godzin i pozwala ustalić, co rośnie w długiej sesji.
+- **Spelle obszarowe na Igle:** cały wzór czaru (np. exevo mas san, GFB) jest znowu widoczny. Poprawka działa tylko tam, gdzie serwer pakuje obszar w jeden pakiet, więc inne serwery działają bez zmian.
+- **Lock Item:** prawy klik na przedmiot w plecaku, eq albo na liście handlu, potem pole „Lock Item”. Zablokowany przedmiot ma czerwoną ramkę w każdym otwartym plecaku i w eq. Sell All go pomija, na liście sprzedaży ma czerwoną nazwę, a ręczna sprzedaż prosi o potwierdzenie. Lista nazywa się teraz Locked Items (zakładka w oknie Sell All).
+- **Handel z NPC:** pełne menu opcji jak w zwykłym kliencie:
+  - sortowanie po nazwie, cenie, wadze i ilości;
+  - kupowanie w torbach;
+  - ignorowanie udźwigu;
+  - pole wyszukiwania;
+  - ostrzeżenie przy dużych transakcjach.
+- **Prawy klik na daleką kratkę lub obiekt:** postać podchodzi i używa go (klasyczne sterowanie).
+- **Suwaki przezroczystości efektów:** nie resetują się już po zalogowaniu.
+- **Ekran ładowania:** między serwerami zostaje tło klienta z napisem „Loading world map...” zamiast czarnego ekranu.
+- **Okno logowania:** stoi równo pod logo N.

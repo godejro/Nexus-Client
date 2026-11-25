@@ -701,14 +701,17 @@ function isMenuHookCategoryEmpty(category)
     return true
 end
 
-function addMenuHook(category, name, callback, condition, shortcut)
+-- checked (optional): function(menuPosition, lookThing, useThing, creatureThing) -> bool.
+-- When given, the option is shown as a checkbox and callback gets the new state as 5th argument.
+function addMenuHook(category, name, callback, condition, shortcut, checked)
     if not hookedMenuOptions[category] then
         hookedMenuOptions[category] = {}
     end
     hookedMenuOptions[category][name] = {
         callback = callback,
         condition = condition,
-        shortcut = shortcut
+        shortcut = shortcut,
+        checked = checked
     }
 end
 
@@ -1011,9 +1014,16 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
             menu:addSeparator()
             for name, opt in pairs(category) do
                 if opt and opt.condition(menuPosition, lookThing, useThing, creatureThing) then
-                    menu:addOption(name, function()
-                        opt.callback(menuPosition, lookThing, useThing, creatureThing)
-                    end, opt.shortcut)
+                    if opt.checked then
+                        menu:addCheckBox(name, opt.checked(menuPosition, lookThing, useThing, creatureThing) == true,
+                            function(_, checked)
+                                opt.callback(menuPosition, lookThing, useThing, creatureThing, checked)
+                            end)
+                    else
+                        menu:addOption(name, function()
+                            opt.callback(menuPosition, lookThing, useThing, creatureThing)
+                        end, opt.shortcut)
+                    end
                 end
             end
         end
@@ -1074,7 +1084,89 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
     menu:display(menuPosition)
 end
 
+-- Classic right click on a map object that is not next to the player.
+-- Some servers answer "You cannot use this object" instead of walking the player
+-- there. Plain ground is walked to; other objects are walked next to and then
+-- used or opened, the same as the Tibia client does.
+local pendingMapUse
+local MAP_USE_TIMEOUT = 10000
+
+local function sendUse(thing, open)
+    if open then g_game.open(thing) else g_game.use(thing) end
+end
+
+local function cancelMapUse()
+    if pendingMapUse then
+        removeEvent(pendingMapUse.event)
+        pendingMapUse = nil
+    end
+end
+
+function useMapThing(thing, open)
+    cancelMapUse()
+    local player = g_game.getLocalPlayer()
+    local pos = thing and thing:getPosition()
+    if not player or not pos or pos.x == 65535 then
+        return sendUse(thing, open)
+    end
+    local playerPos = player:getPosition()
+    if pos.z ~= playerPos.z or (math.abs(pos.x - playerPos.x) <= 1 and math.abs(pos.y - playerPos.y) <= 1) then
+        return sendUse(thing, open)
+    end
+
+    local tile = g_map.getTile(pos)
+    if thing:isGround() and not thing:isUsable() then
+        if tile and tile:isWalkable() then
+            player:autoWalk(pos)
+        end
+        return
+    end
+
+    -- Walk to the closest free square next to the object, then use it there.
+    local best, bestDistance
+    for dx = -1, 1 do
+        for dy = -1, 1 do
+            if dx ~= 0 or dy ~= 0 then
+                local candidate = {x = pos.x + dx, y = pos.y + dy, z = pos.z}
+                local neighbour = g_map.getTile(candidate)
+                if neighbour and neighbour:isWalkable() then
+                    local distance = math.max(math.abs(candidate.x - playerPos.x), math.abs(candidate.y - playerPos.y))
+                    if not bestDistance or distance < bestDistance then
+                        best, bestDistance = candidate, distance
+                    end
+                end
+            end
+        end
+    end
+    if not best then
+        return sendUse(thing, open)
+    end
+
+    player:autoWalk(best)
+    local request = {started = g_clock.millis()}
+    pendingMapUse = request
+    local function check()
+        if pendingMapUse ~= request then return end
+        local current = g_game.getLocalPlayer()
+        if not current or not g_game.isOnline() or g_clock.millis() - request.started > MAP_USE_TIMEOUT then
+            pendingMapUse = nil
+            return
+        end
+        local now = current:getPosition()
+        if now.z == pos.z and math.abs(now.x - pos.x) <= 1 and math.abs(now.y - pos.y) <= 1 then
+            pendingMapUse = nil
+            local target = g_map.getTile(pos)
+            local fresh = target and target:getTopUseThing() or thing
+            sendUse(fresh, open)
+            return
+        end
+        request.event = scheduleEvent(check, 100)
+    end
+    request.event = scheduleEvent(check, 100)
+end
+
 function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, useThing, creatureThing, attackCreature)
+    cancelMapUse()
     local keyboardModifiers = g_keyboard.getModifiers()
 
     local smartLeftClick = modules.client_options.getOption('smartLeftClick')
@@ -1372,25 +1464,25 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
                             return true
                         elseif useThing:isPickupable() then
                             -- For pickupable containers like quivers, backpacks, etc., open them instead of quicklooting
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                             return true
                         elseif table.find({ 3497, 3498, 3499, 3500, 3502, 12902 }, useThing:getId()) then
                             -- For depot chests, lockers, depot boxes, inbox, etc., always open them
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                             return true
                         elseif g_game.getFeature(GameThingQuickLoot) and modules.game_quickloot then
                             -- For containers in the world, quickloot
                             g_game.sendQuickLoot(1, useThing)
                             return true
                         else
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                             return true
                         end
                     elseif useThing:isMultiUse() then
                         startUseWith(useThing)
                         return true
                     else
-                        g_game.use(useThing)
+                        useMapThing(useThing, false)
                         return true
                     end
                 end
@@ -1409,14 +1501,14 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
                         if useThing:getParentContainer() then
                             g_game.open(useThing, useThing:getParentContainer())
                         else
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                         end
                         return true
                     elseif useThing:isMultiUse() then
                         startUseWith(useThing)
                         return true
                     else
-                        g_game.use(useThing)
+                        useMapThing(useThing, false)
                         return true
                     end
                 end
@@ -1454,14 +1546,14 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
                         if useThing:getParentContainer() then
                             g_game.open(useThing, useThing:getParentContainer())
                         else
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                         end
                         return true
                     elseif useThing:isMultiUse() then
                         startUseWith(useThing)
                         return true
                     else
-                        g_game.use(useThing)
+                        useMapThing(useThing, false)
                         return true
                     end
                 end
@@ -1496,13 +1588,13 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
                         -- Only handle containers that are in the game world (not in inventory)
                         if table.find({ 3497, 3498, 3499, 3500, 3502, 12902 }, useThing:getId()) then
                             -- For depot chests, lockers, depot boxes, inbox, etc., always open them
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                             return true
                         elseif g_game.getFeature(GameThingQuickLoot) and modules.game_quickloot then
                             g_game.sendQuickLoot(1, useThing)
                             return true
                         else
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                             return true
                         end
                     end
@@ -1544,14 +1636,14 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
                             g_game.open(useThing, useThing:getParentContainer())
                             return true
                         else
-                            g_game.open(useThing)
+                            useMapThing(useThing, true)
                             return true
                         end
                     elseif useThing:isMultiUse() then
                         startUseWith(useThing)
                         return true
                     else
-                        g_game.use(useThing)
+                        useMapThing(useThing, false)
                         return true
                     end
                 end
@@ -1567,7 +1659,7 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
         -- Common key combinations for all Classic Control modes
         if useThing and useThing:isContainer() and g_keyboard.isPrimaryShiftModifierOnly(keyboardModifiers) and
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
-            g_game.open(useThing)
+            useMapThing(useThing, true)
             return true
         elseif lookThing and keyboardModifiers == KeyboardShiftModifier and
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then

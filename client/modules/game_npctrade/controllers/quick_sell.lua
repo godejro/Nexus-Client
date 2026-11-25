@@ -22,6 +22,213 @@ local function saveBlockedSet(controller, blocked)
     for id in pairs(blocked) do ids[#ids + 1] = id end
     table.sort(ids)
     controller:setSellExclusionsText(table.concat(ids, ','))
+    -- Recolour an open trade list so blocked items are marked right away.
+    if not controller:isLegacyMode() and controller.tradeItems and controller.onTradeListRendered then
+        controller:onTradeListRendered()
+    end
+end
+
+------------------------------------------------------------------------------
+-- Locked Items API (trade list menu, item menus in backpacks, Sell All, and
+-- CWELBOT CaveBot sell exceptions). Locked items are never sold.
+-- Stored in the 'nexusNpcSellExclusions' setting (key kept for old saves).
+------------------------------------------------------------------------------
+
+function controllerNpcTrader:isSellBlocked(id)
+    return self:getSellBlockedSet()[id] == true
+end
+
+function controllerNpcTrader:setSellBlocked(id, state)
+    id = tonumber(id)
+    if not id or id < 1 or id > 65535 then
+        return
+    end
+    local blocked = blockedSet(self) or {}
+    if state then blocked[id] = true else blocked[id] = nil end
+    saveBlockedSet(self, blocked)
+    local ui = self.quickSell
+    if ui then
+        ui.blocked = blocked
+        if ui.window.blacklistPage:isVisible() then
+            self:buildBlacklistGrid()
+        end
+        self:sellAllRefresh()
+    end
+    if modules.game_textmessage then
+        local name = ''
+        local thingType = g_things.getThingType(id, ThingCategoryItem)
+        if thingType and not thingType:isNull() and thingType.getMarketData then
+            local ok, market = pcall(thingType.getMarketData, thingType)
+            if ok and market and market.name and market.name ~= '' then name = market.name .. ' ' end
+        end
+        modules.game_textmessage.displayStatusMessage(string.format(state and '%s(ID %d) added to Locked Items.' or
+            '%s(ID %d) removed from Locked Items.', name, id))
+    end
+end
+
+-- Whole list for other modules (CWELBOT CaveBot "Sell exceptions").
+function controllerNpcTrader:getLockedItemIds()
+    local ids = {}
+    for id in pairs(self:getSellBlockedSet()) do ids[#ids + 1] = id end
+    table.sort(ids)
+    return ids
+end
+
+function controllerNpcTrader:setLockedItemIds(ids)
+    local blocked = {}
+    for _, id in ipairs(ids or {}) do
+        id = tonumber(id)
+        if id and id % 1 == 0 and id >= 1 and id <= 65535 then blocked[id] = true end
+    end
+    saveBlockedSet(self, blocked)
+    local ui = self.quickSell
+    if ui then
+        ui.blocked = blocked
+        if ui.window.blacklistPage:isVisible() then
+            self:buildBlacklistGrid()
+        end
+        self:sellAllRefresh()
+    end
+end
+
+-- "Lock Item" checkbox in the right-click menu of items
+-- anywhere in the game (backpacks, inventory, ground).
+local MENU_HOOK = 'nexusSellBlacklist'
+
+local function menuItemId(lookThing, useThing)
+    local thing = lookThing or useThing
+    if thing and thing.isItem and thing:isItem() and thing:isPickupable() then
+        return thing:getId()
+    end
+    return nil
+end
+
+function controllerNpcTrader:registerSellBlacklistMenu()
+    local gameInterface = modules.game_interface
+    if not gameInterface or not gameInterface.addMenuHook then
+        return
+    end
+    gameInterface.addMenuHook(MENU_HOOK, tr('Lock Item'), function(_, lookThing, useThing, _, checked)
+        local id = menuItemId(lookThing, useThing)
+        if id then
+            if checked == nil then checked = not self:isSellBlocked(id) end
+            self:setSellBlocked(id, checked)
+        end
+    end, function(_, lookThing, useThing)
+        return menuItemId(lookThing, useThing) ~= nil
+    end, nil, function(_, lookThing, useThing)
+        local id = menuItemId(lookThing, useThing)
+        return id ~= nil and self:isSellBlocked(id)
+    end)
+end
+
+function controllerNpcTrader:unregisterSellBlacklistMenu()
+    local gameInterface = modules.game_interface
+    if gameInterface and gameInterface.removeMenuHook then
+        gameInterface.removeMenuHook(MENU_HOOK)
+    end
+end
+
+------------------------------------------------------------------------------
+-- Red frame on Locked Items the player owns (equipment slots and every
+-- open container, nested backpacks and quivers included). Item widgets get
+-- their items through UIItem:setItem from Lua, so wrapping that one method
+-- covers all of them without touching the container or inventory modules.
+------------------------------------------------------------------------------
+
+local MARK_ID = 'nexusSellMark'
+local MARK_COLOR = '#ff2a2a'
+
+-- Containers use (0xFFFF, 0x40 | id, slot), equipment (0xFFFF, slot, 0).
+-- Items created only for display (trade lists, hotkeys) have no position.
+local function isOwnedItem(item)
+    local ok, pos = pcall(item.getPosition, item)
+    return ok and pos ~= nil and pos.x == 65535 and pos.y ~= 65535
+end
+
+function controllerNpcTrader:updateSellMark(widget, item)
+    if not widget or widget:isDestroyed() then
+        return
+    end
+    if item == nil then
+        item = widget:getItem()
+    end
+    local marked = item and not widget:isVirtual() and isOwnedItem(item) and
+        self:getSellBlockedSet()[item:getId()] == true
+    local mark = widget:getChildById(MARK_ID)
+    if marked then
+        if not mark then
+            mark = g_ui.createWidget('UIWidget', widget)
+            mark:setId(MARK_ID)
+            mark:setPhantom(true)
+            mark:setFocusable(false)
+            mark:fill('parent')
+            mark:setBorderWidth(2)
+            mark:setBorderColor(MARK_COLOR)
+        end
+        mark:show()
+        mark:raise()
+    elseif mark then
+        mark:hide()
+    end
+end
+
+function controllerNpcTrader:installSellMarks()
+    if not UIItem or UIItem.nexusSellMarkOrigSetItem then
+        return
+    end
+    local original = UIItem.setItem
+    UIItem.nexusSellMarkOrigSetItem = original
+    UIItem.setItem = function(widget, item, ...)
+        local result = original(widget, item, ...)
+        local ok, err = pcall(controllerNpcTrader.updateSellMark, controllerNpcTrader, widget, item or false)
+        if not ok then
+            g_logger.debug('[nexus] sell mark: ' .. tostring(err))
+        end
+        return result
+    end
+end
+
+function controllerNpcTrader:uninstallSellMarks()
+    if self.sellMarkEvent then
+        removeEvent(self.sellMarkEvent)
+        self.sellMarkEvent = nil
+    end
+    if UIItem and UIItem.nexusSellMarkOrigSetItem then
+        UIItem.setItem = UIItem.nexusSellMarkOrigSetItem
+        UIItem.nexusSellMarkOrigSetItem = nil
+    end
+    self.sellBlockedCache = {}
+    self:refreshSellMarks()
+end
+
+-- Re-check every item widget (after Locked Items changed).
+function controllerNpcTrader:refreshSellMarks()
+    if not rootWidget then
+        return
+    end
+    local function walk(widget)
+        for _, child in ipairs(widget:getChildren()) do
+            if child:getClassName() == 'UIItem' then
+                self:updateSellMark(child)
+            end
+            walk(child)
+        end
+    end
+    walk(rootWidget)
+end
+
+function controllerNpcTrader:scheduleSellMarksRefresh()
+    if self.sellMarkEvent then
+        removeEvent(self.sellMarkEvent)
+    end
+    self.sellMarkEvent = scheduleEvent(function()
+        self.sellMarkEvent = nil
+        local ok, err = pcall(self.refreshSellMarks, self)
+        if not ok then
+            g_logger.debug('[nexus] sell mark refresh: ' .. tostring(err))
+        end
+    end, 50)
 end
 
 local function inCyclopediaWhitelist(id)
@@ -226,7 +433,7 @@ function controllerNpcTrader:startSellAll()
     if not ui or self.quickSale or not isTrading() then return end
     local blocked = blockedSet(self)
     if not blocked then
-        displayErrorBox(tr('BlackList'), tr('The saved blacklist is invalid. Fix it in the BlackList tab.'))
+        displayErrorBox(tr('Locked Items'), tr('The saved Locked Items list is invalid. Fix it in the Locked Items tab.'))
         return
     end
     ui.blocked = blocked
@@ -298,7 +505,7 @@ function controllerNpcTrader:buildBlacklistGrid()
             cell.lock:setVisible(isBlocked)
             cell:setOpacity(isBlocked and 1.0 or 0.45)
             cell:setTooltip(string.format('%s (ID %d)\n%s', name or '?', id,
-                isBlocked and tr('Blocked - never sold. Click to unblock.') or tr('Click to block.')))
+                isBlocked and tr('Locked - never sold. Click to unlock.') or tr('Click to lock.')))
         end
         cell.onMouseRelease = function(_, _, button)
             if button ~= MouseLeftButton or self.quickSale then return false end
@@ -362,7 +569,7 @@ function controllerNpcTrader:sellAllFromUi()
             entry.cell = cell
             setCellItem(cell, entry.ptr)
             cell:setTooltip(string.format('%s (ID %d)\n%d gp each\n%s', entry.name, entry.id, entry.price,
-                tr('Left click: skip this sale. Right click: add to BlackList.')))
+                tr('Left click: skip this sale. Right click: lock this item.')))
             cell.onMouseRelease = function(_, _, button)
                 if self.quickSale then return false end
                 if button == MouseLeftButton then
@@ -396,7 +603,7 @@ function controllerNpcTrader:sellAllFromUi()
     local function addTypedId()
         local id = tonumber(idInput:getText())
         if not id or id % 1 ~= 0 or id < 1 or id > 65535 then
-            displayErrorBox(tr('BlackList'), tr('Enter a valid item ID (1-65535).'))
+            displayErrorBox(tr('Locked Items'), tr('Enter a valid item ID (1-65535).'))
             return
         end
         ui.blocked[id] = true

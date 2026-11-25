@@ -1,32 +1,99 @@
 name: Nexus update release
+# One release = client (this repo) + CWELBOT (bot repo), installed by one updater.
+# Runs on a client push, on a bot push (repository_dispatch "bot-updated" sent by
+# the bot repo) or by hand. Version numbers are assigned automatically.
 on:
   push:
     branches: [main]
-    paths: [client/**, studio/**, build/**, VERSION, .github/workflows/release.yml]
+    paths: [client/**, studio/**, build/**, RELEASE.md, .github/workflows/release.yml]
+  repository_dispatch:
+    types: [bot-updated]
   workflow_dispatch:
 permissions:
   contents: write
 concurrency:
   group: nexus-release
   cancel-in-progress: false
+env:
+  BOT_REPOSITORY: ${{ vars.BOT_REPOSITORY || 'Secretivv/CWELBOT' }}
 jobs:
   release:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Next version (vYYYY.MM.DD.N)
+        id: version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $day = (Get-Date).ToUniversalTime().ToString('yyyy.MM.dd')
+          $tags = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name'
+          $n = 0
+          foreach ($tag in $tags) {
+            if ($tag -match "^v$([regex]::Escape($day))\.(\d+)$") { $n = [Math]::Max($n, [int]$Matches[1]) }
+          }
+          $version = "v$day.$($n + 1)"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Output "Version $version"
+
+      - name: Add CWELBOT to the package
+        id: bot
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BOT_TOKEN: ${{ secrets.BOT_REPO_TOKEN }}
+        run: |
+          $target = 'client/CWELBOT'
+          if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+          if ($env:BOT_TOKEN) {
+            git clone --depth 1 "https://x-access-token:$($env:BOT_TOKEN)@github.com/$($env:BOT_REPOSITORY).git" bot-src
+            if ($LASTEXITCODE -ne 0) { throw "Cannot read $env:BOT_REPOSITORY (check BOT_REPO_TOKEN)." }
+            New-Item -ItemType Directory -Path $target | Out-Null
+            Get-ChildItem bot-src -Force | Where-Object { $_.Name -notin @('.git', '.github') } |
+              Copy-Item -Destination $target -Recurse -Force
+            $botVersion = if (Test-Path bot-src/VERSION) { (Get-Content bot-src/VERSION -Raw).Trim() } else { 'bez numeru' }
+            $commit = (git -C bot-src log -1 --format='%h %s')
+            $notes = if (Test-Path bot-src/RELEASE.md) { Get-Content bot-src/RELEASE.md -Raw } else { "Ostatnia zmiana: $commit" }
+            $source = "repo $env:BOT_REPOSITORY"
+          } else {
+            # No access to the bot repo yet: ship the bot from the previous release unchanged.
+            gh release download --repo $env:GITHUB_REPOSITORY --pattern nexus-update.zip --dir prev
+            if ($LASTEXITCODE -ne 0) { throw 'No BOT_REPO_TOKEN and no previous release to take the bot from.' }
+            Expand-Archive prev/nexus-update.zip -DestinationPath prev/pkg
+            if (!(Test-Path prev/pkg/CWELBOT)) { throw 'Previous release has no CWELBOT.' }
+            Copy-Item prev/pkg/CWELBOT -Destination $target -Recurse
+            $botVersion = 'bez zmian'
+            $notes = 'Bot bez zmian (wzięty z poprzedniego wydania).'
+            $source = 'poprzednie wydanie'
+          }
+          $count = @(Get-ChildItem $target -Recurse -File).Count
+          if ($count -eq 0) { throw 'CWELBOT is empty.' }
+          Write-Output "CWELBOT $botVersion from $source ($count files)"
+          "version=$botVersion" >> $env:GITHUB_OUTPUT
+          Set-Content -Path bot-notes.md -Value $notes -Encoding utf8
+
       - name: Verify updater and build package
         shell: pwsh
         run: |
           ./build/Test-Update.ps1
-          $version=(Get-Content VERSION -Raw).Trim()
+          $version = '${{ steps.version.outputs.version }}'
           ./build/Build-Update.ps1 -ClientRoot ./client -Output ./dist -Version $version
           Compress-Archive -Path ./client/URUCHOM_NEXUS.cmd,./client/updater -DestinationPath ./dist/nexus-launcher.zip
           Compress-Archive -Path ./studio/* -DestinationPath ./dist/nexus-studio-sync.zip
+
       - name: Publish verified package
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version=(Get-Content VERSION -Raw).Trim()
-          gh release create $version ./dist/nexus-update.zip ./dist/update.json ./dist/nexus-launcher.zip ./dist/nexus-studio-sync.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Nexus Client $version" --notes-file RELEASE.md --latest
+          $version = '${{ steps.version.outputs.version }}'
+          $bot = '${{ steps.bot.outputs.version }}'
+          $trigger = if ('${{ github.event_name }}' -eq 'repository_dispatch') { 'aktualizacja bota' } else { 'aktualizacja klienta' }
+          $client = Get-Content RELEASE.md -Raw
+          $botNotes = Get-Content bot-notes.md -Raw
+          $body = "Wydanie: $trigger`n`n## Klient`n`n$client`n`n## Bot CWELBOT ($bot)`n`n$botNotes"
+          Set-Content -Path release-notes.md -Value $body -Encoding utf8
+          gh release create $version ./dist/nexus-update.zip ./dist/update.json ./dist/nexus-launcher.zip ./dist/nexus-studio-sync.zip --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Nexus Client $version" --notes-file release-notes.md --latest
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

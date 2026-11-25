@@ -191,6 +191,13 @@ function itemPopup(self, mousePosition, mouseButton)
         menu:addOption(tr('Look'), function()
             return g_game.inspectNpcTrade(self:getItem())
         end)
+        local tradeItem = self:getItem()
+        local itemId = tradeItem and tradeItem:getId()
+        if itemId then
+            menu:addCheckBox(tr('Lock Item'), controllerNpcTrader:isSellBlocked(itemId), function(_, checked)
+                controllerNpcTrader:setSellBlocked(itemId, checked)
+            end)
+        end
         menu:display(mousePosition)
         return true
     elseif ((g_mouse.isPressed(MouseLeftButton) and mouseButton == MouseRightButton) or

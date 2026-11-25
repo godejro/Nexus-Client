@@ -10,3 +10,6 @@ client/data/things/
 client/data/sounds/
 client/profiles/
 client/server_profiles/
+
+# Bot lives in its own repo (Secretivv/CWELBOT); the release workflow adds it to the package.
+client/CWELBOT/

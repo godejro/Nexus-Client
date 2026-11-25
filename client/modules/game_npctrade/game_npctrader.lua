@@ -13,6 +13,19 @@ end
 function controllerNpcTrader:setSellExclusionsText(text)
     g_settings.set('nexusNpcSellExclusions',tostring(text or ''))
     g_settings.save()
+    self.sellBlockedCache = nil
+    if self.scheduleSellMarksRefresh then
+        self:scheduleSellMarksRefresh()
+    end
+end
+-- Cached set {[itemId] = true} of Locked Items (empty when the text is invalid).
+function controllerNpcTrader:getSellBlockedSet()
+    if not self.sellBlockedCache then
+        local set = {}
+        for _, id in ipairs(self:getSellExclusions() or {}) do set[id] = true end
+        self.sellBlockedCache = set
+    end
+    return self.sellBlockedCache
 end
 function controllerNpcTrader:getSellExclusions()
     local ids={}
@@ -28,10 +41,13 @@ function controllerNpcTrader:isLegacyMode()
 end
 
 function controllerNpcTrader:onInit()
-
+    self:installSellMarks()
 end
 
 function controllerNpcTrader:onGameStart()
+    self:unregisterSellBlacklistMenu()
+    self:registerSellBlacklistMenu()
+    self:scheduleSellMarksRefresh()
     self.legacyMode = not g_game.getFeature(GameNpcWindowRedesign)
     if self:isLegacyMode() then
         self:legacy_init()
@@ -84,6 +100,8 @@ function controllerNpcTrader:disconnectNpcTalkEvent()
 end
 
 function controllerNpcTrader:onTerminate()
+    self:unregisterSellBlacklistMenu()
+    self:uninstallSellMarks()
     self:closeQuickSell()
     if self:isLegacyMode() then
         self:legacy_terminate()
@@ -99,6 +117,10 @@ end
 
 function controllerNpcTrader:onCloseNpcTrade()
     self:closeQuickSell()
+    if self.largeTradeConfirm then
+        self.largeTradeConfirm:destroy()
+        self.largeTradeConfirm = nil
+    end
     if self:isLegacyMode() then
         self:legacy_hide()
     else

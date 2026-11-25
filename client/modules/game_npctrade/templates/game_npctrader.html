@@ -83,7 +83,8 @@
     .quickSellButton { width: 64px; height: 20px; margin-left: auto; }
 
     /* Item List */
-    .tradeListScroll { height: 184; margin: 2 0; background-color: #404040; overflow: scroll; }
+    .tradeListScroll { height: 174; margin: 2 0; background-color: #404040; overflow: scroll; }
+    .tradeListTall { height: 199; }
     .tradeScrollBar { width: 15px; height: 180px; margin-right: 2px; background-color: #222222; }
     .itemListContainer { width: 175px; height: 180px; }
     .tradeListItem { height: 48; padding: 4 4; border: 1 transparent; margin-left: 2px; margin-top: 2px; }
@@ -169,11 +170,12 @@
         <!-- Sell All -->
         <div class="quickSellRow flex">
             <label class="quickSellLabel fontText colorGrey" text="Quick Sell Items"></label>
-            <button class="quickSellButton fontTitle" text="Sell All" tooltip="Sell every owned item this NPC buys, except blacklisted ones" onclick="self:openSellAll()"></button>
+            <button class="quickSellButton fontTitle" text="Sell All" tooltip="Sell every owned item this NPC buys, except Locked Items" onclick="self:openSellAll()"></button>
         </div>
 
         <!-- List Container -->
-        <div id="tradeListScroll" class="tradeListScroll borderGrey fullWidth sunkenBorder" layout="type: verticalBox">
+        <div id="tradeListScroll" class="tradeListScroll borderGrey fullWidth sunkenBorder" layout="type: verticalBox"
+            *class-tradeListTall="self.showSearchField == false">
             <div *for="local item in self.tradeItems" *for-finished="self:onTradeListRendered()" class="tradeListItem flex fullWidth"
                 *trade-item="item"
                 *class-tradeListItemSelected="self.selectedItem == item">
@@ -187,7 +189,7 @@
 
         <!-- Search -->
 
-        <div class="tradeSearchRow borderGrey bgDark">
+        <div class="tradeSearchRow borderGrey bgDark" *visible="self.showSearchField ~= false">
             <input class="tradeSearchInput fontText colorLightGrey" onchange="self:filterTradeList(event.value)"/>
             <uibutton class="tradeSearchClear" onclick="self:clearSearch()"></uibutton>
         </div>

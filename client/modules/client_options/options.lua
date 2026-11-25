@@ -429,8 +429,14 @@ function controller:onGameStart()
         panels.graphicsEffectsPanel.clientMissileOpacity:show()
         panels.graphicsEffectsPanel.GameEffectSource:hide()
     else
-        g_client.setEffectAlpha(1)
+        -- setEffectAlpha writes the same slot as "Own Spells Effect", so forcing it
+        -- to 1 here silently reset that slider to 100% on every login. Re-apply the
+        -- saved per-source values instead.
         g_client.setMissileAlpha(1)
+        g_client.setOwnSpellEffectAlpha((tonumber(getOption('setOwnSpellEffectAlphaScroll')) or 100) / 100)
+        g_client.setOtherPlayerSpellEffectAlpha((tonumber(getOption('setOtherPlayerSpellEffectAlphaScroll')) or 100) / 100)
+        g_client.setCreatureSpellEffectAlpha((tonumber(getOption('setCreatureSpellEffectAlphaScroll')) or 100) / 100)
+        g_client.setBossAreaCreatureEffectAlpha((tonumber(getOption('setBossAreaCreatureEffectAlphaScroll')) or 100) / 100)
         panels.graphicsEffectsPanel.clientEffectOpacity:hide()
         panels.graphicsEffectsPanel.clientMissileOpacity:hide()
         panels.graphicsEffectsPanel.GameEffectSource:show()

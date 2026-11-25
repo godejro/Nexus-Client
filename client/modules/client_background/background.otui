@@ -27,3 +27,13 @@ Panel
     effect: background2-effect
     anchors.fill: parent
     phantom: true
+
+  // "Loading world map..." title (Cinzel Bold, blue glow), no box behind it.
+  UIWidget
+    id: worldLoadingLabel
+    anchors.centerIn: parent
+    image-source: /client_background/loading_world_map
+    size: 461 68
+    phantom: true
+    focusable: false
+    visible: false

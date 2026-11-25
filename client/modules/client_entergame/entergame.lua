@@ -403,8 +403,13 @@ function EnterGame.init()
         onGameEnd = EnterGame.showPanels
     })
 
+    connect(rootWidget, {
+        onGeometryChange = EnterGame.placeUnderLogo
+    })
+
     if g_app.isRunning() and not g_game.isOnline() then
         enterGame:show()
+        EnterGame.placeUnderLogo()
     end
 end
 
@@ -445,6 +450,9 @@ end
 
 function EnterGame.terminate()
     Keybind.delete("Misc.", "Change Character")
+    disconnect(rootWidget, {
+        onGeometryChange = EnterGame.placeUnderLogo
+    })
 
     disconnect(clientBox, {
         onOptionChange = EnterGame.onClientVersionChange
@@ -489,6 +497,38 @@ function EnterGame.terminate()
     EnterGame = nil
 end
 
+-- Login window sits centered under the "N" logo of the client background,
+-- a bit below its tip; falls back to the screen center without a background.
+local placeEvent = nil
+
+local function placeUnderLogo()
+    placeEvent = nil
+    if not enterGame or enterGame:isDestroyed() or not enterGame:isVisible() then
+        return
+    end
+    local bg = modules.client_background
+    local anchor = bg and bg.getLogoAnchor and bg.getLogoAnchor()
+    local parent = enterGame:getParent()
+    if not anchor or not parent then
+        return
+    end
+    local area = parent:getRect()
+    local width, height = enterGame:getWidth(), enterGame:getHeight()
+    local gap = math.max(40, math.floor(area.height * 0.09))
+    local y = math.min(anchor.y + gap, area.y + area.height - height - 10)
+    y = math.max(y, area.y + 10)
+    enterGame:breakAnchors()
+    enterGame:setPosition({ x = anchor.x - math.floor(width / 2), y = y })
+    enterGame:bindRectToParent()
+end
+
+function EnterGame.placeUnderLogo()
+    if placeEvent then
+        removeEvent(placeEvent)
+    end
+    placeEvent = scheduleEvent(placeUnderLogo, 1)
+end
+
 function EnterGame.show()
     if modules.client_nexusupdate and modules.client_nexusupdate.isBusy() then return end
     if g_game.isOnline() or CharacterList.isVisible() then -- fix login quickly error (http post)
@@ -503,6 +543,7 @@ function EnterGame.show()
     enterGame:raise()
     enterGame:focus()
     hasAttemptedAuthenticator = false
+    EnterGame.placeUnderLogo()
 end
 
 function EnterGame.hide()
@@ -569,6 +610,7 @@ function EnterGame.toggleStayLoggedBox(clientVersion, init)
 
     enterGame:setHeight(newHeight)
     enterGame.stayLoggedBoxEnabled = enabled
+    EnterGame.placeUnderLogo()
 end
 
 function EnterGame.onClientVersionChange(comboBox, text, data)
@@ -1168,6 +1210,7 @@ function EnterGame.setUniqueServer(host, port, protocol, windowWidth, windowHeig
     end
 
     enterGame:setHeight(windowHeight)
+    EnterGame.placeUnderLogo()
     enterGame.disableToken = true
     local server = Servers_init[host]
     enterGame.disableToken = not (server and server.useAuthenticator)

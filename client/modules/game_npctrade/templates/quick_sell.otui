@@ -91,7 +91,7 @@ MainWindow
     anchors.left: parent.horizontalCenter
     anchors.right: parent.right
     margin-left: 2
-    !text: tr('BlackList')
+    !text: tr('Locked Items')
     UIWidget
       id: icon
       size: 16 24
@@ -161,7 +161,7 @@ MainWindow
       anchors.right: parent.right
       text-auto-resize: false
       color: #c0c0c0
-      !text: tr('Click an item to block or unblock it. Blocked items are never sold.')
+      !text: tr('Click an item to lock or unlock it. Locked items are never sold.')
 
     NexusSellAllGrid
       id: grid
@@ -194,7 +194,7 @@ MainWindow
       anchors.verticalCenter: idInput.verticalCenter
       margin-left: 4
       width: 52
-      !text: tr('Block')
+      !text: tr('Lock')
 
     Button
       id: clearIds

@@ -83,10 +83,8 @@ function controllerNpcTrader:onOpenNpcTrade(items, currencyId, currencyName, npc
         controllerNpcTrader.loadedItems = 0
         controllerNpcTrader.currentList = {}
 
-        -- Settings & Sorting
-        controllerNpcTrader.sortBy = controllerNpcTrader.DEFAULT_SORT_BY
-        controllerNpcTrader.ignoreCapacity = controllerNpcTrader.DEFAULT_IGNORE_CAPACITY
-        controllerNpcTrader.buyWithBackpack = controllerNpcTrader.DEFAULT_BUY_WITH_BACKPACK
+        -- Settings & Sorting (remembered between NPCs, see npc_options.lua)
+        controllerNpcTrader:loadTradeSettings()
         controllerNpcTrader.ignoreEquipped = controllerNpcTrader.DEFAULT_IGNORE_EQUIPPED
 
         controllerNpcTrader:setTradeMode(initialMode)
@@ -172,18 +170,22 @@ function controllerNpcTrader:onTradeListRendered()
             list.onScrollEventConnected = true
         end
         local equipped = self.tradeMode == controllerNpcTrader.SELL and self.ignoreEquipped and self:getEquippedCounts() or nil
+        local blocked = {}
+        for _, id in ipairs(self:getSellExclusions() or {}) do blocked[id] = true end
         for i = 1, list:getChildCount() do
             local child = list:getChildByIndex(i)
             local item = child.tradeItem
             if item then
                 local canTrade = self:canTradeItem(item, equipped)
                 local color = canTrade and '#c0c0c0' or '#707070'
+                local isBlocked = self.tradeMode == controllerNpcTrader.SELL and item.ptr and blocked[item.ptr:getId()]
                 local infoBlock = child:getChildByIndex(2)
                 if infoBlock then
                     local nameLabel = infoBlock:getChildById("nameLabel")
                     local infoLabel = infoBlock:getChildById("infoLabel")
                     if nameLabel then
-                        nameLabel:setColor(color)
+                        -- Locked Items show their name in red.
+                        nameLabel:setColor(isBlocked and (canTrade and '#e06060' or '#904848') or color)
                     end
                     if infoLabel then
                         infoLabel:setColor(color)
@@ -223,6 +225,12 @@ function controllerNpcTrader:onTradeItemMouseRelease(item, widget, mousePos, mou
         menu:addOption("Inspect", function()
             g_game.inspectionObject(InspectObjectTypes.INSPECT_CYCLOPEDIA, item.ptr:getId())
         end)
+        local itemId = item.ptr:getId()
+        menu:addCheckBox(tr('Lock Item'), self:isSellBlocked(itemId), function(_, checked)
+            self:setSellBlocked(itemId, checked)
+        end)
+        menu:addSeparator()
+        self:addTradeOptions(menu)
         menu:display(mousePos)
         return true
     elseif mouseButton == MouseLeftButton then
@@ -420,15 +428,54 @@ function controllerNpcTrader:refreshPlayerGoods(skipFilter)
     end
 end
 
+function controllerNpcTrader:sendTrade(item, amount, mode)
+    if not item or not isTrading() then
+        return
+    end
+    if mode == controllerNpcTrader.BUY then
+        g_game.buyItem(item.ptr, amount, self.ignoreCapacity, self.buyWithBackpack)
+    else
+        g_game.sellItem(item.ptr, amount, self.ignoreEquipped)
+    end
+end
+
 function controllerNpcTrader:executeTrade()
     if not self.selectedItem then
         return
     end
-    if self.tradeMode == controllerNpcTrader.BUY then
-        g_game.buyItem(self.selectedItem.ptr, self.amount, self.ignoreCapacity, self.buyWithBackpack)
-    else
-        g_game.sellItem(self.selectedItem.ptr, self.amount, self.ignoreEquipped)
+    local item, amount, mode = self.selectedItem, self.amount, self.tradeMode
+    local total = (item.price or 0) * (amount or 0)
+    local blocked = mode == controllerNpcTrader.SELL and item.ptr and self:isSellBlocked(item.ptr:getId())
+    local large = not self.noLargeTradeWarning and total >= controllerNpcTrader.LARGE_TRADE_WARNING_GOLD
+    if not blocked and not large then
+        self:sendTrade(item, amount, mode)
+        return
     end
+
+    if self.largeTradeConfirm then
+        self.largeTradeConfirm:destroy()
+        self.largeTradeConfirm = nil
+    end
+    local function close()
+        if self.largeTradeConfirm then
+            self.largeTradeConfirm:destroy()
+            self.largeTradeConfirm = nil
+        end
+    end
+    local function confirm()
+        close()
+        self:sendTrade(item, amount, mode)
+    end
+    local verb = mode == controllerNpcTrader.BUY and tr('buy') or tr('sell')
+    local message = tr('Do you really want to %s %d x %s for %d gold?', verb, amount, item.name or '?', total)
+    if blocked then
+        message = tr('%s is a Locked Item.', item.name or '?') .. '\n' .. message
+    end
+    self.largeTradeConfirm = displayGeneralBox(tr('Confirm Trade'), message, {
+            { text = tr('Yes'), callback = confirm },
+            { text = tr('No'), callback = close },
+            anchor = AnchorHorizontalCenter
+        }, confirm, close)
 end
 
 function controllerNpcTrader:clearSearch()
@@ -471,13 +518,12 @@ function controllerNpcTrader:filterTradeList(searchText)
             if qtyA ~= qtyB then
                 return qtyA > qtyB
             end
-            if self.sortBy == 'price' then
+            if self.sortBy == 'price' and a.price ~= b.price then
                 return a.price > b.price
-            elseif self.sortBy == 'weight' then
+            elseif self.sortBy == 'weight' and a.weight ~= b.weight then
                 return a.weight > b.weight
-            else
-                return a.name:lower() < b.name:lower()
             end
+            return a.name:lower() < b.name:lower()
         end)
     else
         self:sortTradeItems(filteredItems)
