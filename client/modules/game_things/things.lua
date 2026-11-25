@@ -233,19 +233,20 @@ local itemLooks = {}
 -- Cosmetics bundled with the client: they draw on every server, also where
 -- the server's assets do not have these items. Twins share the same frames.
 local BUNDLED_LOOKS = {
-    -- id = { file, frame time in ms }; names as in the bot
-    [56816] = {56816, 150}, -- Turquoise nebula
-    [56817] = {56817, 150}, -- Yellow-green nebula
-    [56819] = {56819, 150}, -- Purple nebula
-    [56821] = {56821, 150}, -- Red-gold nebula
-    [56823] = {56823, 150}, -- Navy nebula
-    [56825] = {56825, 150}, -- Blue lightning
-    [56843] = {56843, 150}, -- Bronze cube
-    [56844] = {56844, 150}, -- Blue cube
-    [56845] = {56845, 150}, -- Purple cube
-    [56846] = {56846, 150}, -- Red cube
-    [56815] = {56816, 150}, [56818] = {56817, 150}, [56820] = {56819, 150},
-    [56822] = {56821, 150}, [56824] = {56823, 150}, [56826] = {56825, 150},
+    -- id = { file, frame time in ms }; names as in the bot. The strips hold
+    -- crossfaded in-between frames, so a short frame time stays smooth.
+    [56816] = {56816, 35}, -- Turquoise nebula
+    [56817] = {56817, 35}, -- Yellow-green nebula
+    [56819] = {56819, 35}, -- Purple nebula
+    [56821] = {56821, 35}, -- Red-gold nebula
+    [56823] = {56823, 35}, -- Navy nebula
+    [56825] = {56825, 40}, -- Blue lightning
+    [56843] = {56843, 35}, -- Bronze cube
+    [56844] = {56844, 35}, -- Blue cube
+    [56845] = {56845, 35}, -- Purple cube
+    [56846] = {56846, 35}, -- Red cube
+    [56815] = {56816, 35}, [56818] = {56817, 35}, [56820] = {56819, 35},
+    [56822] = {56821, 35}, [56824] = {56823, 35}, [56826] = {56825, 40},
 }
 local COSMETIC_NAMES = {
     {56816, 'Turquoise nebula'}, {56817, 'Yellow-green nebula'}, {56819, 'Purple nebula'},
