@@ -80,6 +80,21 @@ jobs:
           ./build/Test-Update.ps1
           $version = '${{ steps.version.outputs.version }}'
           ./build/Build-Update.ps1 -ClientRoot ./client -Output ./dist -Version $version
+          # Content hash of each part, so the updater installs only the part
+          # that changed: a client release never resets the bot and the other way.
+          $manifestPath = Resolve-Path dist/update.json
+          $m = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          function Get-PartHash($entries) {
+            $text = ($entries | Sort-Object { $_.path } -Culture '' | ForEach-Object { "$($_.path):$($_.sha256)" }) -join "`n"
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($text))).Replace('-', '').ToLowerInvariant() } finally { $sha.Dispose() }
+          }
+          $botFiles = @($m.files | Where-Object { $_.path.StartsWith('CWELBOT/') })
+          $clientFiles = @($m.files | Where-Object { -not $_.path.StartsWith('CWELBOT/') })
+          $m | Add-Member -NotePropertyName clientHash -NotePropertyValue (Get-PartHash $clientFiles)
+          $m | Add-Member -NotePropertyName botHash -NotePropertyValue (Get-PartHash $botFiles)
+          [IO.File]::WriteAllText($manifestPath, ($m | ConvertTo-Json -Depth 6), [Text.UTF8Encoding]::new($false))
+          Write-Output "client $($m.clientHash.Substring(0,12)) ($($clientFiles.Count) files), bot $($m.botHash.Substring(0,12)) ($($botFiles.Count) files)"
           Compress-Archive -Path ./client/URUCHOM_NEXUS.cmd,./client/updater -DestinationPath ./dist/nexus-launcher.zip
           Compress-Archive -Path ./studio/* -DestinationPath ./dist/nexus-studio-sync.zip
 
@@ -118,7 +133,7 @@ jobs:
               $null = [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, (Join-Path (Resolve-Path client) $f.path), $f.path, [IO.Compression.CompressionLevel]::Optimal)
             }
           } finally { $archive.Dispose() }
-          $delta = @{ schema = 1; version = $new.version; from = $previous; sha256 = (Get-NexusSHA256 $zip); files = $files }
+          $delta = @{ schema = 1; version = $new.version; from = $previous; sha256 = (Get-NexusSHA256 $zip); files = $files; clientHash = $new.clientHash; botHash = $new.botHash }
           [IO.File]::WriteAllText((Join-Path (Resolve-Path dist) 'delta.json'), ($delta | ConvertTo-Json -Depth 6), [Text.UTF8Encoding]::new($false))
           $kb = [Math]::Round((Get-Item $zip).Length / 1KB)
           Write-Output "Small update from $previous`: $($changed.Count) files, $kb KB"

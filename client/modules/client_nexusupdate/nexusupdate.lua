@@ -2,6 +2,7 @@ local version='v2026.11.3.1'
 local repository='godejro/Nexus-Client'
 local window,button,operation,timer,session,state,automatic,manifest,release,stage,started
 local active=false
+local startAnimator,stopAnimator
 local fallbackToFull
 local function request(fn,...)
   local timeout=HTTP.timeout HTTP.timeout=120
@@ -38,8 +39,8 @@ local function drawProgress()
   track.percent:setText(string.format('%d%%',math.floor(shownPercent+0.5)))
   track.fill.sheen:setMarginLeft(sheenX-48)
 end
-local function stopAnimator() if animator then removeEvent(animator) animator=nil end end
-local function startAnimator()
+stopAnimator=function() if animator then removeEvent(animator) animator=nil end end
+startAnimator=function()
   if animator then return end
   animator=cycleEvent(function()
     if not window or not window:isVisible() then stopAnimator() return end
@@ -157,12 +158,75 @@ local function verifyFiles(index)
   applyStatus({phase='ready',message='Update verified.',done=last,total=last,version=release.version})
   if automatic then install() end
 end
+-- Client and CWELBOT are updated separately. Each release names a content
+-- hash of its client part and of its bot part (clientHash/botHash in the
+-- manifest). A part is installed only when its hash differs from the one this
+-- installation last received, so a client release never resets the bot and a
+-- bot release never resets the client. A CWELBOT folder that is a git clone
+-- (the bot developer's own copy) is never touched by the updater.
+local PARTS_FILE='updater/installed-parts.json'
+local PENDING_FILE='updater/parts-pending.json'
+local function readJson(path)
+  local text=read(path) if not text or text=='' then return nil end
+  local ok,data=pcall(json.decode,text)
+  return ok and type(data)=='table' and data or nil
+end
+local function isBotPath(path) return path:sub(1,8)=='CWELBOT/' end
+local function isCoreFile(path) return path=='Nexus Client.exe' or path=='init.lua' end
+local function botIsDeveloperCopy() return g_resources.fileExistsInWorkDir('CWELBOT/.git/HEAD') or g_resources.fileExistsInWorkDir('CWELBOT/.git') end
+local function localEntry(path)
+  local content=read(path)
+  if not content then return nil end
+  return {path=path,size=#content,sha256=g_resources.fileSha256InWorkDir(path),['local']=true}
+end
+-- Returns 'install', 'nothing' or nil plus a reason.
+local function selectParts(data)
+  local installed=readJson(PARTS_FILE) or {}
+  local skipClient=type(data.clientHash)=='string' and installed.client==data.clientHash
+  local skipBot=botIsDeveloperCopy() or (type(data.botHash)=='string' and installed.bot==data.botHash)
+  local files,real={},0
+  for _,entry in ipairs(data.files) do
+    if isCoreFile(entry.path) and (skipClient or entry['local']==true) then
+      local own=localEntry(entry.path)
+      if not own then return nil,'missing '..entry.path end
+      files[#files+1]=own
+    elseif isBotPath(entry.path) then
+      if not skipBot then files[#files+1]=entry real=real+1 end
+    elseif not skipClient then
+      files[#files+1]=entry real=real+1
+    end
+  end
+  data.files=files
+  local pending={version=data.version,client=data.clientHash or installed.client,bot=(botIsDeveloperCopy() and installed.bot) or data.botHash or installed.bot}
+  if real==0 then
+    g_resources.writeFileContentsToWorkDir('updater/installed-version.txt',data.version)
+    g_resources.writeFileContentsToWorkDir(PARTS_FILE,json.encode(pending))
+    version=data.version
+    return 'nothing'
+  end
+  g_resources.writeFileContentsToWorkDir(PENDING_FILE,json.encode(pending))
+  return 'install'
+end
+local function nothingToInstall()
+  applyStatus({phase='current',message='Nexus Client is up to date.'})
+  if automatic then window:hide() enterGame() else active=false end
+end
+local function copyLocalFiles()
+  local root=g_resources.getWorkDir()
+  for _,entry in ipairs(manifest.files) do
+    if entry['local']==true and not g_platform.copyFile(root..entry.path,root..stage..'/'..entry.path) then return false,entry.path end
+  end
+  return true
+end
 local function fullDownload()
   active=automatic
   applyStatus({phase='downloading',message='Downloading update manifest...',version=release.version})
   operation=request(HTTP.getJSON,release.manifest,function(data,err)
     if err then fail(err) return end
     if not validateManifest(data) then fail('Invalid update manifest. Nothing was installed.') return end
+    local choice,reason=selectParts(data)
+    if not choice then fail('Cannot prepare update: '..tostring(reason)) return end
+    if choice=='nothing' then nothingToInstall() return end
     manifest=data
     local base='updater/sessions/'..session stage=base..'/stage'
     if not g_resources.writeFileContentsToWorkDir(base..'/update.json',json.encode(manifest)) then fail('Cannot write updater staging directory.') return end
@@ -172,6 +236,8 @@ local function fullDownload()
       if not g_resources.writeDownloadedFileToWorkDir(file,base..'/package.zip',false) or g_resources.fileSha256InWorkDir(base..'/package.zip')~=manifest.sha256 then fail('Package SHA256 mismatch. Nothing was installed.') return end
       applyStatus({phase='verifying',message='Unpacking verified update...',version=release.version})
       if not g_resources.extractDownloadedArchiveToWorkDir(file,stage,'',false) then fail('Cannot unpack update.') return end
+      local copied,failed=copyLocalFiles()
+      if not copied then fail('Cannot prepare '..tostring(failed)) return end
       verifyFiles(1)
     end,function(percent)
       local done=release.size*math.max(0,math.min(100,tonumber(percent) or 0))/100
@@ -197,6 +263,9 @@ local function deltaDownload()
     if err then fallbackToFull(err) return end
     local from=type(data)=='table' and tostring(data.from or ''):gsub('^v','') or ''
     if from~=tostring(version):gsub('^v','') or not validateManifest(data) then fallbackToFull('made for '..from) return end
+    local choice,reason=selectParts(data)
+    if not choice then fallbackToFull(reason) return end
+    if choice=='nothing' then nothingToInstall() return end
     manifest=data manifest.delta=true
     local base='updater/sessions/'..session stage=base..'/stage'
     if not g_resources.writeFileContentsToWorkDir(base..'/update.json',json.encode(manifest)) then fallbackToFull('staging') return end
@@ -206,10 +275,8 @@ local function deltaDownload()
       if not g_resources.writeDownloadedFileToWorkDir(file,base..'/package.zip',false) or g_resources.fileSha256InWorkDir(base..'/package.zip')~=manifest.sha256 then fallbackToFull('package sha') return end
       applyStatus({phase='verifying',message='Unpacking verified update...',version=release.version})
       if not g_resources.extractDownloadedArchiveToWorkDir(file,stage,'',false) then fallbackToFull('unpack') return end
-      local root=g_resources.getWorkDir()
-      for _,entry in ipairs(manifest.files) do
-        if entry['local']==true and not g_platform.copyFile(root..entry.path,root..stage..'/'..entry.path) then fallbackToFull('copy '..entry.path) return end
-      end
+      local copied,failed=copyLocalFiles()
+      if not copied then fallbackToFull('copy '..tostring(failed)) return end
       verifyFiles(1)
     end,function(percent)
       local done=delta.size*math.max(0,math.min(100,tonumber(percent) or 0))/100
@@ -243,6 +310,12 @@ function check(auto)
 end
 function init()
   local saved=read('updater/installed-version.txt') if saved and newer(saved,version) then version=saved:match('v?%d+%.%d+%.%d+%.%d+') end
+  -- The native installer finished the update prepared last time: remember its parts.
+  local pending=readJson(PENDING_FILE)
+  if pending and saved and tostring(pending.version)==saved:match('v?%d+%.%d+%.%d+%.%d+') then
+    g_resources.writeFileContentsToWorkDir(PARTS_FILE,json.encode(pending))
+    g_resources.writeFileContentsToWorkDir(PENDING_FILE,'')
+  end
   window=g_ui.displayUI('nexusupdate') window:hide()
   window.close.onClick=function() if active then return end window:hide() enterGame() end
   window.onEscape=window.close.onClick

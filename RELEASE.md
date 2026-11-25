@@ -1,3 +1,5 @@
+- **Poprawka: aktualizacja zawieszała się na „Checking for updates”** i nie dało się zalogować. Naprawione.
+- **Klient i bot aktualizują się osobno:** aktualizacja klienta nie podmienia już bota, a aktualizacja bota nie cofa klienta. Wgrywa się tylko ta część, która się naprawdę zmieniła. Folder CWELBOT będący klonem gita (kopia programisty bota) nigdy nie jest nadpisywany.
 - **Nowy wygląd okna aktualizacji:** napis „Nexus Client Updating”, płynnie animowany pasek z procentami, bez prędkości, rozmiaru i numeru wersji.
 - **Tibia Coins na markecie pojedynczo:** domyślnie można kupować, sprzedawać i wystawiać coinsy po 1 sztuce. Prawy klik na licznik coinsów w oknie marketu pozwala ustawić dla danego serwera: pojedynczo, po 10 albo po 25.
 - **Pełna minimapa jednym kliknięciem:** „Download full minimap” sam znajduje oryginalny klient serwera (folder, z którego Nexus Studio go importowało, albo szuka na dysku) i kopiuje mapę w tle. Nie trzeba wpisywać żadnej ścieżki.
