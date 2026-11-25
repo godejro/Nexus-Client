@@ -335,5 +335,7 @@ function clearMessages()
 end
 
 function LocalPlayer:onAutoWalkFail(player)
+    -- A far map click re-plans by itself and reports its own failure.
+    if modules.game_minimap and modules.game_minimap.isLongWalking and modules.game_minimap.isLongWalking() then return end
     modules.game_textmessage.displayFailureMessage(tr('There is no way.'))
 end

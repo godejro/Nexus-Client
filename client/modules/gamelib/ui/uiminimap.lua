@@ -112,7 +112,7 @@ local function onFlagMouseRelease(widget, pos, button)
         end
 
         if widget:getParent().autowalk then
-            player:autoWalk(widget.pos)
+            UIMinimap.walkTo(player, widget.pos)
         end
         return true
 
@@ -275,6 +275,15 @@ function UIMinimap:onMousePress(pos, button)
     end
 end
 
+-- Far map clicks walk the whole way (see game_minimap walkTo).
+function UIMinimap.walkTo(player, pos)
+    local minimap = modules.game_minimap
+    if minimap and minimap.walkTo then
+        return minimap.walkTo(pos)
+    end
+    return player:autoWalk(pos)
+end
+
 function UIMinimap:onMouseRelease(pos, button)
     if not self.allowNextRelease then
         return true
@@ -297,7 +306,7 @@ function UIMinimap:onMouseRelease(pos, button)
         end
 
         if self.autowalk then
-            player:autoWalk(mapPos)
+            UIMinimap.walkTo(player, mapPos)
         end
         return true
     elseif button == MouseRightButton then

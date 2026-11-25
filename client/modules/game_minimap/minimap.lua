@@ -122,7 +122,9 @@ local function sanitizeProfilePart(value)
     return value ~= '' and value or 'unknown'
 end
 
-function getMinimapProfileKey()
+-- The explored map belongs to the server (Nexus Studio profile), shared by
+-- every character on it. Without a profile the login host and port decide.
+local function legacyMinimapProfileKey()
     local host = (G and G.host) or g_settings.getString('host') or 'unknown'
     local port = (G and G.port) or g_settings.get('port') or 0
     local version = g_game.getClientVersion()
@@ -131,6 +133,31 @@ function getMinimapProfileKey()
     end
     return string.format('%s_%s_%s', sanitizeProfilePart(host), sanitizeProfilePart(port),
         sanitizeProfilePart(version))
+end
+
+function getMinimapProfileKey()
+    local manager = modules.client_profiles
+    local profile = manager and manager.getActiveProfile and manager.getActiveProfile() or nil
+    if profile and profile.id and tostring(profile.id) ~= '' then
+        return 'server_' .. sanitizeProfilePart(profile.id)
+    end
+    return legacyMinimapProfileKey()
+end
+
+-- Maps saved under the old host/port key are carried over once.
+local function migrateMinimapFile(extension)
+    local key = getMinimapProfileKey()
+    local legacy = legacyMinimapProfileKey()
+    if key == legacy then return end
+    local target = '/minimaps/' .. key .. extension
+    local source = '/minimaps/' .. legacy .. extension
+    if not g_resources.fileExists(target) and g_resources.fileExists(source) then
+        local data = g_resources.readFileContents(source)
+        if data and #data > 0 then
+            g_resources.makeDir('/minimaps')
+            g_resources.writeFileContents(target, data)
+        end
+    end
 end
 
 function getMinimapFile()
@@ -531,6 +558,110 @@ local function refreshVirtualFloors()
     mapController.ui.layersPanel.automapLayers:setImageClip((virtualFloor * 14) .. ' 0 14 67')
 end
 
+------------------------------------------------------------------------------
+-- Map click walking like the official client. The client's own walk only
+-- trusts tiles it has seen, so far clicks stopped after a few steps with
+-- "There is no way". Here the whole route is planned over the known map
+-- (unseen tiles allowed), then walked in short visible segments; each segment
+-- is re-planned with what has become visible, until the destination.
+------------------------------------------------------------------------------
+local longWalk = nil
+local DIRS = {[0] = {0, -1}, {1, 0}, {0, 1}, {-1, 0}, {1, -1}, {1, 1}, {-1, 1}, {-1, -1}}
+
+function isLongWalking()
+    return longWalk ~= nil
+end
+
+function stopLongWalk()
+    if longWalk and longWalk.event then
+        removeEvent(longWalk.event)
+    end
+    longWalk = nil
+end
+
+local function samePos(a, b)
+    return a and b and a.x == b.x and a.y == b.y and a.z == b.z
+end
+
+-- Next waypoint: the farthest point of the planned route that is still on
+-- screen, where the client knows every tile.
+local function planSegment(player, dest)
+    local start = player:getPosition()
+    local path = g_map.findPath(start, dest, 60000, PathFindFlags.AllowNullTiles + PathFindFlags.AllowCreatures)
+    if type(path) ~= 'table' or #path == 0 then
+        return nil
+    end
+    local p = {x = start.x, y = start.y, z = start.z}
+    local waypoint = nil
+    for _, direction in ipairs(path) do
+        local d = DIRS[direction]
+        if not d then break end
+        p = {x = p.x + d[1], y = p.y + d[2], z = p.z}
+        if math.abs(p.x - start.x) > 7 or math.abs(p.y - start.y) > 5 then break end
+        waypoint = p
+    end
+    return waypoint
+end
+
+local function longWalkTick()
+    local walk = longWalk
+    if not walk then return end
+    walk.event = scheduleEvent(longWalkTick, 200)
+    local player = g_game.getLocalPlayer()
+    if not g_game.isOnline() or not player then stopLongWalk() return end
+    local pos = player:getPosition()
+    if not pos or samePos(pos, walk.dest) or pos.z ~= walk.dest.z then stopLongWalk() return end
+    if player:isAutoWalking() or player:isWalking() then
+        if not player:isAutoWalking() and not samePos(pos, walk.lastPos) and not samePos(pos, walk.waypoint) and not walk.waitingStart then
+            stopLongWalk() -- the player took over with the keyboard
+            return
+        end
+        walk.waitingStart = false
+        walk.lastPos = pos
+        walk.idle = nil
+        return
+    end
+    if not samePos(pos, walk.lastPos) and not samePos(pos, walk.waypoint) and not walk.waitingStart then
+        stopLongWalk() -- moved without the autowalk: manual control
+        return
+    end
+    walk.lastPos = pos
+    local now = g_clock.millis()
+    if walk.waypoint and not samePos(pos, walk.waypoint) then
+        walk.idle = walk.idle or now
+        if now - walk.idle < 600 then return end
+        walk.failures = walk.failures + 1
+    end
+    if walk.failures > 3 then
+        stopLongWalk()
+        modules.game_textmessage.displayFailureMessage(tr('There is no way.'))
+        return
+    end
+    local waypoint = planSegment(player, walk.dest)
+    if not waypoint then
+        stopLongWalk()
+        modules.game_textmessage.displayFailureMessage(tr('There is no way.'))
+        return
+    end
+    walk.waypoint = waypoint
+    walk.idle = nil
+    walk.waitingStart = true
+    player:autoWalk(waypoint)
+end
+
+function walkTo(dest)
+    stopLongWalk()
+    local player = g_game.getLocalPlayer()
+    if not player or not dest then return false end
+    local pos = player:getPosition()
+    if not pos or pos.z ~= dest.z or Position.distance(pos, dest) <= 7 then
+        return player:autoWalk(dest)
+    end
+    longWalk = {dest = {x = dest.x, y = dest.y, z = dest.z}, failures = 0, lastPos = pos}
+    longWalkTick()
+    return true
+end
+
 local function onPositionChange()
     local player = g_game.getLocalPlayer()
     if not player then
@@ -676,7 +807,10 @@ function mapController:onGameStart()
         onPositionChange = onPositionChange
     }):execute()
 
+    if mapAutosave then removeEvent(mapAutosave) end
+    mapAutosave = cycleEvent(function() if g_game.isOnline() then saveExploredMap() end end, 600000)
     -- Load Map
+    migrateMinimapFile(otmm and '.otmm' or '.otcm')
     g_minimap.clean()
 
     if otmm then
@@ -701,7 +835,20 @@ function mapController:onGameStart()
     end
 end
 
+-- The explored map is also saved every 10 minutes and when the client
+-- closes, so a crash or a closed window never loses the exploring.
+mapAutosave = nil
+function saveExploredMap()
+    if otmm then
+        g_minimap.saveOtmm(currentMinimapFile or getMinimapFile())
+    else
+        currentMinimapFile = currentMinimapFile or ('/minimaps/' .. getMinimapProfileKey() .. '.otcm')
+        g_map.saveOtcm(currentMinimapFile)
+    end
+end
+
 function mapController:onGameEnd()
+    stopLongWalk()
     if mapDownload then
         if type(mapDownload) ~= 'boolean' then
             removeEvent(mapDownload)
@@ -709,12 +856,8 @@ function mapController:onGameEnd()
         mapDownload = nil
     end
     -- Save Map
-    if otmm then
-        g_minimap.saveOtmm(currentMinimapFile or getMinimapFile())
-    else
-        currentMinimapFile = currentMinimapFile or ('/minimaps/' .. getMinimapProfileKey() .. '.otcm')
-        g_map.saveOtcm(currentMinimapFile)
-    end
+    saveExploredMap()
+    if mapAutosave then removeEvent(mapAutosave) mapAutosave = nil end
 
     self.ui.minimapBorder.minimap:save(getMinimapSettingsKey())
     self.ui.minimapBorder.minimap:setUseStaticMinimap(false)
@@ -725,6 +868,8 @@ function mapController:onGameEnd()
 end
 
 function mapController:onTerminate()
+    if mapAutosave then removeEvent(mapAutosave) mapAutosave = nil end
+    if g_game.isOnline() then pcall(saveExploredMap) end
     releaseWideMap()
     if iconTopMenu then
         iconTopMenu:destroy()
@@ -789,6 +934,8 @@ function upLayer()
     end
 
     mapController.ui.minimapBorder.minimap:floorUp(1)
+    local camera = mapController.ui.minimapBorder.minimap:getCameraPosition()
+    if camera then ensureStaticMinimapFloor(camera.z) end
     virtualFloor = virtualFloor - 1
     refreshVirtualFloors()
 end
@@ -799,6 +946,8 @@ function downLayer()
     end
 
     mapController.ui.minimapBorder.minimap:floorDown(1)
+    local camera = mapController.ui.minimapBorder.minimap:getCameraPosition()
+    if camera then ensureStaticMinimapFloor(camera.z) end
     virtualFloor = virtualFloor + 1
     refreshVirtualFloors()
 end

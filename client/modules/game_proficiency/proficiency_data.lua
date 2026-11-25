@@ -555,6 +555,8 @@ end
 
 -- Format float value for display
 function ProficiencyData:formatFloatValue(value, roundFloat, perkType)
+    -- Some server proficiency entries have perks without a value.
+    value = tonumber(value) or 0
     local function isPercentageType(perkType)
         for _, v in ipairs(PercentageTypes) do
             if v == perkType then

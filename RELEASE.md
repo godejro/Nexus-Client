@@ -1,3 +1,7 @@
+- **Map click jak w oficjalnym kliencie:** kliknięcie daleko na minimapie planuje całą trasę i idzie odcinkami, przeliczając drogę po drodze, zamiast stawać po kilku kratkach z „There is no way”.
+- **Minimapa przypisana do serwera:** odkryta mapa jest wspólna dla wszystkich postaci na danym serwerze, każdy serwer ma swoją. Zapisuje się też co 10 minut i przy zamknięciu klienta.
+- **Pełna minimapa przy przeglądaniu pięter:** strzałkami góra/dół na minimapie wczytują się też piętra podziemne, jeśli serwer je udostępnia w plikach.
+- **Poprawka okna Proficiency:** perki bez wartości nie powodują już błędu.
 - **Plecaki, loot pouch i quiver nie zmieniają już same rozmiaru:** po otwarciu zajmują tyle rzędów, ile zmieści się w panelu bocznym (najwyżej całą pojemność), i tak zostają przy zmianie stron i lootowaniu, dopóki sam ich nie zmniejszysz. Koniec z lagami od ciągłego przeliczania okien.
 - **Dwa paski w oknie aktualizacji:** osobno Nexus Client i CWELBOT. Od razu widać, która część dostaje aktualizację; druga pokazuje „Up to date”.
 - **Pobieranie pełnej minimapy bez okna PowerShella:** wyszukiwanie i kopiowanie idzie całkowicie w tle.
