@@ -311,9 +311,9 @@ local function finishMapDownload(copied, failed, missing, total)
     if failed > 0 then
         showMinimapError(tr('%d map files could not be copied into the client folder. Close programs that may lock it and try again.', failed))
     elseif missing == total then
-        showMinimapError(tr('The selected folder has no map files of this server. Choose the folder of the server\'s own client (the one with the "assets" folder).'))
+        showMinimapError(tr('The found client has no map files of this server.'))
     elseif missing > 0 then
-        displayInfoBox(tr('Full minimap'), tr('Copied %d of %d map files. %d are missing in the selected client, so parts of the map stay empty.', copied, total, missing))
+        displayInfoBox(tr('Full minimap'), tr('Copied %d of %d map files. %d are missing in the server\'s client, so parts of the map stay empty.', copied, total, missing))
     else
         displayInfoBox(tr('Full minimap'), tr('The full minimap of this server is ready.'))
     end
@@ -322,10 +322,41 @@ end
 -- Copies run in a hidden PowerShell/robocopy process, so the game keeps its
 -- frame rate; the client only polls for the result file.
 local function psQuote(text)
-    return "'" .. text:gsub("'", "''") .. "'"
+    return "'" .. tostring(text):gsub("'", "''") .. "'"
 end
 
-local function copyMapChunks(sourceFolder, names, targetDir)
+local function psList(items)
+    local quoted = {}
+    for _, item in ipairs(items) do
+        quoted[#quoted + 1] = psQuote(item)
+    end
+    return '@(' .. table.concat(quoted, ',') .. ')'
+end
+
+-- Where the server's original client was when Nexus Studio imported it.
+local function importedSourceFolders()
+    local folders = {}
+    local manager = modules.client_profiles
+    local profile = manager and manager.getActiveProfile and manager.getActiveProfile() or nil
+    local integrity = profile and profile.sourceIntegrity
+    if type(integrity) ~= 'table' and profile and profile.id and tostring(profile.id):match('^[%w_.%-]+$') then
+        local path = '/profiles/' .. profile.id .. '/profile.json'
+        if g_resources.fileExists(path) then
+            local ok, data = pcall(function() return json.decode(g_resources.readFileContents(path)) end)
+            integrity = ok and type(data) == 'table' and data.sourceIntegrity or nil
+        end
+    end
+    if type(integrity) == 'table' and type(integrity.source) == 'string' and integrity.source ~= '' then
+        folders[#folders + 1] = integrity.source
+    end
+    return folders
+end
+
+-- Finds the server's own client by itself: first the folder Nexus Studio
+-- imported from and the last folder that worked, then a background search of
+-- the usual places (Desktop, Downloads, Documents, AppData, Program Files and
+-- the drives) for a map file this server's client must have.
+local function copyMapChunks(candidates, probe, names, targetDir)
     local resultName = '/nexus-map-copy-' .. getMinimapProfileKey() .. '.txt'
     local resultPath = g_resources.getWriteDir():gsub('[/\\]+$', '') .. resultName
     if g_resources.fileExists(resultName) then
@@ -333,21 +364,37 @@ local function copyMapChunks(sourceFolder, names, targetDir)
     end
     local script = table.concat({
         "$ErrorActionPreference='SilentlyContinue'",
-        '$src=' .. psQuote(sourceFolder:gsub('/', '\\')),
-        "if (Test-Path -LiteralPath (Join-Path $src 'assets')) { $src = Join-Path $src 'assets' }",
+        '$probe=' .. psQuote(probe),
         '$dst=' .. psQuote(targetDir:gsub('/', '\\')),
+        '$out=' .. psQuote(resultPath:gsub('/', '\\')),
+        '$dstFull=[IO.Path]::GetFullPath($dst).TrimEnd([char]92)',
+        'function Test-Src($d) { if (-not $d) { return $null }; foreach ($c in @($d, (Join-Path $d \'assets\'))) { if ((Test-Path -LiteralPath (Join-Path $c $probe)) -and ([IO.Path]::GetFullPath($c).TrimEnd([char]92) -ne $dstFull)) { return $c } }; return $null }',
+        '$src=$null',
+        'foreach ($c in ' .. psList(candidates) .. ') { $src = Test-Src $c; if ($src) { break } }',
+        'if (-not $src) {',
+        '  $roots=@()',
+        "  foreach ($n in @('Desktop','Downloads','Documents','OneDrive')) { $roots += (Join-Path $env:USERPROFILE $n) }",
+        '  $roots += @($env:LOCALAPPDATA, $env:APPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)})',
+        "  $roots += @(Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Root -match '^[A-Z]:' } | ForEach-Object { $_.Root })",
+        '  foreach ($r in $roots) {',
+        '    if (-not $r -or -not (Test-Path -LiteralPath $r)) { continue }',
+        "    $hit = Get-ChildItem -LiteralPath $r -Filter $probe -File -Recurse -Depth 10 -Force | Where-Object { $_.DirectoryName -notmatch '\\\\Windows\\\\|\\$Recycle' -and ([IO.Path]::GetFullPath($_.DirectoryName).TrimEnd([char]92) -ne $dstFull) } | Select-Object -First 1",
+        '    if ($hit) { $src = $hit.DirectoryName; break }',
+        '  }',
+        '}',
+        "if (-not $src) { Set-Content -LiteralPath $out -Value '99' -Encoding utf8; exit }",
         'robocopy $src $dst minimap-*.bmp.lzma satellite-*.bmp.lzma subarea-*.bmp.lzma /XC /XN /XO /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null',
-        '$code=$LASTEXITCODE',
-        'Set-Content -LiteralPath ' .. psQuote(resultPath:gsub('/', '\\')) .. ' -Value $code -Encoding ascii'
+        'Set-Content -LiteralPath $out -Value @([string]$LASTEXITCODE, $src) -Encoding utf8'
     }, '; ')
     local ok, started = pcall(g_platform.spawnProcess, 'powershell',
         {'-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command', script})
     if not ok or not started then
+        mapDownload = nil
         showMinimapError(tr('Windows did not start the copy (PowerShell is not available).'))
         return
     end
     if modules.game_textmessage then
-        modules.game_textmessage.displayStatusMessage(tr('Copying the full minimap (%d files) in the background...', #names))
+        modules.game_textmessage.displayStatusMessage(tr('Looking for this server\'s client and copying the full minimap in the background...'))
     end
     local started_at = g_clock.millis()
     local function poll()
@@ -355,16 +402,26 @@ local function copyMapChunks(sourceFolder, names, targetDir)
             return
         end
         if not g_resources.fileExists(resultName) then
-            if g_clock.millis() - started_at > 180000 then
+            if g_clock.millis() - started_at > 600000 then
                 mapDownload = nil
-                showMinimapError(tr('Copying the full minimap takes too long. Check the folder and try again.'))
+                showMinimapError(tr('Finding and copying the full minimap takes too long. Try again.'))
                 return
             end
-            mapDownload = scheduleEvent(poll, 300)
+            mapDownload = scheduleEvent(poll, 500)
             return
         end
-        local code = tonumber((g_resources.readFileContents(resultName) or ''):match('%d+')) or 16
+        local text = (g_resources.readFileContents(resultName) or ''):gsub('^\239\187\191', '')
         g_resources.deleteFile(resultName)
+        local code = tonumber(text:match('%d+')) or 16
+        if code == 99 then
+            mapDownload = nil
+            showMinimapError(tr('The client of this server was not found on this computer. Download the server\'s own client, start it once, and click Download full minimap again.'))
+            return
+        end
+        local found = text:match('[\r\n]+([^\r\n]+)')
+        if found and code < 8 then
+            g_settings.set(MAP_SOURCE_SETTING .. getMinimapProfileKey(), found)
+        end
         local copied, missing = 0, 0
         for _, name in ipairs(names) do
             if g_platform.fileExists(targetDir .. '/' .. name) then
@@ -376,7 +433,7 @@ local function copyMapChunks(sourceFolder, names, targetDir)
         -- robocopy: 0-7 success, 8 and above means some files failed.
         finishMapDownload(copied, code >= 8 and missing or 0, code >= 8 and 0 or missing, #names)
     end
-    mapDownload = scheduleEvent(poll, 300)
+    mapDownload = scheduleEvent(poll, 500)
 end
 
 function downloadFullMinimap()
@@ -389,13 +446,14 @@ function downloadFullMinimap()
         showMinimapError(tr('This server\'s client files contain no full map. The minimap is filled while you explore.'))
         return
     end
-    local missingLocal = 0
+    local probe
     for _, name in ipairs(names) do
         if not g_resources.fileExists(assetsDir .. '/' .. name) then
-            missingLocal = missingLocal + 1
+            probe = name
+            break
         end
     end
-    if missingLocal == 0 then
+    if not probe then
         reloadFullMinimap()
         displayInfoBox(tr('Full minimap'), tr('The full minimap of this server is already installed.'))
         return
@@ -406,21 +464,13 @@ function downloadFullMinimap()
         return
     end
     local targetDir = (realDir:gsub('[/\\]+$', '')) .. assetsDir
-    local settingKey = MAP_SOURCE_SETTING .. getMinimapProfileKey()
-    local inputBox = UIInputBox.create(tr('Download full minimap'), function(sourceFolder)
-        sourceFolder = sourceFolder:gsub('^%s+', ''):gsub('%s+$', ''):gsub('^"(.*)"$', '%1'):gsub('\\', '/'):gsub('/+$', '')
-        if sourceFolder == '' then
-            return
-        end
-        g_settings.set(settingKey, sourceFolder)
-        copyMapChunks(sourceFolder, names, targetDir)
-    end)
-    if modules.game_textmessage then
-        modules.game_textmessage.displayStatusMessage(tr('Full minimap: %d map files are missing.', missingLocal))
+    local candidates = importedSourceFolders()
+    local saved = g_settings.getString(MAP_SOURCE_SETTING .. getMinimapProfileKey(), '')
+    if saved ~= '' then
+        candidates[#candidates + 1] = saved
     end
-    inputBox:addLabel(tr('Folder of the server\'s own client:'))
-    inputBox:addLineEdit(nil, g_settings.getString(settingKey, ''))
-    inputBox:display()
+    mapDownload = true
+    copyMapChunks(candidates, probe, names, targetDir)
 end
 
 function importMinimap()
@@ -641,7 +691,9 @@ end
 
 function mapController:onGameEnd()
     if mapDownload then
-        removeEvent(mapDownload)
+        if type(mapDownload) ~= 'boolean' then
+            removeEvent(mapDownload)
+        end
         mapDownload = nil
     end
     -- Save Map
