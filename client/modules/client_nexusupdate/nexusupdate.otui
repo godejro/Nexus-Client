@@ -1,40 +1,62 @@
 MainWindow
   id: nexusUpdateWindow
-  text: Nexus Client Update
-  size: 460 235
+  size: 440 190
   @onEscape: self:hide()
-  Label
+  UIWidget
     id: heading
+    image-source: /modules/client_nexusupdate/updating_title
+    size: 350 49
     anchors.top: parent.top
-    anchors.left: parent.left
-    anchors.right: parent.right
-    height: 24
-    text: Nexus Client
-    text-align: center
+    anchors.horizontalCenter: parent.horizontalCenter
+    margin-top: -4
+    phantom: true
   Label
     id: message
     anchors.top: heading.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    height: 36
-    text-wrap: true
+    margin-top: 2
+    height: 16
     text-align: center
-  ProgressBar
+    color: #9fb4d6
+  UIWidget
     id: progress
     anchors.top: message.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
-    height: 18
-  Label
-    id: file
-    anchors.top: progress.bottom
-    anchors.left: parent.left
-    anchors.right: parent.right
-    margin-top: 6
-    height: 36
-    text-wrap: true
-    text-align: center
+    margin-top: 8
+    margin-left: 6
+    margin-right: 6
+    height: 22
+    image-source: /modules/client_nexusupdate/updating_track
+    image-border: 7
+    phantom: true
+    UIWidget
+      id: fill
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      margin: 2
+      width: 0
+      image-source: /modules/client_nexusupdate/updating_fill
+      image-border: 5
+      clipping: true
+      phantom: true
+      UIWidget
+        id: sheen
+        image-source: /modules/client_nexusupdate/updating_sheen
+        size: 48 18
+        anchors.top: parent.top
+        anchors.left: parent.left
+        phantom: true
+    Label
+      id: percent
+      anchors.fill: parent
+      text-align: center
+      font: verdana-11px-rounded
+      color: #ffffff
+      text: 0%
+      phantom: true
   Button
     id: close
     anchors.bottom: parent.bottom

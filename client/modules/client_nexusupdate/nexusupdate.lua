@@ -24,29 +24,66 @@ local function enterGame()
   active=false
   if not g_game.isOnline() and modules.client_entergame and modules.client_entergame.EnterGame then modules.client_entergame.EnterGame.show() end
 end
-function show() if window then window:show() window:raise() window:focus() end end
+function show() if window then window:show() window:raise() window:focus() startAnimator() end end
+-- Smooth progress: the bar eases toward the real percent and a soft light
+-- runs across the filled part while work is in progress.
+local shownPercent,targetPercent,sheenX,animator=0,0,0,nil
+local function drawProgress()
+  if not window then return end
+  local track=window.progress
+  local width=math.max(0,track:getWidth()-4)
+  local fillWidth=math.floor(width*shownPercent/100+0.5)
+  track.fill:setWidth(fillWidth)
+  track.fill:setVisible(fillWidth>0)
+  track.percent:setText(string.format('%d%%',math.floor(shownPercent+0.5)))
+  track.fill.sheen:setMarginLeft(sheenX-48)
+end
+local function stopAnimator() if animator then removeEvent(animator) animator=nil end end
+local function startAnimator()
+  if animator then return end
+  animator=cycleEvent(function()
+    if not window or not window:isVisible() then stopAnimator() return end
+    local busy=state=='checking' or state=='downloading' or state=='verifying' or state=='waiting'
+    local diff=targetPercent-shownPercent
+    if math.abs(diff)<0.2 then shownPercent=targetPercent else shownPercent=shownPercent+diff*0.12 end
+    if busy then
+      sheenX=sheenX+6
+      if sheenX>window.progress.fill:getWidth()+96 then sheenX=0 end
+    else
+      sheenX=0
+    end
+    drawProgress()
+    if not busy and shownPercent==targetPercent then stopAnimator() end
+  end,30)
+end
+local phaseText={checking='Checking for updates...',downloading='Downloading...',verifying='Verifying files...',
+  waiting='Restarting...',ready='Ready to install',current='Nexus Client is up to date',available='A new update is available'}
 function applyStatus(data)
   if not window then return end
+  local previous=state
   state=data.phase
   local busy=state=='checking' or state=='downloading' or state=='verifying' or state=='waiting'
   local compact=automatic and state=='checking'
-  window:setSize({width=compact and 300 or 460,height=compact and 125 or 235})
-  window.heading:setVisible(not compact)
-  window.progress:setVisible(not compact) window.file:setVisible(not compact)
-  window.update:setVisible(not compact) window.close:setVisible(not compact)
-  window.heading:setText('Nexus Client '..(data.version or version))
-  window.message:setText(data.message or '')
+  local buttons=not busy and not compact
+  window:setSize({width=440,height=compact and 110 or buttons and 190 or 150})
+  window.progress:setVisible(not compact)
+  window.update:setVisible(buttons) window.close:setVisible(buttons)
+  local important=state=='error' or (state=='ready' and tostring(data.message or ''):find('Log out',1,true))
+  window.message:setText(important and (data.message or '') or phaseText[state] or data.message or '')
+  window.message:setColor(important and '#ff7a6b' or '#9fb4d6')
   local done,total=tonumber(data.done) or 0,tonumber(data.total) or 0
-  window.progress:setPercent(total>0 and math.min(100,done*100/total) or 0)
-  local info=''
-  if state=='downloading' then
-    info=string.format('%.1f / %.1f MB   %.2f MB/s',done/1048576,total/1048576,tonumber(data.speed) or 0)
-  elseif total>0 then info=string.format('%d / %d files',done,total) end
-  window.file:setText(info..(data.file and data.file~='' and ('\n'..data.file) or ''))
-  window.update:setText(state=='available' and 'Update' or state=='ready' and 'Restart and install' or busy and 'Please wait...' or 'Check for updates')
+  local part=total>0 and math.min(1,done/total) or 0
+  if state=='downloading' then targetPercent=part*90
+  elseif state=='verifying' then targetPercent=90+part*10
+  elseif state=='waiting' or state=='ready' or state=='current' then targetPercent=100
+  elseif state=='checking' or state=='available' then targetPercent=0 end
+  if state=='checking' and previous~='checking' then shownPercent=0 end
+  window.update:setText(state=='available' and 'Update' or state=='ready' and 'Restart and install' or 'Check for updates')
   window.update:setEnabled(not busy and (state~='ready' or not g_game.isOnline()))
   window.close:setText(automatic and 'Continue' or 'Close')
   window.close:setEnabled(not busy)
+  drawProgress()
+  if window:isVisible() then startAnimator() end
 end
 local function fail(message)
   applyStatus({phase='error',message=tostring(message)}) enterGame() show()
@@ -224,5 +261,6 @@ function terminate()
   active=false if timer then removeEvent(timer) timer=nil end
   if operation then HTTP.cancel(operation) operation=nil end
   if button then button:destroy() button=nil end
+  stopAnimator()
   if window then window:destroy() window=nil end
 end
