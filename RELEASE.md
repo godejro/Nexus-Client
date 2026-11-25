@@ -1,3 +1,4 @@
+- **Tibia Coins na markecie pojedynczo:** domyślnie można kupować, sprzedawać i wystawiać coinsy po 1 sztuce. Prawy klik na licznik coinsów w oknie marketu pozwala ustawić dla danego serwera: pojedynczo, po 10 albo po 25.
 - **Pełna minimapa jednym kliknięciem:** „Download full minimap” sam znajduje oryginalny klient serwera (folder, z którego Nexus Studio go importowało, albo szuka na dysku) i kopiuje mapę w tle. Nie trzeba wpisywać żadnej ścieżki.
 - **Mniejsze aktualizacje:** klient pobiera teraz tylko pliki zmienione od poprzedniej wersji zamiast całej paczki 34.8 MB. Pełna paczka zostaje jako zapas, gdy ktoś przeskoczył kilka wersji albo coś pójdzie nie tak.
 - **Okno logowania:** jest na środku ekranu w pionie, ale nigdy nie zasłania logo N.

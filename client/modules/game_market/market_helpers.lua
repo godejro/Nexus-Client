@@ -167,3 +167,69 @@ function translateWheelVocation(vocationId)
     
     return vocationNames[vocationId] or "Unknown"
 end
+
+------------------------------------------------------------------------------
+-- Tibia Coin lot size on the market, chosen per server. Real Tibia trades
+-- coins in lots of 25; many servers allow any amount, so the default is 1.
+------------------------------------------------------------------------------
+local COIN_LOT_SETTING = 'nexusMarketCoinLot_'
+local COIN_LOTS = {1, 10, 25}
+
+local function coinLotServerKey()
+    local manager = modules.client_profiles
+    local profile = manager and manager.getActiveProfile and manager.getActiveProfile() or nil
+    local key = profile and profile.id or (G and G.host) or g_settings.getString('host') or 'default'
+    return tostring(key):gsub('[^%w_.%-]', '_')
+end
+
+function getCoinLot()
+    local value = tonumber(g_settings.get(COIN_LOT_SETTING .. coinLotServerKey())) or 1
+    for _, lot in ipairs(COIN_LOTS) do
+        if lot == value then
+            return value
+        end
+    end
+    return 1
+end
+
+function setCoinLot(value)
+    g_settings.set(COIN_LOT_SETTING .. coinLotServerKey(), tostring(value))
+    if modules.game_textmessage then
+        modules.game_textmessage.displayStatusMessage(value == 1 and
+            tr('Market: Tibia Coins are traded one by one on this server.') or
+            tr('Market: Tibia Coins are traded in lots of %d on this server.', value))
+    end
+    if refreshCoinAmounts then
+        refreshCoinAmounts()
+    end
+end
+
+function showCoinLotMenu()
+    local menu = g_ui.createWidget('PopupMenu')
+    menu:setGameMenu(true)
+    local current = getCoinLot()
+    for _, lot in ipairs(COIN_LOTS) do
+        local text = lot == 1 and tr('Tibia Coins: one by one') or tr('Tibia Coins: lots of %d', lot)
+        menu:addCheckBox(text, current == lot, function() setCoinLot(lot) end)
+    end
+    menu:display(g_window.getMousePosition())
+end
+
+function installCoinLotMenu(root)
+    local function walk(widget)
+        for _, child in ipairs(widget:getChildren()) do
+            if child:getId() == 'coinPanel' then
+                child:setPhantom(false)
+                child:setTooltip(tr('Right-click: how Tibia Coins are traded on this server (one by one, 10 or 25).'))
+                child.onMouseRelease = function(self, mousePos, mouseButton)
+                    if mouseButton == MouseRightButton then
+                        showCoinLotMenu()
+                        return true
+                    end
+                end
+            end
+            walk(child)
+        end
+    end
+    walk(root)
+end

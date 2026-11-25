@@ -83,6 +83,7 @@ function init()
         toggleShowLockerOnly(self, checked)
     end
 
+    installCoinLotMenu(marketWindow)
     hide()
     mainMarket.createOfferSell:setChecked(true)
     connect(g_game, {
@@ -1441,14 +1442,15 @@ function onSelectSellOffer(widget, selected, oldFocus)
 
     local startValue = 1
     if not table.empty(lastSelectedItem) and lastSelectedItem.itemId == 22118 then
-        local sellCount = math.floor(money / (currentOffer.price * 25))
+        local lot = getCoinLot()
+        local sellCount = math.floor(money / (currentOffer.price * lot))
         if sellCount > 0 then
-            mainMarket.amountSellScrollBar:setRange(25, math.min(currentOffer.amount, sellCount * 25))
-            mainMarket.amountSellScrollBar:setValue(25)
+            mainMarket.amountSellScrollBar:setRange(lot, math.min(currentOffer.amount, sellCount * lot))
+            mainMarket.amountSellScrollBar:setValue(lot)
             mainMarket.sellAcceptButton:setEnabled(true)
-            mainMarket.amountSellScrollBar:setStep(25)
-            mainMarket.amountSellScrollBar:setIncrementStep(25)
-            startValue = 25
+            mainMarket.amountSellScrollBar:setStep(lot)
+            mainMarket.amountSellScrollBar:setIncrementStep(lot)
+            startValue = lot
         else
             mainMarket.amountSellScrollBar:setRange(0, 0)
             mainMarket.amountSellScrollBar:setValue(0)
@@ -1498,7 +1500,7 @@ function onSelectBuyOffer(widget, selected, oldFocus)
     local currentOffer = buyOffers[cache.SCROLL_BUY_OFFERS.lastSelected]
 
     mainMarket.amountBuyScrollBar:setRange(1, math.min(count, currentOffer.amount))
-    mainMarket.amountBuyScrollBar:setValue(lastSelectedItem.itemId == 22118 and 25 or 1)
+    mainMarket.amountBuyScrollBar:setValue(lastSelectedItem.itemId == 22118 and getCoinLot() or 1)
     mainMarket.amountBuyScrollBar:setIncrementStep(1)
     mainMarket.totalSellValue:setText(comma_value(currentOffer.price))
     mainMarket.buyAcceptButton:setEnabled(true)
@@ -1509,14 +1511,15 @@ function onSelectBuyOffer(widget, selected, oldFocus)
     if lastSelectedItem.itemId == 22118 then
         local startValue = 0
         local coinBalance = getTransferableTibiaCoins()
-        local buyCount = math.floor(coinBalance / 25)
+        local lot = getCoinLot()
+        local buyCount = math.floor(coinBalance / lot)
         if buyCount > 0 then
-            mainMarket.amountBuyScrollBar:setRange(25, math.min(currentOffer.amount, buyCount * 25))
-            mainMarket.amountBuyScrollBar:setValue(25)
+            mainMarket.amountBuyScrollBar:setRange(lot, math.min(currentOffer.amount, buyCount * lot))
+            mainMarket.amountBuyScrollBar:setValue(lot)
             mainMarket.buyAcceptButton:setEnabled(true)
-            mainMarket.amountBuyScrollBar:setStep(25)
-            mainMarket.amountBuyScrollBar:setIncrementStep(25)
-            startValue = 25
+            mainMarket.amountBuyScrollBar:setStep(lot)
+            mainMarket.amountBuyScrollBar:setIncrementStep(lot)
+            startValue = lot
         else
             mainMarket.amountBuyScrollBar:setRange(0, 0)
             mainMarket.amountBuyScrollBar:setValue(0)
@@ -1640,7 +1643,7 @@ function onPiecePriceEdit(widget)
         mainMarket.profitAmount:setText(0)
         mainMarket.feeAmount:setText(0)
         mainMarket.createButton:setEnabled(false)
-        mainMarket.amountCreateScrollBar:setIncrementStep(25)
+        mainMarket.amountCreateScrollBar:setIncrementStep(lastSelectedItem.itemId == 22118 and getCoinLot() or 1)
         mainMarket.amountCreateScrollBar:setRange(0, 0)
         return
     end
@@ -1690,9 +1693,10 @@ function onPiecePriceEdit(widget)
 
     local steps = getCoinStepValue(lastSelectedItem.itemId)
     mainMarket.amountCreateScrollBar:setIncrementStep(1)
+    local lot = getCoinLot()
     if isTibiaCoin then
-        steps = 25
-        mainMarket.amountCreateScrollBar:setIncrementStep(25)
+        steps = lot
+        mainMarket.amountCreateScrollBar:setIncrementStep(lot)
     end
 
     mainMarket.amountCreateScrollBar:setStep(steps)
@@ -1722,15 +1726,15 @@ function onPiecePriceEdit(widget)
         local balance = getTotalMoney()
         local barCount = 0
         if isTibiaCoin then
-            barCount = math.floor(balance / (numericValue * 25))
-            if mainMarket.amountCreateScrollBar:getValue() <= 1 then
-                mainMarket.amountCreateScrollBar:setValue(25)
-                mainMarket.amountCreateScrollBar:setStep(25)
-                mainMarket.amountCreateScrollBar:setIncrementStep(25)
+            barCount = math.floor(balance / (numericValue * lot))
+            if mainMarket.amountCreateScrollBar:getValue() < lot then
+                mainMarket.amountCreateScrollBar:setValue(lot)
+                mainMarket.amountCreateScrollBar:setStep(lot)
+                mainMarket.amountCreateScrollBar:setIncrementStep(lot)
             end
 
             if barCount > 0 then
-                mainMarket.amountCreateScrollBar:setRange(25, barCount * 25)
+                mainMarket.amountCreateScrollBar:setRange(lot, barCount * lot)
             else
                 mainMarket.amountCreateScrollBar:setRange(0, 0)
             end
@@ -1748,12 +1752,12 @@ function onPiecePriceEdit(widget)
         local itemCount = isTibiaCoin and getTransferableTibiaCoins() or
                               getDepotItemCount(lastSelectedItem.itemId, lastSelectedItem.tier or 0)
         if itemCount > 0 then
-            if isTibiaCoin and itemCount < 25 then
+            if isTibiaCoin and itemCount < lot then
                 mainMarket.amountCreateScrollBar:setValue(0)
-                mainMarket.amountCreateScrollBar:setStep(25)
-                mainMarket.amountCreateScrollBar:setIncrementStep(25)
+                mainMarket.amountCreateScrollBar:setStep(lot)
+                mainMarket.amountCreateScrollBar:setIncrementStep(lot)
             else
-                mainMarket.amountCreateScrollBar:setRange((isTibiaCoin and 25 or 1), math.min(maxCount, itemCount))
+                mainMarket.amountCreateScrollBar:setRange((isTibiaCoin and lot or 1), math.min(maxCount, itemCount))
                 mainMarket.createButton:setEnabled(true)
             end
         else
