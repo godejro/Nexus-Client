@@ -204,19 +204,6 @@ MainWindow
       width: 52
       !text: tr('Clear')
 
-    TextEdit
-      id: delayInput
-      anchors.right: parent.right
-      anchors.bottom: parent.bottom
-      width: 44
-
-    Label
-      id: delayLabel
-      anchors.right: delayInput.left
-      anchors.verticalCenter: delayInput.verticalCenter
-      margin-right: 4
-      color: #c0c0c0
-      !text: tr('Delay (ms):')
 
   Label
     id: valueLabel
@@ -230,7 +217,7 @@ MainWindow
     anchors.left: valueLabel.right
     anchors.verticalCenter: sellButton.verticalCenter
     margin-left: 6
-    size: 140 20
+    size: 112 20
     background-color: #1c1c1c
     border-width: 1
     border-color: #0e0e0e
@@ -267,3 +254,19 @@ MainWindow
     margin-right: 6
     width: 64
     !text: tr('Sell All')
+
+  TextEdit
+    id: delayInput
+    anchors.right: sellButton.left
+    anchors.verticalCenter: sellButton.verticalCenter
+    margin-right: 8
+    width: 40
+    !tooltip: tr('Pause between sales in milliseconds. 0 = as fast as the server answers.')
+
+  Label
+    id: delayLabel
+    anchors.right: delayInput.left
+    anchors.verticalCenter: sellButton.verticalCenter
+    margin-right: 4
+    color: #c0c0c0
+    !text: tr('Delay (ms):')

@@ -2,12 +2,12 @@
 -- waiting for the server's goods update before sending the next request.
 
 local GOLD_COIN_ID = 3031
-local DEFAULT_DELAY = 100
-local MIN_DELAY = 50
+local DEFAULT_DELAY = 0
+local MIN_DELAY = 0
 local MAX_DELAY = 2000
 local CONFIRM_TIMEOUT = 4000
 local MAX_RETRIES = 1
-local DELAY_SETTING = 'nexusNpcSellAllDelay'
+local DELAY_SETTING = 'nexusNpcSellAllDelayMs'
 
 local function blockedSet(controller)
     local ids = controller:getSellExclusions()
@@ -588,7 +588,7 @@ function controllerNpcTrader:sellAllFromUi()
         end
     end
 
-    local delayInput = window.blacklistPage.delayInput
+    local delayInput = window:recursiveGetChildById('delayInput')
     delayInput:setText(tostring(self:getSellAllDelay()))
     delayInput.onTextChange = function(widget, text)
         local clean = text:gsub('[^%d]', '')

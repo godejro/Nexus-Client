@@ -1,3 +1,4 @@
+- **Sell All szybciej:** pole „Delay (ms)” jest teraz obok przycisku Sell All, domyślnie 0 ms, czyli następna sprzedaż idzie od razu po potwierdzeniu serwera. Można wpisać od 0 do 2000 ms.
 - **Map click jak w oficjalnym kliencie:** kliknięcie daleko na minimapie planuje całą trasę i idzie odcinkami, przeliczając drogę po drodze, zamiast stawać po kilku kratkach z „There is no way”.
 - **Minimapa przypisana do serwera:** odkryta mapa jest wspólna dla wszystkich postaci na danym serwerze, każdy serwer ma swoją. Zapisuje się też co 10 minut i przy zamknięciu klienta.
 - **Pełna minimapa przy przeglądaniu pięter:** strzałkami góra/dół na minimapie wczytują się też piętra podziemne, jeśli serwer je udostępnia w plikach.
