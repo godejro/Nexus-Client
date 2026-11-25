@@ -1,3 +1,4 @@
+- **Plecaki, loot pouch i quiver nie zmieniają już same rozmiaru:** po otwarciu zajmują tyle rzędów, ile zmieści się w panelu bocznym (najwyżej całą pojemność), i tak zostają przy zmianie stron i lootowaniu, dopóki sam ich nie zmniejszysz. Koniec z lagami od ciągłego przeliczania okien.
 - **Dwa paski w oknie aktualizacji:** osobno Nexus Client i CWELBOT. Od razu widać, która część dostaje aktualizację; druga pokazuje „Up to date”.
 - **Pobieranie pełnej minimapy bez okna PowerShella:** wyszukiwanie i kopiowanie idzie całkowicie w tle.
 - **Poprawka: aktualizacja zawieszała się na „Checking for updates”** i nie dało się zalogować. Naprawione.

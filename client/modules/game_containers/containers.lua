@@ -1117,20 +1117,29 @@ function onContainerOpen(container, previousContainer)
         panel:addChild(containerWindow)
     end
 
-    if not previousContainer or previousContainer:getCapacity() >= container:getCapacity() then
-        -- Always set the content height based on the current container's content, with a minimum of one row
-        local minRows = 1
-        if modules.client_options.getOption('openMaximized') then
-            local numLines = math.max(layout:getNumLines(), minRows)
-            containerWindow:setContentHeight(numLines * step + chromeHeight)
-        else
-            local numColumns = math.max(layout:getNumColumns(), 1)
-            local filledLines = math.max(math.ceil(container:getItemsCount() / numColumns), minRows)
-            containerWindow:setContentHeight(filledLines * step + chromeHeight)
-        end
-    end
-
     containerWindow:setup()
+    -- Height works like in Tibia: a newly opened container takes as many rows
+    -- as fit into the free space of its side panel (at most all its rows) and
+    -- then keeps that height. Changing pages, looting or reopening into the
+    -- same window never resizes it; only the player does, with the border.
+    local maxHeight = numLines * step + chromeHeight
+    if not previousContainer then
+        local rows = numLines
+        local parent = containerWindow:getParent()
+        if parent and parent:getClassName() == 'UIMiniWindowContainer' then
+            local used = 0
+            for _, child in ipairs(parent:getChildren()) do
+                if child ~= containerWindow and child:isVisible() then
+                    used = used + child:getHeight() + child:getMarginTop() + child:getMarginBottom()
+                end
+            end
+            local free = parent:getHeight() - parent:getPaddingTop() - parent:getPaddingBottom() - used
+            rows = math.max(1, math.min(numLines, math.floor((free - chromeHeight) / step)))
+        end
+        containerWindow:setContentHeight(rows * step + chromeHeight)
+    elseif containerWindow:getHeight() > maxHeight then
+        containerWindow:setContentHeight(maxHeight)
+    end
     -- setup restores the old miniwindow lock. Remove that UI lock, not the
     -- server-owned Container::isUnlocked permission for its contents.
     containerWindow:unlock()
