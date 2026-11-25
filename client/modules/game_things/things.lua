@@ -216,3 +216,71 @@ function ThingsLoaderController:onInit()
         onClientVersionChange = load
     })
 end
+
+------------------------------------------------------------------------------
+-- Item looks (client-bot contract): draw an item with another item's
+-- appearance, only for this player. The item keeps its real id everywhere
+-- (getId, packets, use, scripts, tile timers); nothing is sent to the server
+-- and nothing is saved. Check `modules.game_things.setItemLook ~= nil`.
+--   setItemLook(fromItemId, toItemId) -> true/false
+--   clearItemLook(fromItemId)
+--   clearItemLooks()
+--   getItemLooks() -> { [fromId] = toId, ... }
+--   hasLook(itemId) -> true when this client can draw that appearance
+------------------------------------------------------------------------------
+local itemLooks = {}
+
+local function nativeLooks()
+    return g_things.setItemLook ~= nil
+end
+
+local function itemId(value)
+    value = tonumber(value)
+    if not value or value % 1 ~= 0 or value < 1 or value > 65535 then return nil end
+    return value
+end
+
+function hasLook(id)
+    id = itemId(id)
+    if not id or not nativeLooks() then return false end
+    return g_things.hasItemLook(id) == true
+end
+
+function setItemLook(fromId, toId)
+    fromId, toId = itemId(fromId), itemId(toId)
+    if not fromId or not toId or not nativeLooks() then return false end
+    if not g_things.setItemLook(fromId, toId) then return false end
+    if fromId == toId then itemLooks[fromId] = nil else itemLooks[fromId] = toId end
+    return true
+end
+
+function clearItemLook(fromId)
+    fromId = itemId(fromId)
+    if not fromId then return end
+    itemLooks[fromId] = nil
+    if nativeLooks() then g_things.clearItemLook(fromId) end
+end
+
+function clearItemLooks()
+    itemLooks = {}
+    if nativeLooks() then g_things.clearItemLooks() end
+end
+
+function getItemLooks()
+    local result = {}
+    if nativeLooks() then
+        for fromId, toId in pairs(g_things.getItemLooks() or {}) do result[fromId] = toId end
+    end
+    return result
+end
+
+-- Reloading assets (another server) clears the looks in the engine; the ones
+-- still valid for the new assets are applied again.
+local function reapplyItemLooks()
+    if not nativeLooks() then return end
+    for fromId, toId in pairs(itemLooks) do
+        if not g_things.setItemLook(fromId, toId) then itemLooks[fromId] = nil end
+    end
+end
+
+connect(g_game, { onGameStart = reapplyItemLooks })

@@ -583,70 +583,65 @@ local function samePos(a, b)
     return a and b and a.x == b.x and a.y == b.y and a.z == b.z
 end
 
--- Next waypoint: the farthest point of the planned route that is still on
--- screen, where the client knows every tile.
-local function planSegment(player, dest)
+local function posKey(p)
+    return p.x .. ',' .. p.y .. ',' .. p.z
+end
+
+local function failLongWalk()
+    stopLongWalk()
+    modules.game_textmessage.displayFailureMessage(tr('There is no way.'))
+end
+
+-- Sends the next part of the route (up to 127 steps, the protocol limit) in
+-- one go, like a right click: the server walks it without pauses.
+local function sendRoute(walk, player)
     local start = player:getPosition()
-    local path = g_map.findPath(start, dest, 60000, PathFindFlags.AllowNullTiles + PathFindFlags.AllowCreatures)
+    local path = g_map.findPath(start, walk.dest, 60000, PathFindFlags.AllowNullTiles + PathFindFlags.AllowCreatures)
     if type(path) ~= 'table' or #path == 0 then
-        return nil
+        return false
     end
+    local dirs, route = {}, {[posKey(start)] = true}
     local p = {x = start.x, y = start.y, z = start.z}
-    local waypoint = nil
-    for _, direction in ipairs(path) do
-        local d = DIRS[direction]
+    for i = 1, math.min(#path, 127) do
+        local d = DIRS[path[i]]
         if not d then break end
         p = {x = p.x + d[1], y = p.y + d[2], z = p.z}
-        if math.abs(p.x - start.x) > 7 or math.abs(p.y - start.y) > 5 then break end
-        waypoint = p
+        dirs[#dirs + 1] = path[i]
+        route[posKey(p)] = true
     end
-    return waypoint
+    if #dirs == 0 then return false end
+    walk.route, walk.endpoint = route, p
+    walk.lastPos, walk.lastMove = start, g_clock.millis()
+    g_game.autoWalk(dirs, start)
+    return true
 end
 
 local function longWalkTick()
     local walk = longWalk
     if not walk then return end
-    walk.event = scheduleEvent(longWalkTick, 200)
+    walk.event = scheduleEvent(longWalkTick, 100)
     local player = g_game.getLocalPlayer()
     if not g_game.isOnline() or not player then stopLongWalk() return end
     local pos = player:getPosition()
     if not pos or samePos(pos, walk.dest) or pos.z ~= walk.dest.z then stopLongWalk() return end
-    if player:isAutoWalking() or player:isWalking() then
-        if not player:isAutoWalking() and not samePos(pos, walk.lastPos) and not samePos(pos, walk.waypoint) and not walk.waitingStart then
-            stopLongWalk() -- the player took over with the keyboard
-            return
-        end
-        walk.waitingStart = false
-        walk.lastPos = pos
-        walk.idle = nil
-        return
-    end
-    if not samePos(pos, walk.lastPos) and not samePos(pos, walk.waypoint) and not walk.waitingStart then
-        stopLongWalk() -- moved without the autowalk: manual control
-        return
-    end
-    walk.lastPos = pos
     local now = g_clock.millis()
-    if walk.waypoint and not samePos(pos, walk.waypoint) then
-        walk.idle = walk.idle or now
-        if now - walk.idle < 600 then return end
+    if not walk.route[posKey(pos)] then
+        stopLongWalk() -- off the route: the player took over (keyboard, other click)
+        return
+    end
+    if not samePos(pos, walk.lastPos) then
+        walk.lastPos, walk.lastMove, walk.failures = pos, now, 0
+    end
+    if samePos(pos, walk.endpoint) then
+        if not sendRoute(walk, player) then failLongWalk() end
+        return
+    end
+    -- Standing still on the route: the server stopped at an unknown obstacle.
+    -- Plan again with what is visible now.
+    if not player:isWalking() and now - walk.lastMove > 700 then
         walk.failures = walk.failures + 1
+        if walk.failures > 3 or not sendRoute(walk, player) then failLongWalk() end
     end
-    if walk.failures > 3 then
-        stopLongWalk()
-        modules.game_textmessage.displayFailureMessage(tr('There is no way.'))
-        return
-    end
-    local waypoint = planSegment(player, walk.dest)
-    if not waypoint then
-        stopLongWalk()
-        modules.game_textmessage.displayFailureMessage(tr('There is no way.'))
-        return
-    end
-    walk.waypoint = waypoint
-    walk.idle = nil
-    walk.waitingStart = true
-    player:autoWalk(waypoint)
 end
 
 function walkTo(dest)
@@ -657,8 +652,13 @@ function walkTo(dest)
     if not pos or pos.z ~= dest.z or Position.distance(pos, dest) <= 7 then
         return player:autoWalk(dest)
     end
-    longWalk = {dest = {x = dest.x, y = dest.y, z = dest.z}, failures = 0, lastPos = pos}
-    longWalkTick()
+    local walk = {dest = {x = dest.x, y = dest.y, z = dest.z}, failures = 0}
+    if not sendRoute(walk, player) then
+        -- Nothing known about the way: let the client try its own walk.
+        return player:autoWalk(dest)
+    end
+    longWalk = walk
+    walk.event = scheduleEvent(longWalkTick, 100)
     return true
 end
 
