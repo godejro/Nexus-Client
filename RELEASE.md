@@ -1,3 +1,4 @@
+- **Pisanie na czacie przy włączonym Chat On:** po kliknięciu w okno bota, umiejętności czy plecak klawisze już nie giną. Wpisywane litery zawsze trafiają do czatu, jak w Tibii. Pola tekstowe innych okien dalej dostają swoje klawisze.
 - **Sell All dużo szybciej:** stos przedmiotów, który mieści się w jednej sprzedaży, idzie od razu, a następny przedmiot po ustawionym opóźnieniu (domyślnie 100 ms), bez czekania na odpowiedź serwera. Czekanie zostaje tylko dla bardzo dużych ilości, które trzeba sprzedać w kilku turach.
 - **Pełna minimapa na Vantorii:** pobieranie korzysta też z plików, z których Nexus Studio zaimportowało serwer (pobrana paczka assets), więc działa również na serwerach z launcherem.
 - **Komunikaty przy minimapie:** każdy błąd pobierania pokazuje okno z opisem. Po wejściu na serwer bez pobranej pełnej mapy pojawia się podpowiedź, jak ją pobrać, a w logu klienta jest zapis, co mapa wczytała.

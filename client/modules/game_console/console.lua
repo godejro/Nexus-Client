@@ -245,6 +245,11 @@ function consoleController:onInit()
     end, consolePanel)
   
     g_keyboard.bindKeyDown('Enter', switchChatOnCall, consolePanel)
+
+    -- Chat mode on: typing always goes to the chat, like in Tibia, even after
+    -- a click on another window (bot, skills, containers) took the focus.
+    -- Text fields of other windows still get their own keys first.
+    connect(rootWidget, { onKeyText = redirectTypingToChat })
     g_keyboard.bindKeyPress('Ctrl+A', function()
         consoleTextEdit:clearText()
     end, consolePanel)
@@ -444,11 +449,45 @@ function disableChatOnCall()
     end
 end
 
+-- True only when the whole chain up to the root is focused, i.e. keys
+-- really reach the chat line.
+local function chatInputHasFocus()
+    local widget = consoleTextEdit
+    while widget and widget ~= rootWidget do
+        if not widget:isFocused() then return false end
+        widget = widget:getParent()
+    end
+    return widget == rootWidget
+end
+
+function focusChatInput()
+    if not consoleTextEdit or not consoleTextEdit:isVisible() then return false end
+    local widget = consoleTextEdit
+    while widget and widget ~= rootWidget do
+        widget:focus()
+        widget = widget:getParent()
+    end
+    return chatInputHasFocus()
+end
+
+function redirectTypingToChat(_, keyText)
+    if not g_game.isOnline() or not consoleTextEdit or not isChatEnabled() or chatInputHasFocus() then
+        return false
+    end
+    if type(keyText) ~= 'string' or keyText == '' or keyText:byte(1) < 32 or keyText:byte(1) == 127 then
+        return false
+    end
+    if not focusChatInput() then return false end
+    consoleTextEdit:appendText(keyText)
+    return true
+end
+
 function isChatEnabled()
     return consoleTextEdit:isVisible()
 end
 
 function consoleController:onTerminate()
+    disconnect(rootWidget, { onKeyText = redirectTypingToChat })
     save()
     Keybind.delete("Chat Channel", "Close Current Channel")
     Keybind.delete("Chat Channel", "Next Channel")
