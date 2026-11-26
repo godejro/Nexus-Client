@@ -1,3 +1,4 @@
+- **Sell All dużo szybciej:** stos przedmiotów, który mieści się w jednej sprzedaży, idzie od razu, a następny przedmiot po ustawionym opóźnieniu (domyślnie 100 ms), bez czekania na odpowiedź serwera. Czekanie zostaje tylko dla bardzo dużych ilości, które trzeba sprzedać w kilku turach.
 - **Pełna minimapa na Vantorii:** pobieranie korzysta też z plików, z których Nexus Studio zaimportowało serwer (pobrana paczka assets), więc działa również na serwerach z launcherem.
 - **Komunikaty przy minimapie:** każdy błąd pobierania pokazuje okno z opisem. Po wejściu na serwer bez pobranej pełnej mapy pojawia się podpowiedź, jak ją pobrać, a w logu klienta jest zapis, co mapa wczytała.
 - **Poprawka: klient stawał na ekranie startowym** po poprzedniej aktualizacji (wersja 2026.11.26.2). Naprawione.

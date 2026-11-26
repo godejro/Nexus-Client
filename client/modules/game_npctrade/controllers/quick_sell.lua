@@ -1,13 +1,14 @@
--- Nexus Sell All: sells every owned item the NPC buys, one item type at a time,
--- waiting for the server's goods update before sending the next request.
+-- Nexus Sell All: sells every owned item the NPC buys, one item type at a time.
+-- A stack that fits in one request is sent and the next item follows after the
+-- delay; only items needing several requests wait for the server's goods update.
 
 local GOLD_COIN_ID = 3031
-local DEFAULT_DELAY = 0
+local DEFAULT_DELAY = 100
 local MIN_DELAY = 0
 local MAX_DELAY = 2000
 local CONFIRM_TIMEOUT = 4000
 local MAX_RETRIES = 1
-local DELAY_SETTING = 'nexusNpcSellAllDelayMs'
+local DELAY_SETTING = 'nexusNpcSellAllDelayFast'
 
 local function blockedSet(controller)
     local ids = controller:getSellExclusions()
@@ -369,6 +370,23 @@ function controllerNpcTrader:sendNextQuickSale()
         local live = getSellQuantity(entry.ptr)
         if entry.selected and not ui.blocked[entry.id] and live > 0 then
             local amount = math.min(live, maxPerRequest())
+            if amount >= live then
+                -- The whole stack fits in one request: send it and go on to the
+                -- next item after the delay, without waiting for the server.
+                -- Counts are refreshed by the goods updates as they arrive.
+                g_game.sellItem(entry.ptr, amount, sale.ignoreEquipped)
+                sale.done = math.min(sale.total, sale.done + entry.count)
+                entry.count = 0
+                sale.index = sale.index + 1
+                self:sellAllRefresh()
+                sale.timer = scheduleEvent(function()
+                    if self.quickSale == sale then
+                        sale.timer = nil
+                        self:sendNextQuickSale()
+                    end
+                end, sale.delay)
+                return
+            end
             sale.waiting = true
             sale.stockBefore = self:quickSellStock(entry.ptr)
             sale.current = entry

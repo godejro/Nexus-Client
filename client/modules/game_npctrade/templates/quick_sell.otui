@@ -261,7 +261,7 @@ MainWindow
     anchors.verticalCenter: sellButton.verticalCenter
     margin-right: 8
     width: 40
-    !tooltip: tr('Pause between sales in milliseconds. 0 = as fast as the server answers.')
+    !tooltip: tr('Pause between sales in milliseconds (0-2000). Lower is faster; raise it if the server kicks you for acting too fast.')
 
   Label
     id: delayLabel
