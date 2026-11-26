@@ -217,7 +217,7 @@ MainWindow
     anchors.left: valueLabel.right
     anchors.verticalCenter: sellButton.verticalCenter
     margin-left: 6
-    size: 112 20
+    size: 100 20
     background-color: #1c1c1c
     border-width: 1
     border-color: #0e0e0e
@@ -255,12 +255,21 @@ MainWindow
     width: 64
     !text: tr('Sell All')
 
+  Button
+    id: delayApply
+    anchors.right: sellButton.left
+    anchors.bottom: parent.bottom
+    margin-right: 6
+    width: 44
+    !text: tr('Apply')
+    !tooltip: tr('Save the delay. It is used from the next sale on (also during a running Sell All).')
+
   TextEdit
     id: delayInput
-    anchors.right: sellButton.left
+    anchors.right: delayApply.left
     anchors.verticalCenter: sellButton.verticalCenter
-    margin-right: 8
-    width: 40
+    margin-right: 4
+    width: 36
     !tooltip: tr('Pause between sales in milliseconds (0-2000). Lower is faster; raise it if the server kicks you for acting too fast.')
 
   Label
@@ -269,4 +278,4 @@ MainWindow
     anchors.verticalCenter: sellButton.verticalCenter
     margin-right: 4
     color: #c0c0c0
-    !text: tr('Delay (ms):')
+    !text: tr('Delay:')

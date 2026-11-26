@@ -109,6 +109,9 @@ function controllerNpcTrader:legacy_show()
             radioTabs:selectWidget(sellTab)
         end
 
+        if not npcWindow:isVisible() then
+            controllerNpcTrader:placeWindow(npcWindow, 'trade')
+        end
         npcWindow:show()
         npcWindow:raise()
         npcWindow:focus()
@@ -120,6 +123,7 @@ function controllerNpcTrader:legacyIgnoreEquipped()
 end
 
 function controllerNpcTrader:legacy_hide()
+    self:rememberWindow(npcWindow, 'trade')
     self:closeQuickSell()
     if pendingShow then removeEvent(pendingShow) pendingShow=nil end
     tradeItems = {[BUY] = {}, [SELL] = {}}

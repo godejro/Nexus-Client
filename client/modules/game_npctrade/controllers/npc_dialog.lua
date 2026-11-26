@@ -129,6 +129,7 @@ function controllerNpcTrader:setupWindowDragBehavior()
     end
     dragHandle.onDragLeave = function(widget, droppedWidget, mousePos)
         self.ui:onDragLeave(droppedWidget, mousePos)
+        self:rememberWindow(self.ui, 'trade')
         return true
     end
 end
@@ -151,6 +152,7 @@ function controllerNpcTrader:initNpcWindow(creature, buttons)
     self:updateChatButton()
     if not self.ui or not self.ui:isVisible() then
         self:loadHtml('templates/game_npctrader.html')
+        self:placeWindow(self.ui, 'trade')
     end
     self:setupWindowDragBehavior()
     local creatureOutfit = self:findWidget("#creatureOutfit")

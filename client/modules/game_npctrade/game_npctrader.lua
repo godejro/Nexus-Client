@@ -36,6 +36,40 @@ function controllerNpcTrader:getSellExclusions()
     end
     return ids
 end
+-- Trade windows open in the middle of the screen. A window the player moved
+-- comes back at that place until logout, relog or a server change.
+controllerNpcTrader.sessionWindowPos = {}
+
+function controllerNpcTrader:placeWindow(widget, key)
+    if not widget or widget:isDestroyed() then return end
+    local function apply()
+        if widget:isDestroyed() then return end
+        local rootW, rootH = rootWidget:getWidth(), rootWidget:getHeight()
+        local w, h = widget:getWidth(), widget:getHeight()
+        local pos = self.sessionWindowPos[key]
+        local x, y
+        if pos then
+            x, y = pos.x, pos.y
+        else
+            x, y = math.floor((rootW - w) / 2), math.floor((rootH - h) / 2)
+        end
+        x = math.max(0, math.min(x, rootW - math.min(w, rootW)))
+        y = math.max(0, math.min(y, rootH - math.min(h, rootH)))
+        widget:breakAnchors()
+        widget:setPosition({x = x, y = y})
+    end
+    apply()
+    -- HTML windows know their final size only after the first layout.
+    addEvent(apply)
+end
+
+function controllerNpcTrader:rememberWindow(widget, key)
+    if widget and not widget:isDestroyed() and widget:isVisible() then
+        local pos = widget:getPosition()
+        self.sessionWindowPos[key] = {x = pos.x, y = pos.y}
+    end
+end
+
 function controllerNpcTrader:isLegacyMode()
     return self.legacyMode
 end
@@ -113,6 +147,7 @@ end
 function controllerNpcTrader:onGameEnd()
     self:onCloseNpcTrade()
     if self:isLegacyMode() then self:legacy_terminate() end
+    self.sessionWindowPos = {}
 end
 
 function controllerNpcTrader:onCloseNpcTrade()
@@ -126,6 +161,7 @@ function controllerNpcTrader:onCloseNpcTrade()
     else
         self:disconnectNpcTalkEvent()
         if controllerNpcTrader.ui then
+            controllerNpcTrader:rememberWindow(controllerNpcTrader.ui, 'trade')
             controllerNpcTrader:unloadHtml()
         end
         controllerNpcTrader.isTradeOpen = false

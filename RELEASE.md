@@ -1,3 +1,5 @@
+- **Okno handlu z NPC na środku ekranu:** otwiera się na środku. Jeśli je przesuniesz, przy następnym handlu otworzy się w tym samym miejscu, aż do wylogowania, relogu albo zmiany serwera. To samo dotyczy okna Sell All.
+- **Sell All: przycisk Apply przy opóźnieniu.** Zmiana opóźnienia zapisuje się dopiero po kliknięciu Apply (albo Enter), z potwierdzeniem na ekranie. Działa od razu, także w trakcie trwającej sprzedaży.
 - **Pisanie na czacie przy włączonym Chat On:** po kliknięciu w okno bota, umiejętności czy plecak klawisze już nie giną. Wpisywane litery zawsze trafiają do czatu, jak w Tibii. Pola tekstowe innych okien dalej dostają swoje klawisze.
 - **Sell All dużo szybciej:** stos przedmiotów, który mieści się w jednej sprzedaży, idzie od razu, a następny przedmiot po ustawionym opóźnieniu (domyślnie 100 ms), bez czekania na odpowiedź serwera. Czekanie zostaje tylko dla bardzo dużych ilości, które trzeba sprzedać w kilku turach.
 - **Pełna minimapa na Vantorii:** pobieranie korzysta też z plików, z których Nexus Studio zaimportowało serwer (pobrana paczka assets), więc działa również na serwerach z launcherem.

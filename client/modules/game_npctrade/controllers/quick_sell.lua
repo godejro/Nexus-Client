@@ -492,6 +492,7 @@ function controllerNpcTrader:closeQuickSell()
         self.quickSale = nil
     end
     if self.quickSell then
+        self:rememberWindow(self.quickSell.window, 'quicksell')
         self.quickSell.window:destroy()
         self.quickSell = nil
     end
@@ -570,6 +571,7 @@ function controllerNpcTrader:sellAllFromUi()
     end
 
     local window = g_ui.displayUI('/game_npctrade/templates/quick_sell')
+    self:placeWindow(window, 'quicksell')
     local _, entries = npcOffers(self)
     local ui = {window = window, entries = {}, blocked = blocked}
     self.quickSell = ui
@@ -607,15 +609,33 @@ function controllerNpcTrader:sellAllFromUi()
     end
 
     local delayInput = window:recursiveGetChildById('delayInput')
+    local delayApply = window:recursiveGetChildById('delayApply')
     delayInput:setText(tostring(self:getSellAllDelay()))
+    local function refreshApply()
+        local typed = tonumber(delayInput:getText())
+        delayApply:setEnabled(typed ~= nil and typed ~= self:getSellAllDelay())
+    end
     delayInput.onTextChange = function(widget, text)
         local clean = text:gsub('[^%d]', '')
         if clean ~= text then widget:setText(clean) return end
-        local value = tonumber(clean)
-        if value then
-            g_settings.set(DELAY_SETTING, math.max(MIN_DELAY, math.min(MAX_DELAY, value)))
+        refreshApply()
+    end
+    local function applyDelay()
+        local value = tonumber(delayInput:getText())
+        if not value then return end
+        value = math.max(MIN_DELAY, math.min(MAX_DELAY, math.floor(value)))
+        g_settings.set(DELAY_SETTING, value)
+        g_settings.save()
+        delayInput:setText(tostring(value))
+        if self.quickSale then self.quickSale.delay = value end
+        refreshApply()
+        if modules.game_textmessage then
+            modules.game_textmessage.displayStatusMessage(tr('Sell All delay saved: %d ms.', value))
         end
     end
+    delayApply.onClick = applyDelay
+    g_keyboard.bindKeyPress('Enter', applyDelay, delayInput)
+    refreshApply()
 
     local idInput = window.blacklistPage.idInput
     local function addTypedId()
