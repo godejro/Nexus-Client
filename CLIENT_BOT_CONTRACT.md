@@ -15,6 +15,7 @@ Moduł `game_npctrade`, obiekt `controllerNpcTrader`:
 | `controllerNpcTrader:setLockedItemIds(ids)` | zapisuje całą listę |
 | `controllerNpcTrader:isSellBlocked(id)` | `true`, gdy przedmiot jest na liście |
 | `controllerNpcTrader:setSellBlocked(id, state)` | dodaje lub usuwa jeden przedmiot |
+| `controllerNpcTrader:getSellAllDelay()` | opóźnienie między sprzedażami w ms (0–2000), ustawione przez gracza w oknie Sell All |
 
 ## Wygląd przedmiotów (item looks)
 
