@@ -1,3 +1,5 @@
+- **Pełna minimapa na Vantorii:** pobieranie korzysta też z plików, z których Nexus Studio zaimportowało serwer (pobrana paczka assets), więc działa również na serwerach z launcherem.
+- **Komunikaty przy minimapie:** każdy błąd pobierania pokazuje okno z opisem. Po wejściu na serwer bez pobranej pełnej mapy pojawia się podpowiedź, jak ją pobrać, a w logu klienta jest zapis, co mapa wczytała.
 - **Poprawka: klient stawał na ekranie startowym** po poprzedniej aktualizacji (wersja 2026.11.26.2). Naprawione.
 - **Naprawiony wyciek pamięci:** zaplanowane zdarzenia, które trzymały same siebie (wzorzec używany m.in. przez bota), nigdy nie były zwalniane. Przez noc AFK klient urastał z 3 do prawie 10 GB. Teraz pamięć po wykonaniu zdarzenia jest od razu oddawana.
 - **Płynniejsze i szybsze kosmetyczne magic walle:** między klatkami są płynne przejścia (3 razy więcej klatek), a cała animacja jest ok. 30% szybsza.

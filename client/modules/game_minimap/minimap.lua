@@ -263,8 +263,9 @@ local function ensureStaticMinimapFloor(floor)
     end
 
     if not loadedStaticMinimapFloors[floor] then
-        g_satelliteMap.loadFloors(assetsDir, floor, floor)
+        local count = g_satelliteMap.loadFloors(assetsDir, floor, floor) or 0
         loadedStaticMinimapFloors[floor] = true
+        g_logger.info(string.format('[Minimap] Full map floor %d: %d chunk files from %s', floor, count, assetsDir))
     end
 
     local available = g_satelliteMap.hasMinimapChunksForFloor(floor)
@@ -301,6 +302,7 @@ end
 ------------------------------------------------------------------------------
 local MAP_SOURCE_SETTING = 'nexusFullMapSource_'
 local mapDownload = nil
+local fullMapNotice = {}
 
 local function mapChunkNames(assetsDir)
     local names, seen = {}, {}
@@ -335,6 +337,15 @@ end
 local function finishMapDownload(copied, failed, missing, total)
     mapDownload = nil
     reloadFullMinimap()
+    local player = g_game.getLocalPlayer()
+    local pos = player and player:getPosition()
+    local shown = pos and g_satelliteMap.hasMinimapChunksForFloor(pos.z)
+    g_logger.info(string.format('[Minimap] Download result: copied=%d failed=%d missing=%d total=%d shown=%s',
+        copied, failed, missing, total, tostring(shown)))
+    if failed == 0 and copied > 0 and pos and pos.z <= 7 and not shown then
+        showMinimapError(tr('The map files were copied (%d), but the client cannot read them. Send nexus_client.log to the developer.', copied))
+        return
+    end
     if failed > 0 then
         showMinimapError(tr('%d map files could not be copied into the client folder. Close programs that may lock it and try again.', failed))
     elseif missing == total then
@@ -373,8 +384,14 @@ local function importedSourceFolders()
             integrity = ok and type(data) == 'table' and data.sourceIntegrity or nil
         end
     end
-    if type(integrity) == 'table' and type(integrity.source) == 'string' and integrity.source ~= '' then
-        folders[#folders + 1] = integrity.source
+    -- Every source Nexus Studio recorded: the client folder, or the local
+    -- snapshot of a publisher archive (e.g. Vantoria's downloaded assets).
+    local function add(value)
+        if type(value) == 'string' and value ~= '' then folders[#folders + 1] = value end
+    end
+    if type(integrity) == 'table' then
+        add(integrity.source)
+        if type(integrity.snapshot) == 'table' then add(integrity.snapshot.source) end
     end
     return folders
 end
@@ -395,6 +412,7 @@ local function copyMapChunks(candidates, probe, names, targetDir)
         '$dst=' .. psQuote(targetDir:gsub('/', '\\')),
         '$out=' .. psQuote(resultPath:gsub('/', '\\')),
         '$dstFull=[IO.Path]::GetFullPath($dst).TrimEnd([char]92)',
+        'trap { Set-Content -LiteralPath $out -Value @(\'98\', [string]$_) -Encoding utf8; exit }',
         'function Test-Src($d) { if (-not $d) { return $null }; foreach ($c in @($d, (Join-Path $d \'assets\'))) { if ((Test-Path -LiteralPath (Join-Path $c $probe)) -and ([IO.Path]::GetFullPath($c).TrimEnd([char]92) -ne $dstFull)) { return $c } }; return $null }',
         '$src=$null',
         'foreach ($c in ' .. psList(candidates) .. ') { $src = Test-Src $c; if ($src) { break } }',
@@ -436,11 +454,16 @@ local function copyMapChunks(candidates, probe, names, targetDir)
         modules.game_textmessage.displayStatusMessage(tr('Looking for this server\'s client and copying the full minimap in the background...'))
     end
     local started_at = g_clock.millis()
+    local notifiedSlow = false
     local function poll()
         if not mapDownload then
             return
         end
         if not g_resources.fileExists(resultName) then
+            if not notifiedSlow and g_clock.millis() - started_at > 60000 and modules.game_textmessage then
+                notifiedSlow = true
+                modules.game_textmessage.displayStatusMessage(tr('Still searching this computer for the server\'s client...'))
+            end
             if g_clock.millis() - started_at > 600000 then
                 mapDownload = nil
                 showMinimapError(tr('Finding and copying the full minimap takes too long. Try again.'))
@@ -452,6 +475,12 @@ local function copyMapChunks(candidates, probe, names, targetDir)
         local text = (g_resources.readFileContents(resultName) or ''):gsub('^\239\187\191', '')
         g_resources.deleteFile(resultName)
         local code = tonumber(text:match('%d+')) or 16
+        g_logger.info('[Minimap] Copy script result: ' .. text:gsub('[\r\n]+', ' | '))
+        if code == 98 then
+            mapDownload = nil
+            showMinimapError(tr('Copying the full minimap failed: %s', (text:match('[\r\n]+(.+)') or ''):gsub('[\r\n]+', ' ')))
+            return
+        end
         if code == 99 then
             mapDownload = nil
             showMinimapError(tr('The client of this server was not found on this computer. Download the server\'s own client, start it once, and click Download full minimap again.'))
@@ -833,6 +862,23 @@ function mapController:onGameStart()
     else
         self.ui.minimapBorder.minimap:setUseStaticMinimap(false)
     end
+    -- Tell once per server and session whether its full map is installed.
+    local serverKey = getMinimapProfileKey()
+    scheduleEvent(function()
+        if not g_game.isOnline() or fullMapNotice[serverKey] then return end
+        local assetsDir = getMinimapAssetsDir()
+        local names = mapChunkNames(assetsDir)
+        if #names == 0 then return end
+        local installed = 0
+        for _, name in ipairs(names) do
+            if g_resources.fileExists(assetsDir .. '/' .. name) then installed = installed + 1 end
+        end
+        fullMapNotice[serverKey] = true
+        g_logger.info(string.format('[Minimap] Full map of %s: %d of %d files installed', serverKey, installed, #names))
+        if installed == 0 and modules.game_textmessage then
+            modules.game_textmessage.displayStatusMessage(tr('The full minimap of this server is not downloaded yet: right-click the minimap and choose Download full minimap.'))
+        end
+    end, 3000)
 end
 
 -- The explored map is also saved every 10 minutes and when the client
