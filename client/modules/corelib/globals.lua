@@ -45,8 +45,9 @@ function scheduleEvent(callback, delay)
 	else
 		event = g_dispatcher.scheduleEvent(run, delay)
 	end
-	-- must hold a reference to the callback, otherwise it would be collected
-	event._callback = callback
+	-- C++ keeps only a weak reference: the event must hold the function it
+	-- runs. `run` drops that hold itself after running (see oneShot).
+	event._callback = run
 	if holder.done then event._callback = nil else holder.event = event end
 	return event
 end
@@ -60,8 +61,9 @@ function addEvent(callback, front)
 	else
 		event = g_dispatcher.addEvent(run, front)
 	end
-	-- must hold a reference to the callback, otherwise it would be collected
-	event._callback = callback
+	-- C++ keeps only a weak reference: the event must hold the function it
+	-- runs. `run` drops that hold itself after running (see oneShot).
+	event._callback = run
 	if holder.done then event._callback = nil else holder.event = event end
 	return event
 end
