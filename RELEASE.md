@@ -1,3 +1,4 @@
+- **Naprawiony wyciek pamięci:** zaplanowane zdarzenia, które trzymały same siebie (wzorzec używany m.in. przez bota), nigdy nie były zwalniane. Przez noc AFK klient urastał z 3 do prawie 10 GB. Teraz pamięć po wykonaniu zdarzenia jest od razu oddawana.
 - **Płynniejsze i szybsze kosmetyczne magic walle:** między klatkami są płynne przejścia (3 razy więcej klatek), a cała animacja jest ok. 30% szybsza.
 - **Nowy Nexus Client.exe:** obsługa wyglądu przedmiotów (item looks) i wbudowanych kosmetycznych magic walli dla bota.
 - **Map click biegnie jak prawy klik:** daleka trasa wysyłana jest do serwera w całości (do 127 kroków naraz), bez przystanków co kilka kratek. Jeśli po drodze stanie przeszkoda, trasa sama przelicza się od miejsca, w którym stoisz.

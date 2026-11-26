@@ -20,29 +20,49 @@ local function getEventName(callback)
 	return "lua"
 end
 
+-- One-shot events forget their callback once it has run. A callback that
+-- keeps its own event handle as an upvalue (local h; h = scheduleEvent(function()
+-- ... h ... end)) otherwise forms a cycle through the registry that Lua can
+-- never collect: the event, its callback and everything they reach stayed in
+-- memory forever (gigabytes after a night of botting).
+local function oneShot(callback)
+	local holder = {}
+	return holder, function(...)
+		local event = holder.event
+		holder.event = nil
+		holder.done = true
+		if event then event._callback = nil end
+		return callback(...)
+	end
+end
+
 function scheduleEvent(callback, delay)
 	local name = getEventName(callback)
+	local holder, run = oneShot(callback)
 	local event
 	if g_dispatcher.scheduleEventEx then
-		event = g_dispatcher.scheduleEventEx(name, callback, delay)
+		event = g_dispatcher.scheduleEventEx(name, run, delay)
 	else
-		event = g_dispatcher.scheduleEvent(callback, delay)
+		event = g_dispatcher.scheduleEvent(run, delay)
 	end
 	-- must hold a reference to the callback, otherwise it would be collected
 	event._callback = callback
+	if holder.done then event._callback = nil else holder.event = event end
 	return event
 end
 
 function addEvent(callback, front)
 	local name = getEventName(callback)
+	local holder, run = oneShot(callback)
 	local event
 	if g_dispatcher.addEventEx then
-		event = g_dispatcher.addEventEx(name, callback)
+		event = g_dispatcher.addEventEx(name, run)
 	else
-		event = g_dispatcher.addEvent(callback, front)
+		event = g_dispatcher.addEvent(run, front)
 	end
 	-- must hold a reference to the callback, otherwise it would be collected
 	event._callback = callback
+	if holder.done then event._callback = nil else holder.event = event end
 	return event
 end
 
