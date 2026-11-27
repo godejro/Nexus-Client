@@ -71,7 +71,7 @@ QuicklootBagLabel < UIWidget
     anchors.right: removeBag.left
     margin-right: 5
     opacity: 1.0
-    &click: 2
+    &click: 6
     &Select:4
     &borrar:5
     @onClick: modules.game_quickloot.QuickLoot.openContainer(self)
@@ -101,7 +101,7 @@ QuicklootBagLabel < UIWidget
     anchors.verticalCenter: parent.verticalCenter
     anchors.right: removeBag2.left
     margin-right: 5
-    &click: 6
+    &click: 2
     &Select:0
     &borrar:1
     opacity: 1.0

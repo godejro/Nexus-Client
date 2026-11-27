@@ -360,24 +360,16 @@ function QuickLoot.Define()
 
             if clickedWidget then
                 if clickedWidget:getClassName() == "UIGameMap" then
-                    local tile = clickedWidget:getTile(mousePosition)
-
-                    if tile then
-                        local thing = tile:getTopMoveThing()
-
-                        if thing and thing:isContainer() then
-                            item = thing
-                        else
-                            QuickLoot.ErrorWindow = displayGeneralBox(tr("Invalid Loot Container"), tr(
-                                "You can only select containers you carry in your inventory."), {
-                                {
-                                    text = tr("Ok"),
-                                    callback = QuickLoot.confirmError
-                                },
-                                anchor = AnchorHorizontalCenter
-                            })
-                        end
-                    end
+                    -- Loot containers must be carried: the server ignores a
+                    -- container on the ground, so it is never shown as set.
+                    QuickLoot.ErrorWindow = displayGeneralBox(tr("Invalid Loot Container"), tr(
+                        "You can only select containers you carry in your inventory."), {
+                        {
+                            text = tr("Ok"),
+                            callback = QuickLoot.confirmError
+                        },
+                        anchor = AnchorHorizontalCenter
+                    })
                 elseif clickedWidget:getClassName() == "UIItem" and not clickedWidget:isVirtual() then
                     if clickedWidget:getItem() and clickedWidget:getItem():isContainer() then
                         item = clickedWidget:getItem()
@@ -398,7 +390,13 @@ function QuickLoot.Define()
         end
 
         if item then
-            QuickLoot.lastSelectBag.item:setItem(item)
+            -- "item2" is the Loot column (action 0), "item" the Obtain column
+            -- (action 4). The picked bag always showed up under Obtain.
+            local slot = QuickLoot.actionsId == 0 and QuickLoot.lastSelectBag.item2 or QuickLoot.lastSelectBag.item
+            slot:setItem(item)
+            quickLootController.ui:show()
+        elseif not (QuickLoot.ErrorWindow and not QuickLoot.ErrorWindow:isDestroyed()) then
+            -- Clicked somewhere else: bring the window back instead of leaving it hidden.
             quickLootController.ui:show()
         end
 
