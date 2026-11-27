@@ -203,8 +203,14 @@ end
 function optionsController:onGameStart()
     optionsShrink = g_settings.getBoolean('mainpanel_shrink_options')
     refreshOptionsSizes()
-    modules.game_interface.setupOptionsMainButton()
-    modules.client_options.setupOptionsMainButton()
+    -- Guarded: after a module reload one of them may not be back yet, and an
+    -- error here used to stop the rest (the options gear never came back).
+    if modules.game_interface and modules.game_interface.setupOptionsMainButton then
+        pcall(modules.game_interface.setupOptionsMainButton)
+    end
+    if modules.client_options and modules.client_options.setupOptionsMainButton then
+        pcall(modules.client_options.setupOptionsMainButton)
+    end
     local getOptionsPanel = optionsController.ui.onPanel.options
     local children = getOptionsPanel:getChildren()
     table.sort(children, function(a, b)

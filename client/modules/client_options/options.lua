@@ -321,6 +321,11 @@ local function setup()
     -- silences the client until the next start.
     pcall(setOption, 'enableAudio', true, true)
 
+    -- Reloaded while in game (language change): put the options gear back.
+    if g_game.isOnline() then
+        scheduleEvent(function() pcall(setupOptionsMainButton) end, 200)
+    end
+
     local talkOnRightClick = panels.generalPanel:recursiveGetChildById('talkOnRightClick')
     if talkOnRightClick then
         local parent = talkOnRightClick:getParent()
@@ -538,7 +543,12 @@ function setOption(key, value, force)
 end
 
 function setupOptionsMainButton()
-    if extraWidgets.optionsButtons then
+    -- After a language change every module reloads and the main panel builds
+    -- its buttons again, so a button from before the reload is gone.
+    if extraWidgets.optionsButtons and not extraWidgets.optionsButtons:isDestroyed() then
+        return
+    end
+    if not modules.game_mainpanel or not modules.game_mainpanel.addSpecialToggleButton then
         return
     end
 

@@ -2,6 +2,7 @@ dofile 'neededtranslations'
 
 -- private variables
 local defaultLocaleName = 'en'
+local USER_CHOSEN_SETTING = 'nexusLocaleChosenByUser'
 local installedLocales
 local currentLocale
 
@@ -48,6 +49,9 @@ function selectFirstLocale(name)
         localesWindow:destroy()
         localesWindow = nil
     end
+    -- Only a language picked by the player here counts as their choice.
+    g_settings.set(USER_CHOSEN_SETTING, true)
+    g_settings.save()
     if setLocale(name) then
         g_modules.reloadModules()
     end
@@ -58,11 +62,12 @@ function onGameStart()
     sendLocale(currentLocale.name)
 end
 
+-- A server may ask for its own language (Brazilian servers send "pt"). The
+-- client is shared by all servers, so it keeps the player's language: a
+-- server request used to switch it and reload every module mid-game.
 function onExtendedLocales(protocol, opcode, buffer)
-    local locale = installedLocales[buffer]
-    if locale and setLocale(locale.name) then
-        g_modules.reloadModules()
-    end
+    pdebug(string.format('[Locales] Server asked for locale "%s"; keeping "%s".', tostring(buffer),
+        currentLocale and currentLocale.name or defaultLocaleName))
 end
 
 -- public functions
@@ -72,6 +77,11 @@ function init()
     installLocales('/locales')
 
     local userLocaleName = g_settings.get('locale', 'false')
+    -- A language set by a server (not chosen by the player) goes back to English.
+    if userLocaleName ~= 'false' and userLocaleName ~= defaultLocaleName and
+        not g_settings.getBoolean(USER_CHOSEN_SETTING) then
+        userLocaleName = defaultLocaleName
+    end
     if userLocaleName ~= 'false' and setLocale(userLocaleName) then
         pdebug('Using configured locale: ' .. userLocaleName)
     else
