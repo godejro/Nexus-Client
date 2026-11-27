@@ -1,3 +1,6 @@
+- **Rozmiar minimapy zapamiętany:** mapa rozszerzona na dwa panele (strzałka „>”) i jej wysokość wracają takie same po ponownym uruchomieniu klienta i po relogu.
+- **Tibia Coins pojedynczo na markecie:** suwak ilości nie przeskakuje już do skrajnych wartości (np. 25). Można kupić i sprzedać dowolną ilość, np. 1, 14 albo 26. Błąd dotyczył każdego przedmiotu z ID od 10000: suwak skakał co 1000.
+- **Zmiana języka nie kasuje ustawień:** po zmianie języka ustawienia pasków akcji i „Enable lights” w grafice zostają takie, jak były.
 - **Okno handlu z NPC na środku ekranu:** otwiera się na środku. Jeśli je przesuniesz, przy następnym handlu otworzy się w tym samym miejscu, aż do wylogowania, relogu albo zmiany serwera. To samo dotyczy okna Sell All.
 - **Sell All: przycisk Apply przy opóźnieniu.** Zmiana opóźnienia zapisuje się dopiero po kliknięciu Apply (albo Enter), z potwierdzeniem na ekranie. Działa od razu, także w trakcie trwającej sprzedaży.
 - **Pisanie na czacie przy włączonym Chat On:** po kliknięciu w okno bota, umiejętności czy plecak klawisze już nie giną. Wpisywane litery zawsze trafiają do czatu, jak w Tibii. Pola tekstowe innych okien dalej dostają swoje klawisze.

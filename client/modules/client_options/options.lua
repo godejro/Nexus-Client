@@ -203,27 +203,69 @@ local function setupComboBox()
     panels.keybindsPanel.presets.list:setCurrentOption(Keybind.currentPreset)
 end
 
+local setupTries = 0
 local function setup()
+    -- After a language change all modules reload; wait for the game interface.
+    if not modules.game_interface or not modules.game_interface.getMapPanel then
+        setupTries = setupTries + 1
+        if setupTries < 50 then scheduleEvent(setup, 100) end
+        return
+    end
     panels.gameMapPanel = modules.game_interface.getMapPanel()
 
     setupComboBox()
 
     -- load options
+    -- Each option loads on its own: after a language change every module is
+    -- reloaded, and one option whose module was not ready yet (action bars,
+    -- for example) used to stop the loop, so the options after it, such as
+    -- the action bar settings or Enable lights, came back unchecked.
+    local failed = {}
     for k, obj in pairs(options) do
         if k ~= 'mouseControlMode' and k ~= 'classicControl' and k ~= 'smartLeftClick' then
             local v = obj.value
-
+            local value
             if type(v) == 'boolean' then
-                local value = g_settings.getBoolean(k)
-                setOption(k, value, true)
+                value = g_settings.getBoolean(k)
             elseif type(v) == 'number' then
-                local value = g_settings.getNumber(k)
-                setOption(k, value, true)
+                value = g_settings.getNumber(k)
             elseif type(v) == 'string' then
-                local value = g_settings.getString(k)
-                setOption(k, value, true)
+                value = g_settings.getString(k)
+            end
+            if value ~= nil then
+                local ok, err = false, 'game interface not loaded'
+                if modules.game_interface then
+                    ok, err = pcall(setOption, k, value, true)
+                end
+                if not ok then
+                    obj.value = value
+                    failed[k] = value
+                    g_logger.debug(string.format('[client_options] %s not applied yet: %s', k, tostring(err)))
+                end
             end
         end
+    end
+    local tries = 0
+    local function retryFailed()
+        tries = tries + 1
+        local left = false
+        for k, value in pairs(failed) do
+            if modules.game_interface and pcall(setOption, k, value, true) then
+                failed[k] = nil
+            else
+                left = true
+            end
+        end
+        if left and tries < 10 then
+            scheduleEvent(retryFailed, 500)
+        elseif left then
+            for k in pairs(failed) do
+                g_logger.warning(string.format('[client_options] Could not apply option %s', k))
+            end
+        end
+    end
+    if next(failed) then
+        scheduleEvent(retryFailed, 300)
     end
 
     -- Load these linked settings once, in a deterministic order. The old pairs()

@@ -51,9 +51,20 @@ local function arrangeWideMap()
     mapController.ui:raise()
 end
 
-local function releaseWideMap()
+local WIDE_SETTING='nexusMinimapWide'
+local function rememberMapSize()
+    if not mapController or not mapController.ui or mapController.ui:isDestroyed() then return end
+    local height=mapController.ui:getHeight()
+    if height>=134 then g_settings.set('nexusMinimapHeight',height) end
+    g_settings.set(WIDE_SETTING,wideMap)
+end
+
+-- keepSetting: the client is closing, so the wide map comes back next time.
+local function releaseWideMap(keepSetting)
     if not wideMap then return end
+    if keepSetting then rememberMapSize() end
     wideMap=false
+    if not keepSetting then g_settings.set(WIDE_SETTING,false) g_settings.save() end
     local root=modules.game_interface and modules.game_interface.getRootPanel()
     local main=modules.game_interface and modules.game_interface.getMainRightPanel()
     local extra=modules.game_interface and modules.game_interface.getRightExtraPanel()
@@ -111,6 +122,7 @@ function toggleWideMinimap()
     if modules.game_mainpanel and modules.game_mainpanel.reloadMainPanelSizes then
         modules.game_mainpanel.reloadMainPanelSizes()
     end
+    g_settings.set(WIDE_SETTING,true) g_settings.save()
 end
 
 local function sanitizeProfilePart(value)
@@ -790,6 +802,13 @@ function mapController:onInit()
         widget.minimapBorder:setHeight(math.max(111,height-23))
         if mainMapSpace then mainMapSpace.panelHeight=height mainMapSpace:setHeight(height) end
         if extraMapSpace then extraMapSpace.panelHeight=height extraMapSpace:setHeight(height) end
+        if g_game.isOnline() then
+            if mapController.saveSizeEvent then removeEvent(mapController.saveSizeEvent) end
+            mapController.saveSizeEvent=scheduleEvent(function()
+                mapController.saveSizeEvent=nil
+                rememberMapSize()
+            end,1000)
+        end
         arrangeWideMap()
         if modules.game_mainpanel then modules.game_mainpanel.reloadMainPanelSizes() end
         resizing=false
@@ -824,6 +843,12 @@ function mapController:onGameStart()
     self.ui:setHeight(self.ui.panelHeight)
     self.ui:show()
     modules.game_mainpanel.reloadMainPanelSizes()
+    -- Bring back the map as it was left: widened over two panels and its height.
+    if g_settings.getBoolean(WIDE_SETTING) and not wideMap then
+        scheduleEvent(function()
+            if g_game.isOnline() and not wideMap then toggleWideMinimap() end
+        end,300)
+    end
     g_satelliteMap.clear()
     staticMinimapAssetsDir = nil
     loadedStaticMinimapFloors = {}
@@ -916,7 +941,10 @@ end
 function mapController:onTerminate()
     if mapAutosave then removeEvent(mapAutosave) mapAutosave = nil end
     if g_game.isOnline() then pcall(saveExploredMap) end
-    releaseWideMap()
+    if mapController.saveSizeEvent then removeEvent(mapController.saveSizeEvent) mapController.saveSizeEvent=nil end
+    rememberMapSize()
+    releaseWideMap(true)
+    g_settings.save()
     if iconTopMenu then
         iconTopMenu:destroy()
         iconTopMenu = nil

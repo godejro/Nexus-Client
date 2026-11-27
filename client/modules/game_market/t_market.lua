@@ -9,6 +9,18 @@ local sellOffers = {}
 local lastSelectedCategory = nil
 local lastSelectedItem = {}
 
+-- Step of the amount sliders. It was taken from the item id, so every item
+-- with an id of 10000 or more (Tibia Coins too) snapped by 1000 while dragging
+-- and jumped straight to the first or last value. Coins follow the server's
+-- lot size, everything else moves one by one.
+function marketAmountStep()
+    if lastSelectedItem and lastSelectedItem.itemId == 22118 then
+        return getCoinLot()
+    end
+    return 1
+end
+
+
 local lastSelectedMySell = nil
 local lastSelectedMyBuy = nil
 
@@ -1505,7 +1517,7 @@ function onSelectBuyOffer(widget, selected, oldFocus)
     mainMarket.totalSellValue:setText(comma_value(currentOffer.price))
     mainMarket.buyAcceptButton:setEnabled(true)
 
-    local steps = getCoinStepValue(lastSelectedItem.itemId)
+    local steps = marketAmountStep()
     mainMarket.amountBuyScrollBar:setStep(steps)
 
     if lastSelectedItem.itemId == 22118 then
@@ -1550,7 +1562,7 @@ function updateSellCount(widget, value)
         return
     end
 
-    local steps = getCoinStepValue(lastSelectedItem.itemId)
+    local steps = marketAmountStep()
     mainMarket.amountSellScrollBar:setStep(steps)
 
     local currentOffer = sellOffers[cache.SCROLL_SELL_OFFERS.lastSelected]
@@ -1691,7 +1703,7 @@ function onPiecePriceEdit(widget)
         mainMarket.amountCreateScrollBar:setValue(amount)
     end
 
-    local steps = getCoinStepValue(lastSelectedItem.itemId)
+    local steps = marketAmountStep()
     mainMarket.amountCreateScrollBar:setIncrementStep(1)
     local lot = getCoinLot()
     if isTibiaCoin then
