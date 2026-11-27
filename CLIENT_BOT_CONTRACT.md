@@ -53,3 +53,19 @@ end
 ```
 
 Gdy wyglądu nie da się narysować, przedmiot zawsze rysuje się w oryginale.
+
+## UI texture brightness: wyłączenie dla okien bota
+
+Opcja klienta „UI texture brightness” (`g_ui.setTextureBrightness`) przyciemnia tekstury interfejsu. Okna bota mogą być z niej wyłączone:
+
+- Lua: `widget:setIgnoreTextureBrightness(true)`. Flaga obejmuje widget i **wszystkie jego dzieci**, także dodane później.
+- OTUI: `ignore-texture-brightness: true`.
+- Odczyt: `widget:isIgnoreTextureBrightness()` (flaga tego widgetu), `widget:isIgnoringTextureBrightness()` (flaga tego widgetu albo któregoś z rodziców).
+
+Dostępne od exe zbudowanego 27.11.2026 (`build-ui-brightness-20261127`). Na starszym exe funkcji nie ma, dlatego trzeba sprawdzić jej istnienie:
+
+```lua
+if window.setIgnoreTextureBrightness then
+    window:setIgnoreTextureBrightness(true)
+end
+```
