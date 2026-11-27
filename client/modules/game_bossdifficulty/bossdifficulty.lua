@@ -228,8 +228,11 @@ end
 
 local function register()
     if registered then return end
-    -- Only modern clients know this window; older protocols use 0x2F differently or not at all.
-    if g_game.getClientVersion() < 1500 then return end
+    -- Boss challenge levels (Make Believe) arrived with the Summer Update 2026,
+    -- protocol 15.30. On 15.25 and older the 0x2F opcode means something else
+    -- or nothing, so the window is not registered there.
+    local protocol = g_game.getProtocolVersion and g_game.getProtocolVersion() or g_game.getClientVersion()
+    if g_game.getClientVersion() < 1530 or protocol < 1530 then return end
     ProtocolGame.registerOpcode(OPCODE_SERVER, onBossDifficulty)
     registered = true
 end

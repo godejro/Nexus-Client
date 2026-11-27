@@ -1,3 +1,4 @@
+- **Okno trudności bossów (Make Believe) tylko od protokołu 15.30:** na serwerach 15.25 i starszych klient nie nasłuchuje już tego pakietu, bo tam oznacza on coś innego albo nie istnieje.
 - **Limit dustu jak w obecnej Tibii:** w Exaltation Forge każde podniesienie limitu dodaje 20 dustu (zamiast 1), maksymalnie do 4000. Koszt podniesienia jest taki jak wcześniej dla danego kroku (25 + liczba wykonanych podniesień). Serwery na starym systemie (limit +1, maksimum 225/325) działają jak dotąd.
 - **Język klienta zostaje Twój:** serwer (np. brazylijski) nie może już sam przełączyć języka klienta. Wcześniej przełączał go na portugalski albo hiszpański w trakcie gry. Język ustawiony przez serwer wraca na angielski, a język wybrany przez Ciebie zostaje.
 - **Zębatka ustawień pod ekwipunkiem nie znika** po zmianie języka.
