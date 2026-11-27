@@ -964,10 +964,9 @@ function forgeData(data)
     ForgeController.conversion.dustToSilverLabel = string.format("Generate %d", ForgeController.conversion.dustToSilver)
     ForgeController.conversion.sliverToCore = data.sliverToCore or 50
     ForgeController.conversion.sliverToCoreLabel = "Generate 1"
-    ForgeController.conversion.dustCap = data.maxDustCap or 225
     local dustMax = data.maxDustLevel or 100
     ForgeController.conversion.dustMax = dustMax
-    ForgeController.conversion.dustMaxIncreaseCost = dustMax - 75
+    ForgeController.conversion.serverDustCap = data.maxDustCap
     ForgeController.conversion:handleButtons()
     -- CONVERSION
 end
@@ -1083,18 +1082,37 @@ function ForgeController:getColor(currentType)
     return base
 end
 
+-- Dust limit (Weapon Proficiency Update): each upgrade raises the limit by 20
+-- instead of 1, up to 4000, and the cost of the n-th upgrade is unchanged
+-- (25 + n dust). Servers still on the old system (limit +1, cap 225/325)
+-- are recognised by a cap of 325 or less and a limit off the 20 grid.
+local DUST_START = 100
+local DUST_STEP = 20
+local DUST_MAX_CAP = 4000
+
+local function dustLimitRules(dustMax, serverCap)
+    local oldSystem = serverCap and serverCap > 0 and serverCap <= 325 and dustMax <= 325 and
+        (dustMax - DUST_START) % DUST_STEP ~= 0
+    if oldSystem then
+        return 1, serverCap, dustMax - 75
+    end
+    local cap = (serverCap and serverCap > 325) and serverCap or DUST_MAX_CAP
+    local upgrades = math.max(0, math.floor((dustMax - DUST_START) / DUST_STEP))
+    return DUST_STEP, cap, 25 + upgrades
+end
+
 -- CONVERSION MENU
 ForgeController.conversion = {
     fusionPrices = {},
-    dustCap = 225,
+    dustCap = DUST_MAX_CAP,
     dustMax = 100,
     necessaryDustToSliver = 60,
     dustToSliver = 3,
     sliverToCore = 50,
-    dustMaxIncreaseCost = 100,
+    dustMaxIncreaseCost = 25,
     dustToSilverLabel = "Generate 3",
     sliverToCoreLabel = "Generate 1",
-    dustMaxLabel = "Raise limit from\n100 to 101",
+    dustMaxLabel = "Raise limit from\n100 to 120",
     disableDustConversion = true,
     disableSliverConversion = true,
     disableIncreaseDustLimit = true,
@@ -1108,6 +1126,9 @@ ForgeController.conversion = {
 
 function ForgeController.conversion.handleButtons()
     local dustMax = ForgeController.conversion.dustMax or 100
+    local step, cap, cost = dustLimitRules(dustMax, ForgeController.conversion.serverDustCap)
+    ForgeController.conversion.dustCap = cap
+    ForgeController.conversion.dustMaxIncreaseCost = cost
     ForgeController.conversion.disableDustConversion = ForgeController.currentDust <
         ForgeController.conversion.necessaryDustToSliver
     ForgeController.conversion.disableSliverConversion = ForgeController.currentSlivers <
@@ -1120,7 +1141,8 @@ function ForgeController.conversion.handleButtons()
         ForgeController.conversion.dustMaxLabel = "Maximum Reached"
         ForgeController.conversion.disableIncreaseDustLimit = true
     else
-        ForgeController.conversion.dustMaxLabel = string.format("Raise limit from\n%d to %d", dustMax, dustMax + 1)
+        ForgeController.conversion.dustMaxLabel = string.format("Raise limit from\n%d to %d", dustMax,
+            math.min(dustMax + step, cap))
     end
 end
 

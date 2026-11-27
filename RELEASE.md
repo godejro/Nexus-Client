@@ -1,3 +1,4 @@
+- **Limit dustu jak w obecnej Tibii:** w Exaltation Forge każde podniesienie limitu dodaje 20 dustu (zamiast 1), maksymalnie do 4000. Koszt podniesienia jest taki jak wcześniej dla danego kroku (25 + liczba wykonanych podniesień). Serwery na starym systemie (limit +1, maksimum 225/325) działają jak dotąd.
 - **Język klienta zostaje Twój:** serwer (np. brazylijski) nie może już sam przełączyć języka klienta. Wcześniej przełączał go na portugalski albo hiszpański w trakcie gry. Język ustawiony przez serwer wraca na angielski, a język wybrany przez Ciebie zostaje.
 - **Zębatka ustawień pod ekwipunkiem nie znika** po zmianie języka.
 - **Mniej przycięć po zabiciu potwora:** po każdym zabiciu serwer wysyła doświadczenie Weapon Proficiency, a klient za każdym razem sortował wszystkie listy broni (22–68 ms). Teraz listy sortują się tylko wtedy, gdy okno proficiency jest otwarte.
