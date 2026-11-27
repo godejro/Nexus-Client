@@ -1169,6 +1169,24 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
     cancelMapUse()
     local keyboardModifiers = g_keyboard.getModifiers()
 
+    -- Options > Controls > "Walk with right mouse button": a right click on
+    -- plain floor walks there. Creatures, corpses and usable items keep
+    -- their normal right-click action.
+    if mouseButton == MouseRightButton and keyboardModifiers == KeyboardNoModifier and autoWalkPos and
+        not creatureThing and not g_platform.isMobile() and modules.client_options.getOption('walkRightMouse') then
+        local plainFloor = not useThing or useThing:isGround() or
+            not (useThing:isUsable() or useThing:isContainer() or useThing:isPickupable() or useThing:isLyingCorpse() or
+                useThing:isMultiUse())
+        if plainFloor then
+            local player = g_game.getLocalPlayer()
+            if player then
+                player:stopAutoWalk()
+                player:autoWalk(autoWalkPos)
+            end
+            return true
+        end
+    end
+
     local smartLeftClick = modules.client_options.getOption('smartLeftClick')
     local classicControls = modules.client_options.getOption('classicControl')
 

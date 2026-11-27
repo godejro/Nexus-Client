@@ -35,16 +35,18 @@ SpecialConditionLabelSettings < UIWidget
     image-clip: 0 0 12 12
 
 OptionsCategory < UIWidget
-  size: 115 22
+  size: 118 22
   image-source: /images/ui/1pixel_down_frame
   image-border: 5
   UIWidget
     id: Button
-    size: 115 20
+    height: 20
     anchors.top: parent.top
     anchors.left: parent.left
-    margin-left: 1
+    anchors.right: parent.right
     margin-top: 1
+    margin-left: 1
+    margin-right: 1
     image-source: /images/ui/button-grey-up
     image-border: 5
     opacity: 1.0
@@ -57,37 +59,37 @@ OptionsCategory < UIWidget
       size: 13 13
       anchors.left: parent.left
       anchors.verticalCenter: parent.verticalCenter
-      margin-left: 10
+      margin-left: 7
       phantom: true
-      $checked:
-        margin-left: 11
-        margin-top: 1
-      $!checked:
-        margin-left: 10
-        margin-top: 0
     Label
       id: Title
-      anchors.left: Icon.right
-      anchors.verticalCenter: Icon.verticalCenter
-      margin-left: 10
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
       text-align: center
       text-auto-resize: true
+      phantom: true
       !text: tr('General Stats')
       color: #ffffff
       font: cipsoftFont
-      $checked:
-        text-offset: 12 10
-      $!checked:
-        text-offset: 0 0
     UIWidget
       id: Arrow
       size: 7 7
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      margin-right: 5
+      margin-right: 6
       phantom: true
       image-source: /images/ui/icon-arrow7x7-down
       visible: false
+
+OptionsSearchResult < UIWidget
+  height: 18
+  text-align: left
+  text-offset: 6 0
+  color: #c0c0c0ff
+  focusable: false
+  $hover:
+    background-color: #ffffff22
+    color: #ffffff
 
 OptionCheckBox < QtCheckBox
   anchors.left: parent.left
@@ -182,7 +184,7 @@ MainWindow
 
   $on:
     image-border-bottom: 2
-  @onEnter: modules.client_options.hide()
+  @onEnter: modules.client_options.onWindowEnter()
   @onEscape: modules.client_options.hide()
   $mobile:
     size: 500 380
@@ -227,12 +229,93 @@ MainWindow
     margin-left: 10
     margin-bottom: 10
 
+  UIWidget
+    id: searchResults
+    anchors.fill: optionsTabContent
+    background-color: #2a2a2aff
+    border-width: 1
+    border-color: #00000077
+    visible: false
+    padding: 4
+
+    Label
+      id: searchHeader
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 18
+      color: #909090ff
+      text-align: left
+
+    UIScrollArea
+      id: searchList
+      anchors.top: searchHeader.bottom
+      anchors.left: parent.left
+      anchors.right: searchScrollBar.left
+      anchors.bottom: parent.bottom
+      margin-top: 4
+      vertical-scrollbar: searchScrollBar
+      layout:
+        type: verticalBox
+
+    VerticalScrollBar
+      id: searchScrollBar
+      anchors.top: searchHeader.bottom
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      margin-top: 4
+      step: 18
+      pixels-scroll: true
+
+  TextEdit
+    id: optionsSearch
+    size: 180 20
+    anchors.left: parent.left
+    anchors.bottom: parent.bottom
+    margin-bottom: -8
+    margin-left: 1
+    !placeholder: tr('Search...')
+    placeholder-color: #6E706F
+    @onTextChange: modules.client_options.searchOptions(self:getText())
+
   QtButton
-    !text: tr('Ok')
-    size: 64 20
+    id: optionsSearchClear
+    !text: 'X'
+    size: 20 20
+    anchors.left: optionsSearch.right
+    anchors.bottom: parent.bottom
+    margin-bottom: -8
+    margin-left: 3
+    !tooltip: tr('Clear search')
+    @onClick: modules.client_options.clearSearch()
+
+  QtButton
+    id: optionsCancel
+    !text: tr('Cancel')
+    size: 56 20
     anchors.right: parent.right
     anchors.bottom: parent.bottom
     margin-bottom: -8
+    @onClick: modules.client_options.cancelOptions()
+
+  QtButton
+    id: optionsApply
+    !text: tr('Apply')
+    size: 56 20
+    anchors.right: optionsCancel.left
+    anchors.bottom: parent.bottom
+    margin-bottom: -8
+    margin-right: 6
+    @onClick: modules.client_options.applyOptions()
+
+  QtButton
+    id: optionsOk
+    !text: tr('Ok')
+    size: 56 20
+    anchors.right: optionsApply.left
+    anchors.bottom: parent.bottom
+    margin-bottom: -8
+    margin-right: 6
     @onClick: |
       modules.client_options.saveOptions()
       modules.client_options.hide()

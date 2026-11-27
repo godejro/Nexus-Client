@@ -22,16 +22,32 @@ local keys = {
     { "Numpad7", NorthWest },
 }
 
-local turnKeys = {
-  { "Control+Up",    North },
-  { "Control+Right", East },
-  { "Control+Down",  South },
-  { "Control+Left",  West },
-  { "Control+Numpad8", North },
-  { "Control+Numpad6", East },
-  { "Control+Numpad2", South },
-  { "Control+Numpad4", West },
+local turnDirections = {
+  { "Up",      North },
+  { "Right",   East },
+  { "Down",    South },
+  { "Left",    West },
+  { "Numpad8", North },
+  { "Numpad6", East },
+  { "Numpad2", South },
+  { "Numpad4", West },
 }
+
+-- Which modifiers turn the character with the arrow keys (Options >
+-- Controls > "To Rotate Your Character Hold"). Ctrl by default, like Tibia.
+local turnModifiers = { "Control" }
+
+local function buildTurnKeys()
+  local list = {}
+  for _, modifier in ipairs(turnModifiers) do
+    for _, entry in ipairs(turnDirections) do
+      list[#list + 1] = { modifier .. "+" .. entry[1], entry[2] }
+    end
+  end
+  return list
+end
+
+local turnKeys = buildTurnKeys()
 
 WalkController = Controller:new()
 
@@ -126,6 +142,12 @@ local function walk(dir)
         local toTile = g_map.getTile(toPos)
         if not toTile or not toTile:isWalkable() then
             if not canChangeFloor(toPos, 1) and not canChangeFloor(toPos, -1) then
+                -- "Always turn towards the direction of movement": face the
+                -- blocked direction instead of standing still facing away.
+                if dir <= West and player:getDirection() ~= dir and
+                    modules.client_options and modules.client_options.getOption('turnToMoveDirection') then
+                    g_game.turn(dir)
+                end
                 return false
             end
         else
@@ -196,9 +218,26 @@ local function turn(dir, repeated)
     end
 end
 
+--- Keyboard delay: how long an arrow key is held before the character keeps
+--- walking. Set from Options > Controls (30-1000 ms, default 250 ms).
+function setKeyboardDelay(delay)
+    local root = modules.game_interface and modules.game_interface.getRootPanel()
+    if root then
+        root:setAutoRepeatDelay(math.max(30, math.min(1000, tonumber(delay) or 250)))
+    end
+end
+
+--- Rebinds the turn keys for the chosen modifiers ("Control", "Shift", "Alt").
+function setTurnModifiers(modifiers)
+    for _, keyDir in ipairs(turnKeys) do unbindTurnKey(keyDir[1]) end
+    turnModifiers = modifiers or {}
+    turnKeys = buildTurnKeys()
+    for _, keyDir in ipairs(turnKeys) do bindTurnKey(keyDir[1], keyDir[2]) end
+end
+
 --- Binds movement keys to their respective directions.
 local function bindKeys()
-    modules.game_interface.getRootPanel():setAutoRepeatDelay(200)
+    modules.game_interface.getRootPanel():setAutoRepeatDelay(250)
 
     for _, keyDir in ipairs(keys) do bindWalkKey(keyDir[1], keyDir[2]) end
     for _, keyDir in ipairs(turnKeys) do bindTurnKey(keyDir[1], keyDir[2]) end
@@ -247,6 +286,17 @@ end
 --- Initializes the WalkController.
 function WalkController:onInit()
     bindKeys()
+    -- Apply the saved Controls options if the options module is already up
+    -- (otherwise it applies them itself once it loads).
+    local options = modules.client_options
+    if options and options.getOption and options.getOption('turnModCtrl') ~= nil then
+        local list = {}
+        if options.getOption('turnModCtrl') then list[#list + 1] = "Control" end
+        if options.getOption('turnModShift') then list[#list + 1] = "Shift" end
+        if options.getOption('turnModAlt') then list[#list + 1] = "Alt" end
+        setTurnModifiers(list)
+        setKeyboardDelay(options.getOption('useDefaultKeyboardDelay') and 250 or options.getOption('keyboardDelay'))
+    end
 end
 
 function WalkController:onTerminate()

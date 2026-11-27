@@ -33,6 +33,34 @@ local function applyMouseControlMode(mode, options, panels)
     syncingMouseControls = false
 end
 
+local DEFAULT_KEYBOARD_DELAY = 250
+
+-- Keyboard delay row: the slider works only while "Use Default" is off.
+local function applyKeyboardDelay(useDefault, delay, panels)
+    delay = math.max(30, math.min(1000, math.floor(tonumber(delay) or DEFAULT_KEYBOARD_DELAY)))
+    if modules.game_walk and modules.game_walk.setKeyboardDelay then
+        modules.game_walk.setKeyboardDelay(useDefault and DEFAULT_KEYBOARD_DELAY or delay)
+    end
+    local widget = panels and panels.generalPanel and panels.generalPanel:recursiveGetChildById('keyboardDelay')
+    if widget then
+        widget:setText(tr('Keyboard Delay: %d ms', delay))
+        widget:setEnabled(not useDefault)
+        local bar = widget:getChildById('valueBar')
+        if bar then bar:setEnabled(not useDefault) end
+    end
+end
+
+local function applyTurnModifiers(options, changedKey, changedValue)
+    local list = {}
+    for _, entry in ipairs({ { 'turnModCtrl', 'Control' }, { 'turnModShift', 'Shift' }, { 'turnModAlt', 'Alt' } }) do
+        local on = entry[1] == changedKey and changedValue or (entry[1] ~= changedKey and options[entry[1]].value)
+        if on then list[#list + 1] = entry[2] end
+    end
+    if modules.game_walk and modules.game_walk.setTurnModifiers then
+        modules.game_walk.setTurnModifiers(list)
+    end
+end
+
 return {
     uiTextureBrightness = {
         value = 100,
@@ -117,6 +145,42 @@ return {
     autoChaseOverride                 = true,
     talkOnRightClick                  = false,
     moveStack                         = false,
+    -- Options > Controls (Tibia-style first page)
+    walkRightMouse                    = false,
+    turnToMoveDirection               = false,
+    useDefaultKeyboardDelay           = {
+        value = true,
+        action = function(value, options, controller, panels, extraWidgets)
+            applyKeyboardDelay(value, options.keyboardDelay.value, panels)
+        end
+    },
+    keyboardDelay                     = {
+        value = DEFAULT_KEYBOARD_DELAY,
+        action = function(value, options, controller, panels, extraWidgets)
+            applyKeyboardDelay(options.useDefaultKeyboardDelay.value, value, panels)
+        end
+    },
+    turnModCtrl                       = {
+        value = true,
+        action = function(value, options) applyTurnModifiers(options, 'turnModCtrl', value) end
+    },
+    turnModShift                      = {
+        value = false,
+        action = function(value, options) applyTurnModifiers(options, 'turnModShift', value) end
+    },
+    turnModAlt                        = {
+        value = false,
+        action = function(value, options) applyTurnModifiers(options, 'turnModAlt', value) end
+    },
+    -- "Press CTRL to Drag Complete Stacks" is the inverse of moveStack:
+    -- on, a drag asks for the amount and Ctrl+drag moves the whole stack.
+    ctrlDragStacks                    = {
+        value = true,
+        action = function(value, options)
+            options.moveStack.value = not value
+            g_settings.set('moveStack', not value)
+        end
+    },
     showStatusMessagesInConsole       = true,
     showEventMessagesInConsole        = true,
     showInfoMessagesInConsole         = true,

@@ -1,3 +1,18 @@
+OptionInfoIcon < UIWidget
+  image-source: /images/icons/show_gui_help_grey
+  size: 12 12
+  anchors.right: parent.right
+  anchors.verticalCenter: prev.verticalCenter
+  margin-right: 3
+
+OptionInlineCheckBox < QtCheckBox
+  width: 46
+  color: #c0c0c0ff
+  anchors.verticalCenter: prev.verticalCenter
+  anchors.left: prev.right
+  margin-left: 8
+  @onCheckChange: modules.client_options.setOption(self:getId(), self:isChecked())
+
 UIWidget
   anchors.fill: parent
   visible: false
@@ -7,81 +22,141 @@ UIWidget
     anchors.left: parent.left
     anchors.right: generalScrollBar.left
     anchors.top: parent.top
-    anchors.bottom: parent.bottom
+    anchors.bottom: resetControls.top
+    margin-bottom: 6
     vertical-scrollbar: generalScrollBar
 
-    SmallReversedQtPanel
+    UIWidget
+      id: mousePresetGroup
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.top: parent.top
-      height: 22
-
-      OptionCheckBoxMarked
-        id: showPing
-        !text: tr('Show connection ping')
-        !tooltip: tr('Display connection speed to the server (milliseconds)')
-
-      OptionCheckBoxMarked
-        id: showFps
-        !text: tr('Show FPS')
-        !tooltip: tr('Show frame rate')
-        anchors.left: parent.left
-        margin-left: 210
-
-      OptionCheckBoxMarked
-        id: showServerName
-        !text: tr('Show server name')
-        anchors.left: parent.left
-        margin-left: 330
-
-    SmallReversedQtPanel
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: prev.bottom
-      height: 32
-      margin-top: 7
-
-      $mobile:
-        height: 0
-        margin-top: 0
-        visible: false
+      height: 46
+      padding: 3
 
       Label
         id: mouseControlLabel
         anchors.left: parent.left
-        margin-left: 18
+        anchors.top: parent.top
+        margin-top: 4
+        margin-left: 2
         color: #c0c0c0ff
-        anchors.verticalCenter: parent.verticalCenter
-        text-align: left
-        !text: tr('Mouse Control:')
+        text-auto-resize: true
+        !text: tr('Mouse Preset:')
 
       QtComboBox
         id: mouseControlMode
-        width: 120
-        margin-left: 10
+        width: 140
+        margin-left: 8
         anchors.verticalCenter: prev.verticalCenter
         anchors.left: prev.right
         mouse-scroll: false
-        !tooltip: tr('Regular Controls: Right-click opens menu, use Ctrl+Click for direct item use\nClassic Controls: Right-click for direct use\nLeft Smart-Click: Left-click for direct item use, look at non-walkable objects, or walk to walkable objects. Right-click opens menu')
-
-        $mobile:
-          visible: false
 
       QtComboBox
         id: lootControlMode
-        width: 120
-        margin-left: 10
+        width: 140
+        margin-left: 6
         anchors.verticalCenter: prev.verticalCenter
         anchors.left: prev.right
         mouse-scroll: false
-        !tooltip: tr('Choose how to loot items when using Classic Controls\nLoot: Right - Use right-click to quickloot AND open containers/corpses\nLoot: SHIFT+Right - Use SHIFT+right-click for quick looting (right-click maintains normal use/open behavior)\nLoot: Left - Use left-click for quick looting only (right-click maintains normal use/open behavior)')
         visible: false
+
+      OptionInfoIcon
+        anchors.verticalCenter: mouseControlLabel.verticalCenter
+        !tooltip: tr('Regular Controls: right-click opens the menu, Ctrl+click uses items.\nClassic Controls: right-click uses items directly.\nLeft Smart-Click: left-click uses items, looks at objects or walks.\n\nWith Classic Controls the second list chooses how to quick loot.')
+
+      OptionCheckBox
+        id: walkRightMouse
+        anchors.top: mouseControlLabel.bottom
+        margin-top: 10
+        margin-left: 2
+        !text: tr('Walk with right mouse button')
+        !tooltip: tr('Right-click on plain floor walks there. Creatures, corpses and usable items keep their normal right-click action.')
+
+    SmallReversedQtPanel
+      id: keyboardDelayGroup
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: prev.bottom
+      margin-top: 4
+      height: 44
+
+      OptionCheckBoxMarked
+        id: useDefaultKeyboardDelay
+        !text: tr('Use Default Keyboard Delay (250 ms)')
+        !tooltip: tr('How long an arrow key is held before the character keeps walking. Untick to set your own delay (30-1000 ms).')
+
+      OptionScaleScroll
+        id: keyboardDelay
+        anchors.top: prev.bottom
+        margin-top: 6
+        !text: tr('Keyboard Delay: 250 ms')
+        &minimumScrollValue: 30
+        &maximumScrollValue: 1000
+        &scrollSize: 21
+        @onSetup: |
+          local value = modules.client_options.getOption('keyboardDelay')
+          self:setText(tr('Keyboard Delay: %d ms', value))
+
+    SmallReversedQtPanel
+      id: rotateGroup
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: prev.bottom
+      margin-top: 7
+      height: 44
+
+      Label
+        id: rotateLabel
+        anchors.left: parent.left
+        anchors.top: parent.top
+        margin-left: 18
+        margin-top: 1
+        color: #c0c0c0ff
+        text-auto-resize: true
+        !text: tr('To Rotate Your Character Hold:')
+
+      OptionInlineCheckBox
+        id: turnModCtrl
+        !text: tr('Ctrl')
+
+      OptionInlineCheckBox
+        id: turnModShift
+        !text: tr('Shift')
+
+      OptionInlineCheckBox
+        id: turnModAlt
+        !text: tr('Alt')
+
+      OptionInfoIcon
+        anchors.verticalCenter: rotateLabel.verticalCenter
+        !tooltip: tr('Hold one of the ticked keys and press an arrow key to turn without walking.')
+
+      OptionCheckBoxMarked
+        id: turnToMoveDirection
+        anchors.top: rotateLabel.bottom
+        margin-top: 7
+        !text: tr('Always turn towards the direction of movement')
+        !tooltip: tr('When the way is blocked, the character still turns to face the direction you pressed.')
+
+    SmallReversedQtPanel
+      id: stacksGroup
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: prev.bottom
+      margin-top: 7
+      height: 22
+
+      OptionCheckBoxMarked
+        id: ctrlDragStacks
+        !text: tr('Press CTRL to Drag Complete Stacks')
+        !tooltip: tr('Ticked: dragging a stack asks for the amount, Ctrl+drag moves the whole stack.\nUnticked: dragging moves the whole stack, Ctrl+drag asks for the amount.')
 
     SmallReversedQtPanel
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.top: prev.bottom
-      margin-top: 7
+      margin-top: 17
       height: 22
 
       OptionCheckBox
@@ -95,32 +170,10 @@ UIWidget
       margin-top: 7
       height: 22
 
-      OptionCheckBox
-        id: talkOnRightClick
-        !text: tr('Right-click talk to NPC')
-
-    SmallReversedQtPanel
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: prev.bottom
-      margin-top: 7
-      height: 22
-
       OptionCheckBoxMarked
         id: returnDisablesChat
         !text: tr('Enter to disable chat')
         !tooltip: tr('Enables disabling chat and enabling WASD when pressed Enter.')
-
-    SmallReversedQtPanel
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: prev.bottom
-      margin-top: 7
-      height: 22
-
-      OptionCheckBox
-        id: moveStack
-        !text: tr('Move stacks directly')
 
     SmallReversedQtPanel
       anchors.left: parent.left
@@ -179,7 +232,7 @@ UIWidget
         &scrollSize: 21
         @onSetup: |
           local value = modules.client_options.getOption('walkTeleportDelay')
-          self:setText(tr('Walk delay after turn: %dms', value))
+          self:setText(tr('Walk delay after teleport: %dms', value))
 
     SmallReversedQtPanel
       anchors.left: parent.left
@@ -197,7 +250,7 @@ UIWidget
         &scrollSize: 21
         @onSetup: |
           local value = modules.client_options.getOption('walkStairsDelay')
-          self:setText(tr('Walk delay after turn: %dms', value))
+          self:setText(tr('Walk delay after floor change: %dms', value))
 
     QtButton
       id: hotkeysButton
@@ -206,15 +259,24 @@ UIWidget
       anchors.top: prev.bottom
       anchors.left: parent.left
       margin-top: 12
-
       size: 120 20
 
   VerticalScrollBar
     id: generalScrollBar
     anchors.top: parent.top
-    anchors.bottom: parent.bottom
+    anchors.bottom: resetControls.top
     anchors.right: parent.right
+    margin-bottom: 6
     step: 14
     pixels-scroll: true
     $!mobile:
       visible: false
+
+  QtButton
+    id: resetControls
+    !text: tr('Reset')
+    !tooltip: tr('Restore the default settings of this page.')
+    size: 48 20
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    @onClick: modules.client_options.resetControls()

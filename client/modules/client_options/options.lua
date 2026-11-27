@@ -1,4 +1,13 @@
 local options = dofile("data_options")
+-- Default of every option as shipped, for the Reset button.
+local optionDefaults = {}
+for key, obj in pairs(options) do
+    if type(obj) == 'table' then
+        optionDefaults[key] = obj.value
+    else
+        optionDefaults[key] = obj
+    end
+end
 local settingsSaveEvent = nil
 
 local function scheduleSettingsSave()
@@ -64,17 +73,6 @@ local buttons = { {
         text = "Effects",
         open = "graphicsEffectsPanel"
     } }
-}, {
-    text = "Sound",
-    icon = "/images/icons/icon_sound",
-    open = "soundPanel"
-    --[[     subCategories = {{
-        text = "Battle Sounds",
-        open = "Battle_Sounds"
-    }, {
-        text = "UI Sounds",
-        open = "UI_Sounds"
-    }} ]]
 }, {
     text = "Misc.",
     icon = "/images/icons/icon_misc",
@@ -318,6 +316,11 @@ local function setup()
         end
     end, 100)
 
+    -- The Sound page is gone: game sounds (and the bot's alarms, which use
+    -- g_sounds.play) always reach Windows. The top bar mute button still
+    -- silences the client until the next start.
+    pcall(setOption, 'enableAudio', true, true)
+
     local talkOnRightClick = panels.generalPanel:recursiveGetChildById('talkOnRightClick')
     if talkOnRightClick then
         local parent = talkOnRightClick:getParent()
@@ -332,6 +335,11 @@ controller = Controller:new()
 controller:setUI('options')
 
 function controller:onInit()
+    -- "Press CTRL to Drag Complete Stacks" replaces "Move stacks directly"
+    -- (its inverse): keep what the player had chosen before.
+    if not g_settings.exists('ctrlDragStacks') then
+        g_settings.set('ctrlDragStacks', not g_settings.getBoolean('moveStack'))
+    end
     for k, obj in pairs(options) do
         if type(obj) ~= "table" then
             obj = { value = obj }
@@ -547,7 +555,182 @@ function getOption(key)
     return option.value
 end
 
+-- Values when the window was opened (or last applied): Cancel goes back to them.
+local optionsSnapshot = nil
+
+local function takeSnapshot()
+    optionsSnapshot = {}
+    for key, obj in pairs(options) do
+        optionsSnapshot[key] = obj.value
+    end
+end
+
+function applyOptions()
+    g_settings.save()
+    takeSnapshot()
+end
+
+function cancelOptions()
+    if optionsSnapshot then
+        -- Linked mouse settings are restored through mouseControlMode alone.
+        for key, value in pairs(optionsSnapshot) do
+            if key ~= 'classicControl' and key ~= 'smartLeftClick' and options[key] and options[key].value ~= value then
+                pcall(setOption, key, value)
+            end
+        end
+    end
+    hide()
+end
+
+-- Defaults of the Controls page (Reset button).
+local CONTROLS_PAGE_OPTIONS = {
+    'mouseControlMode', 'lootControlMode', 'walkRightMouse', 'useDefaultKeyboardDelay', 'keyboardDelay',
+    'turnModCtrl', 'turnModShift', 'turnModAlt', 'turnToMoveDirection', 'ctrlDragStacks',
+    'autoChaseOverride', 'returnDisablesChat', 'openMaximized', 'displayText', 'hotkeyDelay',
+    'walkTeleportDelay', 'walkStairsDelay'
+}
+function resetControls()
+    for _, key in ipairs(CONTROLS_PAGE_OPTIONS) do
+        local default = optionDefaults[key]
+        if default ~= nil and options[key] then
+            pcall(setOption, key, default)
+        end
+    end
+end
+
+------------------------------------------------------------------------------
+-- Search: every option text in every page, matched while typing.
+------------------------------------------------------------------------------
+local function categoryOfPanel(panelName)
+    for _, category in ipairs(buttons) do
+        if category.open == panelName then
+            return category.text, nil
+        end
+        for _, sub in ipairs(category.subCategories or {}) do
+            if sub.open == panelName then
+                return category.text, sub.text
+            end
+        end
+    end
+end
+
+local function collectEntries()
+    local entries = {}
+    local seen = {}
+    local function walk(widget, panelName)
+        for _, child in ipairs(widget:getChildren()) do
+            local id = child:getId()
+            if id ~= 'toolTipWidget' and child:getClassName() ~= 'UIComboBox' then
+                local text = child.getText and child:getText() or ''
+                if type(text) == 'string' and text:len() > 2 and child:getClassName() ~= 'UITextEdit' then
+                    local clean = text:gsub('\n', ' ')
+                    local key = panelName .. '|' .. clean
+                    if not seen[key] then
+                        seen[key] = true
+                        local tooltip = child.tooltip
+                        local tip = child:getChildById('toolTipWidget')
+                        if tip and tip.tooltip then tooltip = tip.tooltip end
+                        entries[#entries + 1] = {
+                            text = clean, lower = clean:lower(), tooltip = type(tooltip) == 'string' and tooltip:lower() or '',
+                            widget = child, panel = panelName
+                        }
+                    end
+                end
+                walk(child, panelName)
+            end
+        end
+    end
+    for _, category in ipairs(buttons) do
+        local names = { category.open }
+        for _, sub in ipairs(category.subCategories or {}) do names[#names + 1] = sub.open end
+        for _, name in ipairs(names) do
+            local panel = panels[name]
+            if panel and not panel:isDestroyed() and categoryOfPanel(name) then
+                walk(panel, name)
+            end
+        end
+    end
+    return entries
+end
+
+local function highlight(widget)
+    if not widget or widget:isDestroyed() then return end
+    local scroll = widget:getParent()
+    while scroll and scroll:getClassName() ~= 'UIScrollArea' do scroll = scroll:getParent() end
+    if scroll and scroll.ensureChildVisible then
+        local row = widget
+        while row:getParent() and row:getParent() ~= scroll do row = row:getParent() end
+        pcall(scroll.ensureChildVisible, scroll, row)
+    end
+    local old = widget:getBackgroundColor()
+    widget:setBackgroundColor('#ffd70044')
+    scheduleEvent(function()
+        if not widget:isDestroyed() then widget:setBackgroundColor(old) end
+    end, 1500)
+end
+
+local function openEntry(entry)
+    local category, sub = categoryOfPanel(entry.panel)
+    clearSearch()
+    if category then
+        openOptionsCategory(category, sub)
+        scheduleEvent(function() highlight(entry.widget) end, 50)
+    end
+end
+
+local lastResults = {}
+
+function searchOptions(text)
+    local resultsPanel = controller.ui.searchResults
+    if not resultsPanel then return end
+    text = (text or ''):lower():gsub('^%s+', ''):gsub('%s+$', '')
+    if text:len() < 2 then
+        resultsPanel:hide()
+        lastResults = {}
+        return
+    end
+    local list = resultsPanel.searchList
+    list:destroyChildren()
+    lastResults = {}
+    for _, entry in ipairs(collectEntries()) do
+        if entry.lower:find(text, 1, true) or entry.tooltip:find(text, 1, true) then
+            lastResults[#lastResults + 1] = entry
+        end
+    end
+    for _, entry in ipairs(lastResults) do
+        local category, sub = categoryOfPanel(entry.panel)
+        local row = g_ui.createWidget('OptionsSearchResult', list)
+        row:setText(string.format('%s%s  >  %s', category, sub and ('  >  ' .. sub) or '', entry.text))
+        row.onClick = function() openEntry(entry) end
+    end
+    resultsPanel.searchHeader:setText(#lastResults > 0 and
+        tr('%d result(s) for "%s" - click one to open it', #lastResults, text) or
+        tr('No option matches "%s"', text))
+    resultsPanel:show()
+    resultsPanel:raise()
+end
+
+function clearSearch()
+    local edit = controller.ui.optionsSearch
+    if edit and edit:getText() ~= '' then
+        edit:setText('')
+    end
+    if controller.ui.searchResults then
+        controller.ui.searchResults:hide()
+    end
+    lastResults = {}
+end
+
+function onWindowEnter()
+    if lastResults[1] and controller.ui.searchResults and controller.ui.searchResults:isVisible() then
+        openEntry(lastResults[1])
+        return
+    end
+    hide()
+end
+
 function show()
+    takeSnapshot()
     controller.ui:show()
     controller.ui:raise()
     controller.ui:focus()
@@ -559,6 +742,7 @@ end
 function hide()
     -- Save all settings when closing the options window
     g_settings.save()
+    clearSearch()
     controller.ui:hide()
     if extraWidgets.optionsButton then
         extraWidgets.optionsButton:setOn(false)
@@ -673,7 +857,7 @@ local function createSubWidget(parent, subId, subButton)
     subWidget:addAnchor(AnchorHorizontalCenter, "parent", AnchorHorizontalCenter)
     if subId == 1 then
         subWidget:addAnchor(AnchorTop, "parent", AnchorTop)
-        subWidget:setMarginTop(20)
+        subWidget:setMarginTop(21)
     else
         subWidget:addAnchor(AnchorTop, "prev", AnchorBottom)
         subWidget:setMarginTop(-1)
@@ -698,10 +882,7 @@ function configureCharacterCategories()
             widget.Button.Arrow:setVisible(true)
 
             for subId, subButton in ipairs(button.subCategories) do
-                local subWidget = createSubWidget(widget, subId, subButton)
-                if button.text == "Controls" then
-                    subWidget.Button.Title:setMarginLeft(-5)
-                end
+                createSubWidget(widget, subId, subButton)
             end
         end
 
@@ -728,8 +909,10 @@ function configureCharacterCategories()
             end
 
             if parent.subCategoriesSize then
-                parent.closedSize = parent.closedSize or parent:getHeight() / (parent.subCategoriesSize + 1) + 15
-                parent.openedSize = parent.openedSize or parent:getHeight() * (parent.subCategoriesSize + 1) - 6
+                -- Every category row is 22 px; each sub-row adds 21 px (the
+                -- frames share one border line), so all rows line up.
+                parent.closedSize = 22
+                parent.openedSize = 22 + 21 * parent.subCategoriesSize
 
                 if not parent.opened then
                     open(parent)
