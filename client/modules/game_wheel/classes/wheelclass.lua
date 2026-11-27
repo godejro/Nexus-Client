@@ -523,11 +523,11 @@ function WheelOfDestiny.insertPoint(index, points)
           end
         else
           widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
-          widget:setImageClip(iconInfo.iconRect)
+          WheelOfDestiny.setSliceIcon(widget, index, iconInfo)
           modIcon:setVisible(false)
         end
       else
-        widget:setImageClip(iconInfo.iconRect)
+        WheelOfDestiny.setSliceIcon(widget, index, iconInfo)
       end
     else
       local maxcolor = math.floor(points / 10) + 1
@@ -577,7 +577,7 @@ function WheelOfDestiny.checkFilledVessels(originalIndex)
 		end
 
 		widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
-		widget:setImageClip(iconInfo.iconRect)
+		WheelOfDestiny.setSliceIcon(widget, id, iconInfo)
 		widget:setSize(tosize("30 30"))
 
 		if lastModInserted == 0 and gem.lesserBonus > -1 then
@@ -634,7 +634,7 @@ function WheelOfDestiny.removePoint(index, points)
         local modIcon = widget:recursiveGetChildById("modIcon"..index)
         local iconInfo = WheelIcons[WheelOfDestiny.vocationId][index]
         widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
-        widget:setImageClip(iconInfo.iconRect)
+        WheelOfDestiny.setSliceIcon(widget, index, iconInfo)
         widget:setSize(tosize("30 30"))
         modIcon:setVisible(false)
         WheelOfDestiny.equipedGemBonuses[index] = {bonusID = -1, supreme = false, gemID = 0}
@@ -660,7 +660,7 @@ function WheelOfDestiny.removePoint(index, points)
       local modIcon = widget:recursiveGetChildById("modIcon"..index)
       local iconInfo = WheelIcons[WheelOfDestiny.vocationId][index]
       widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
-      widget:setImageClip(iconInfo.iconRect)
+      WheelOfDestiny.setSliceIcon(widget, index, iconInfo)
       widget:setSize(tosize("30 30"))
       modIcon:setVisible(false)
       WheelOfDestiny.equipedGemBonuses[index] = {bonusID = -1, supreme = false, gemID = 0}
@@ -782,6 +782,18 @@ function WheelOfDestiny.onDestinyWheel(playerId, canView, changeState, vocationI
   WheelOfDestiny.configureVessels()
 end
 
+-- Base slice icon, or the 15.25+ icon of a replaced augment (WheelVersion).
+function WheelOfDestiny.setSliceIcon(widget, index, iconInfo)
+  local source, clip = WheelVersion.sliceIcon(index)
+  if source then
+    widget:setImageSource(source)
+    widget:setImageClip(clip)
+  else
+    widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
+    widget:setImageClip(iconInfo.iconRect)
+  end
+end
+
 function WheelOfDestiny.onCreate(vocationId)
 	for id, iconInfo in pairs(WheelIcons[vocationId]) do
     local widget = wheelPanel:recursiveGetChildById("icon"..id)
@@ -808,20 +820,20 @@ function WheelOfDestiny.onCreate(vocationId)
             modIcon:setVisible(true)
           else
             widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
-            widget:setImageClip(iconInfo.iconRect)
+            WheelOfDestiny.setSliceIcon(widget, id, iconInfo)
             widget:setSize(tosize("30 30"))
             modIcon:setVisible(false)
           end
         else
           widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
-          widget:setImageClip(iconInfo.iconRect)
+          WheelOfDestiny.setSliceIcon(widget, id, iconInfo)
           widget:setSize(tosize("30 30"))
           if modIcon then
             modIcon:setVisible(false)
           end
         end
       else
-        widget:setImageClip(iconInfo.iconRect)
+        WheelOfDestiny.setSliceIcon(widget, id, iconInfo)
       end
     end
 		
@@ -1162,7 +1174,7 @@ function resetWheel(ignoreprotocol)
       local modIcon = widget:recursiveGetChildById("modIcon"..index)
       local iconInfo = WheelIcons[WheelOfDestiny.vocationId][index]
       widget:setImageSource("/images/game/wheel/icons-skillwheel-mediumperks")
-      widget:setImageClip(iconInfo.iconRect)
+      WheelOfDestiny.setSliceIcon(widget, index, iconInfo)
       widget:setSize(tosize("30 30"))
       if modIcon then
         modIcon:setVisible(false)
@@ -1631,8 +1643,8 @@ function WheelOfDestiny.configureSummary()
     avatarName = "Avatar of Storm"
     spell1 = "Beam Mastery"
     tooltip1 = "Beam Mastery"
-    spell2 = "Drain Body"
-    tooltip2 = "Drain Body"
+    spell2 = WheelVersion.rename("Drain Body")
+    tooltip2 = WheelVersion.rename("Drain Body")
   elseif vocation == DRUID then
     avatarName = "Avatar of Nature"
     spell1 = "Blessing of the Gr..."
@@ -1815,6 +1827,8 @@ function WheelOfDestiny.configureSummary()
 end
 
 function WheelOfDestiny.create(playerId, canView, changeState, vocationId, points, scrollPoints, pointInvested, usedPromotionScrolls, equipedGems, atelierGems, basicUpgraded, supremeUpgraded, earnedFromAchievements)
+  -- Wheel layout of the connected server's protocol (15.11-15.24 or 15.25+).
+  WheelVersion.apply()
   WheelOfDestiny.playerId = playerId
   WheelOfDestiny.canView = canView
   WheelOfDestiny.changeState = changeState
@@ -2207,8 +2221,8 @@ function WheelOfDestiny.configureRevelationPerks()
     avatarName = "Avatar of Storm"
     spell1 = "Beam Mastery"
     tooltip1 = "Beam Mastery"
-    spell2 = "Drain Body"
-    tooltip2 = "Drain Body"
+    spell2 = WheelVersion.rename("Drain Body")
+    tooltip2 = WheelVersion.rename("Drain Body")
   elseif vocation == DRUID then
     avatarName = "Avatar of Nature"
     spell1 = "Blessing of the Gr..."
