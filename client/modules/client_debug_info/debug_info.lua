@@ -149,11 +149,12 @@ function monitor()
 end
 
 function update()
-	updateEvent = scheduleEvent(update, 20)
-
+	-- Hidden window: check twice a second instead of 50 times.
 	if not debugInfoWindow:isVisible() then
+		updateEvent = scheduleEvent(update, 500)
 		return
 	end
+	updateEvent = scheduleEvent(update, 20)
 
 	if performanceEnabled then
 		local now = g_clock.micros()
