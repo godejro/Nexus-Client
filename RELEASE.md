@@ -1,3 +1,4 @@
+- **Okno trudności bossów trzyma bossa z dźwigni:** pierwszy pakiet (otwarcie dźwigni) pokazuje właściwego bossa. Kolejne pakiety (strzałki, zmiany w drużynie) nie podmieniają go już na przypadkowego potwora ani na puste pole, a opisy poziomów zostają z ostatniego dobrego pakietu.
 - **Okno trudności bossów nie wyrzuca już z gry.** Gdy serwer wysłał pakiet tego okna w nieznanym układzie (np. z opisami poziomów), klient zrywał połączenie („Synchronization lost”). Teraz taki pakiet jest bezpiecznie pomijany, a połączenie zostaje. Okno pokazuje to, co da się odczytać.
 - **Okno trudności bossów nie zalewa logu błędami** przy każdej zmianie poziomu. Napis „Current Bad Luck Drop Bonus” nie nachodzi już na wartość. Gdy klient nie zna bossa, nie pokazuje przypadkowego potwora.
 - **Pakiet okna trudności bossów trafia do `nexus_client.log`** (w folderze klienta), żeby dało się z niego odczytać prawdziwy układ.

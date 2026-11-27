@@ -230,10 +230,26 @@ local function onBossDifficulty(protocol, msg)
         if not headerOk then
             return
         end
+        local previous = (state and window) and state or nil
         if not tailOk then
-            -- Descriptions did not match the known layout: show the window
-            -- without them instead of guessing.
-            s.penalties, s.bonuses = {}, {}
+            -- Descriptions did not match the known layout: keep the last
+            -- good ones instead of guessing.
+            s.penalties = previous and previous.penalties or {}
+            s.bonuses = previous and previous.bonuses or {}
+        end
+        if previous then
+            -- The first packet (lever) carries the boss. Later updates (arrows,
+            -- party changes) use another layout, so they must not replace the
+            -- boss or the player's records with misread values.
+            if previous.raceId > 0 and s.raceId ~= previous.raceId then
+                logPacket(string.format('0x2F update kept race=%d (packet said %d)', previous.raceId, s.raceId))
+                s.raceId = previous.raceId
+            end
+            if s.personalHighest > 25 or s.highestInGroup > 25 then
+                s.personalHighest = previous.personalHighest
+                s.highestInGroup = previous.highestInGroup
+                s.badLuck = previous.badLuck
+            end
         end
         s.minDifficulty = 0
         -- Keep the player's own choice while the server only updates the window.
