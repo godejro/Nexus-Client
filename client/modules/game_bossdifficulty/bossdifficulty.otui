@@ -27,8 +27,6 @@ BossDiffStatValue < Label
   color: #c0c0c0
 
 BossDiffModifier < Label
-  anchors.left: parent.left
-  anchors.right: parent.right
   text-wrap: true
   text-auto-resize: true
   margin-bottom: 4
@@ -45,14 +43,14 @@ BossDiffMember < Label
 MainWindow
   id: bossDifficultyWindow
   !text: tr('Boss Difficulty Selection')
-  size: 580 420
+  size: 640 420
   @onEscape: modules.game_bossdifficulty.close()
 
   BossDiffBox
     id: bossBox
     anchors.top: parent.top
     anchors.left: parent.left
-    width: 200
+    width: 250
     height: 240
 
     BossDiffHeader

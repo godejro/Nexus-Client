@@ -28,19 +28,41 @@ local function writeLog(line)
     pcall(g_resources.writeFileContents, LOG_FILE, table.concat(logLines, '\n') .. '\n')
 end
 
--- Reader that records every consumed byte as hex for the log.
+-- Bounds-checked reader. It never asks the C++ message for more bytes than
+-- are left, so a layout change on the server cannot throw back into the
+-- protocol and close the connection. Every consumed byte is kept as hex.
 local function reader(msg)
-    local r = { msg = msg, hex = {} }
+    local r = { msg = msg, hex = {}, failed = false }
     local function rec(fmt, value) r.hex[#r.hex + 1] = string.format(fmt, value) end
-    function r.u8() local v = msg:getU8() rec('%02X', v) return v end
-    function r.u16() local v = msg:getU16() rec('%04X', v) return v end
-    function r.u32() local v = msg:getU32() rec('%08X', v) return v end
+    local function need(n)
+        if r.failed or msg:getUnreadSize() < n then
+            r.failed = true
+            return false
+        end
+        return true
+    end
+    function r.u8() if not need(1) then return 0 end local v = msg:getU8() rec('%02X', v) return v end
+    function r.u16() if not need(2) then return 0 end local v = msg:getU16() rec('%04X', v) return v end
+    function r.u32() if not need(4) then return 0 end local v = msg:getU32() rec('%08X', v) return v end
     function r.str()
+        if not need(2) then return '' end
+        local len = msg:peekU16()
+        if msg:getUnreadSize() < 2 + len then
+            r.failed = true
+            return ''
+        end
         local s = msg:getString()
         rec('"%s"', s)
         return s
     end
     function r.unread() return msg:getUnreadSize() end
+    -- Consume whatever is left so the protocol stays in sync; the bytes go
+    -- to the log so the real layout can be read from it.
+    function r.drain()
+        local rest = {}
+        while msg:getUnreadSize() > 0 do rest[#rest + 1] = string.format('%02X', msg:getU8()) end
+        return table.concat(rest, ' ')
+    end
     return r
 end
 
@@ -99,7 +121,7 @@ local function refreshInfo()
         bonuses = {}
         for _, line in ipairs(PRACTICE_INFO) do bonuses[#bonuses + 1] = tr(line) end
     elseif #penalties == 0 and #bonuses == 0 then
-        bonuses = { tr('Waiting for the server to describe difficulty %d...', state.selected) }
+        bonuses = { tr('The server sent no description for difficulty %d.', state.selected) }
     end
     fillModifiers(window.infoBox.penalties, penalties, false)
     fillModifiers(window.infoBox.bonuses, bonuses, true)
@@ -138,8 +160,12 @@ local function showWindow()
     end
     local raceData = state.raceId > 0 and g_things.getRaceData(state.raceId) or nil
     window.bossBox.bossName:setText(raceData and raceData.name ~= '' and raceData.name or tr('Boss'))
+    local creature = window.bossBox.bossCreature
     if raceData and raceData.outfit then
-        window.bossBox.bossCreature:setOutfit(raceData.outfit)
+        creature:setOutfit(raceData.outfit)
+        creature:setVisible(true)
+    else
+        creature:setVisible(false)
     end
     window.bossBox.groupValue:setText(tostring(state.highestInGroup))
     window.bossBox.personalValue:setText(tostring(state.personalHighest))
@@ -156,17 +182,23 @@ local function showWindow()
     window:focus()
 end
 
+local function logPacket(text)
+    writeLog(text)
+    -- Also into nexus_client.log next to the exe, so the layout can be read
+    -- without access to the user write folder.
+    g_logger.info('[BossDifficulty] ' .. text)
+end
+
 local function onBossDifficulty(protocol, msg)
     local r = reader(msg)
     local ok, err = pcall(function()
         local kind = r.u8()
         if kind == 1 and r.unread() < MIN_OPEN_PAYLOAD then
-            writeLog('0x2F close ' .. table.concat(r.hex, ' '))
+            logPacket('0x2F close ' .. table.concat(r.hex, ' ') .. ' ' .. r.drain())
             addEvent(destroyWindow)
             return
         end
-        local s = { context = 1 }
-        s.kind = kind
+        local s = { context = 1, kind = kind }
         s.f1 = r.u32()
         s.f2 = r.u8()
         s.raceId = r.u16()
@@ -176,11 +208,33 @@ local function onBossDifficulty(protocol, msg)
         s.badLuck = r.u32()
         s.banners = {}
         for i = 1, 5 do s.banners[i] = r.str() end
+        local headerOk = not r.failed
         s.update = r.u16()
         s.penalties = {}
-        for _ = 1, r.u8() do s.penalties[#s.penalties + 1] = r.str() end
+        for _ = 1, r.u8() do
+            local text = r.str()
+            if r.failed then break end
+            s.penalties[#s.penalties + 1] = text
+        end
         s.bonuses = {}
-        for _ = 1, r.u8() do s.bonuses[#s.bonuses + 1] = r.str() end
+        for _ = 1, r.u8() do
+            local text = r.str()
+            if r.failed then break end
+            s.bonuses[#s.bonuses + 1] = text
+        end
+        local tailOk = not r.failed
+        local rest = r.unread() > 0 and r.drain() or ''
+        logPacket(string.format('0x2F kind=%d race=%d f1=%d f2=%d f4=%d group=%d personal=%d header=%s tail=%s | %s || rest: %s',
+            kind, s.raceId, s.f1, s.f2, s.f4, s.highestInGroup, s.personalHighest,
+            tostring(headerOk), tostring(tailOk), table.concat(r.hex, ' '), rest))
+        if not headerOk then
+            return
+        end
+        if not tailOk then
+            -- Descriptions did not match the known layout: show the window
+            -- without them instead of guessing.
+            s.penalties, s.bonuses = {}, {}
+        end
         s.minDifficulty = 0
         -- Keep the player's own choice while the server only updates the window.
         if state and window then
@@ -189,13 +243,12 @@ local function onBossDifficulty(protocol, msg)
             s.selected = s.f4 > 0 and s.f4 or (kind > 0 and kind or s.highestInGroup)
         end
         state = s
-        writeLog(string.format('0x2F open race=%d sel=%d group=%d personal=%d unreadAfter=%d | %s',
-            s.raceId, s.selected, s.highestInGroup, s.personalHighest, r.unread(), table.concat(r.hex, ' ')))
         addEvent(showWindow)
     end)
     if not ok then
-        writeLog('0x2F PARSE ERROR ' .. tostring(err) .. ' | ' .. table.concat(r.hex, ' '))
-        error(err)
+        -- Never rethrow into the protocol: that closed the connection.
+        pcall(r.drain)
+        logPacket('0x2F LUA ERROR ' .. tostring(err) .. ' | ' .. table.concat(r.hex, ' '))
     end
 end
 

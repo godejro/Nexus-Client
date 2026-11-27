@@ -969,6 +969,18 @@ end
 
 -- Even if hotkeys are enabled, only the hotkeys containing Ctrl or Alt or F1-F12 will be enabled when
 -- chat is opened (no WASD mode). This is made to prevent executing hotkeys while typing...
+-- Keys that never type a character, so with chat on they can still fire
+-- hotkeys (Tibia allows End, Home, Insert, Delete, Page Up/Down there).
+local NON_TEXT_KEYS = {
+    Insert = true, Delete = true, Home = true, End = true,
+    PageUp = true, PageDown = true, Pause = true, ScrollLock = true
+}
+
+function isNonTextKey(keyCombo)
+    local key = keyCombo and keyCombo:match('([^+]+)$')
+    return key ~= nil and NON_TEXT_KEYS[key] == true
+end
+
 function canPerformKeyCombo(keyCombo)
     if areHotkeysDisabled() then
         return false
@@ -987,7 +999,8 @@ function canPerformKeyCombo(keyCombo)
     end
     return  string.match(keyCombo, "Ctrl%+") or
             string.match(keyCombo, "Alt%+") or
-            string.match(keyCombo, "F%d+")
+            string.match(keyCombo, "F%d+") or
+            isNonTextKey(keyCombo)
 end
 
 -- Actionbar
