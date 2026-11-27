@@ -1,3 +1,4 @@
+- **Mniej przycięć po zabiciu potwora:** po każdym zabiciu serwer wysyła doświadczenie Weapon Proficiency, a klient za każdym razem sortował wszystkie listy broni (22–68 ms). Teraz listy sortują się tylko wtedy, gdy okno proficiency jest otwarte.
 - **Nowe ustawienia, zakładka Controls (jak w Tibii):** Mouse Preset, chodzenie prawym przyciskiem myszy po zwykłej podłodze, opóźnienie klawiatury (domyślne 250 ms albo własne 30–1000 ms), wybór klawiszy do obracania postaci (Ctrl, Shift, Alt), obracanie się w stronę ruchu przy zablokowanej drodze i „Press CTRL to Drag Complete Stacks”. Przycisk Reset przywraca domyślne ustawienia tej strony. Pozostałe opcje sterowania są niżej na tej samej stronie.
 - **Wyszukiwarka w ustawieniach:** pole „Search...” na dole okna. Wpisz słowo, a pojawi się lista pasujących opcji. Kliknięcie (albo Enter) przenosi do opcji i ją podświetla.
 - **Ok, Apply i Cancel:** Cancel cofa zmiany od otwarcia okna albo od ostatniego Apply.

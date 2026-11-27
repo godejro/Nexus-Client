@@ -520,10 +520,12 @@ function onWeaponProficiencyExperience(itemId, experience, hasUnusedPerk)
         end
     end
 
-    -- Re-sort all categories when experience changes
-    sortWeaponProficiency(MarketCategory.WeaponsAll)
-    for _, categoryId in pairs(WeaponProficiency.ItemCategory) do
-        sortWeaponProficiency(categoryId)
+    -- The server sends this after almost every kill. Sorting every weapon
+    -- list each time cost 20-68 ms in the stutter measurements, so the lists
+    -- are only re-sorted when someone can see them.
+    WeaponProficiency.sortDirty = true
+    if WeaponProficiency.window and WeaponProficiency.window:isVisible() then
+        sortAllWeaponProficiency()
     end
 
     -- Store the unused perk state globally
@@ -542,6 +544,14 @@ function onWeaponProficiencyExperience(itemId, experience, hasUnusedPerk)
 end
 
 -- Update the proficiency button highlight based on unused perk state
+function sortAllWeaponProficiency()
+    WeaponProficiency.sortDirty = false
+    sortWeaponProficiency(MarketCategory.WeaponsAll)
+    for _, categoryId in pairs(WeaponProficiency.ItemCategory) do
+        sortWeaponProficiency(categoryId)
+    end
+end
+
 function updateProficiencyHighlight()
     if WeaponProficiency.button then
         local highlight = WeaponProficiency.button:getChildById('highlight')
@@ -560,6 +570,9 @@ end
 function show()
     if not WeaponProficiency.window then
         createWindow()
+    end
+    if WeaponProficiency.sortDirty then
+        sortAllWeaponProficiency()
     end
 
     -- Reset search filter and clear search text
