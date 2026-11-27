@@ -421,7 +421,17 @@ function controllerNpcTrader:refreshPlayerGoods(skipFilter)
         display:setText(tostring(money))
     end
     if not skipFilter and self.tradeMode == controllerNpcTrader.SELL then
-        self:filterTradeList(self.searchText or "")
+        -- Sell All and the bot sell many items in a row, and every sale sends
+        -- new goods. Rebuild the list once the updates settle, not per sale.
+        if self.goodsFilterEvent then
+            removeEvent(self.goodsFilterEvent)
+        end
+        self.goodsFilterEvent = scheduleEvent(function()
+            self.goodsFilterEvent = nil
+            if self.tradeMode == controllerNpcTrader.SELL and isTrading() then
+                self:filterTradeList(self.searchText or "")
+            end
+        end, 150)
     end
     if self.selectedItem then
         self:updateAmount(self.amount)

@@ -4,6 +4,7 @@ local CURRENCY = 'gold'
 local CURRENCY_DECIMAL = false
 local WEIGHT_UNIT = 'oz'
 local LAST_INVENTORY = 10
+local legacyGoodsEvent = nil
 
 local npcWindow = nil
 local itemsPanel = nil
@@ -482,7 +483,14 @@ function onPlayerGoods(money, items)
         end
     end
 
-    refreshPlayerGoods()
+    -- Many goods updates arrive in a row while selling: redraw once they settle.
+    if legacyGoodsEvent then
+        removeEvent(legacyGoodsEvent)
+    end
+    legacyGoodsEvent = scheduleEvent(function()
+        legacyGoodsEvent = nil
+        refreshPlayerGoods()
+    end, 150)
     controllerNpcTrader:quickSellGoodsUpdated()
 end
 

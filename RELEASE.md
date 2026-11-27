@@ -1,3 +1,5 @@
+- **Mniej przycięć przy expieniu i lootowaniu:** serwer przy każdym przedmiocie wpadającym do loot poucha (i innych pojemników ze stronami) wysyła cały pojemnik od nowa. Klient za każdym razem budował okno od zera, a to była główna przyczyna przycięć w pomiarze (51 z 75). Teraz otwarte okno zostaje i odświeżają się tylko sloty. Seria zmian w pojemniku (loot, sprzedaż) odświeża okno raz, po serii.
+- **Sell All bez laga:** lista handlu z NPC przerysowuje się raz po serii sprzedaży, a nie po każdym sprzedanym przedmiocie. Dotyczy też sprzedaży przez bota i starego okna handlu.
 - **Rozmiar minimapy zapamiętany:** mapa rozszerzona na dwa panele (strzałka „>”) i jej wysokość wracają takie same po ponownym uruchomieniu klienta i po relogu.
 - **Tibia Coins pojedynczo na markecie:** suwak ilości nie przeskakuje już do skrajnych wartości (np. 25). Można kupić i sprzedać dowolną ilość, np. 1, 14 albo 26. Błąd dotyczył każdego przedmiotu z ID od 10000: suwak skakał co 1000.
 - **Zmiana języka nie kasuje ustawień:** po zmianie języka ustawienia pasków akcji i „Enable lights” w grafice zostają takie, jak były.

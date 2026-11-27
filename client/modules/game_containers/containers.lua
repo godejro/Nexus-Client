@@ -740,19 +740,118 @@ function onContainersMenuAction(actionId)
     end
 end
 
-function refreshContainerItems(container)
-    -- Check if we should preserve sorting during refresh
+-- Expiry/charge flags read once per refresh instead of once per slot.
+local function slotFlags()
+    local show = modules.client_options.getOption('showExpiryInContainers')
+    return g_game.getFeature(GameThingClock) and show, g_game.getFeature(GameThingCounter) and show
+end
+
+local function fillSlot(itemWidget, item, showDuration, showCharges)
+    itemWidget:setItem(item)
+    ItemsDatabase.setRarityItem(itemWidget, item)
+    ItemsDatabase.setTier(itemWidget, item)
+    itemWidget:setShowDuration(showDuration)
+    itemWidget:setShowCharges(showCharges)
+end
+
+local function containerTitle(container)
+    local name = container:getName()
+    name = name:sub(1, 1):upper() .. name:sub(2)
+    if name:len() > 14 then
+        name = name:sub(1, 14) .. "..."
+    end
+    return name
+end
+
+local function shouldAutoSort()
     local currentSortMode = containerSettings and containerSettings['currentSortMode']
     local isManualSortEnabled = containerSettings and containerSettings['useManualSortMode'] == 1
-    local shouldSort = currentSortMode and currentSortMode ~= 'none' and not isManualSortEnabled
-    
+    if currentSortMode and currentSortMode ~= 'none' and not isManualSortEnabled then
+        return currentSortMode
+    end
+end
+
+-- Servers resend a whole container (open packet) for every change in a paged
+-- container such as the loot pouch, so while looting it "reopens" several
+-- times a second. Rebuilding the window each time (destroy and create every
+-- slot widget) was the main stutter while hunting and selling. When the same
+-- window can hold the new contents, only the slots are refilled.
+local function reuseContainerWindow(container, previousContainer)
+    local containerWindow = previousContainer and previousContainer.window
+    if not containerWindow or containerWindow:isDestroyed() then
+        return false
+    end
+    local containerPanel = containerWindow:getChildById('contentsPanel')
+    local capacity = container:getCapacity()
+    if not containerPanel or containerPanel:getChildCount() ~= capacity or
+        previousContainer:getCapacity() ~= capacity or previousContainer:hasPages() ~= container:hasPages() then
+        return false
+    end
+    for slot = 0, capacity - 1 do
+        if not containerPanel:getChildById('item' .. slot) then
+            return false
+        end
+    end
+
+    previousContainer.window = nil
+    previousContainer.itemsPanel = nil
+    containerWindow:setId('container' .. container:getId())
+    containerWindow.onClose = function()
+        g_game.close(container)
+        containerWindow:hide()
+    end
+    local upButton = containerWindow:getChildById('upButton')
+    upButton.onClick = function()
+        g_game.openParent(container)
+    end
+    upButton:setVisible(container:hasParent())
+
+    local titleWidget = containerWindow:getChildById('miniwindowTitle')
+    if titleWidget then
+        titleWidget:setText(containerTitle(container))
+    else
+        containerWindow:setText(containerTitle(container))
+    end
+    containerWindow:getChildById('containerItemWidget'):setItem(container:getContainerItem())
+
+    local showDuration, showCharges = slotFlags()
+    local locked = not container:isUnlocked()
+    for slot = 0, capacity - 1 do
+        local itemWidget = containerPanel:getChildById('item' .. slot)
+        fillSlot(itemWidget, container:getItem(slot), showDuration, showCharges)
+        itemWidget.position = container:getSlotPosition(slot)
+        if locked then
+            itemWidget:setBorderColor('red')
+            itemWidget.nexusLockedBorder = true
+        elseif itemWidget.nexusLockedBorder then
+            itemWidget:setBorderColor('alpha')
+            itemWidget.nexusLockedBorder = nil
+        end
+    end
+
+    container.window = containerWindow
+    container.itemsPanel = containerPanel
+    if container:hasPages() then
+        refreshContainerPages(container)
+    end
+    local sortMode = shouldAutoSort()
+    if sortMode then
+        sortContainerItems(container, sortMode)
+    end
+    return true
+end
+
+function refreshContainerItems(container)
+    -- Check if we should preserve sorting during refresh
+    local currentSortMode = shouldAutoSort()
+    local shouldSort = currentSortMode ~= nil
+
+    local showDuration, showCharges = slotFlags()
     for slot = 0, container:getCapacity() - 1 do
         local itemWidget = container.itemsPanel:getChildById('item' .. slot)
-        itemWidget:setItem(container:getItem(slot))
-        ItemsDatabase.setRarityItem(itemWidget, container:getItem(slot))
-        ItemsDatabase.setTier(itemWidget, container:getItem(slot))
-        itemWidget:setShowDuration(g_game.getFeature(GameThingClock) and modules.client_options.getOption('showExpiryInContainers'))
-        itemWidget:setShowCharges(g_game.getFeature(GameThingCounter) and modules.client_options.getOption('showExpiryInContainers'))
+        if itemWidget then
+            fillSlot(itemWidget, container:getItem(slot), showDuration, showCharges)
+        end
     end
 
     if container:hasPages() then
@@ -926,6 +1025,9 @@ function refreshContainerPages(container)
 end
 
 function onContainerOpen(container, previousContainer)
+    if previousContainer and reuseContainerWindow(container, previousContainer) then
+        return
+    end
     local containerWindow
     if previousContainer then
         containerWindow = previousContainer.window
@@ -1047,19 +1149,18 @@ function onContainerOpen(container, previousContainer)
     containerItemWidget:setPhantom(true)
 
     containerPanel:destroyChildren()
+    local showDuration, showCharges = slotFlags()
+    local locked = not container:isUnlocked()
     for slot = 0, container:getCapacity() - 1 do
         local itemWidget = g_ui.createWidget('Item', containerPanel)
         itemWidget:setId('item' .. slot)
-        itemWidget:setItem(container:getItem(slot))
-        ItemsDatabase.setRarityItem(itemWidget, container:getItem(slot))
-        ItemsDatabase.setTier(itemWidget, container:getItem(slot))
-        itemWidget:setShowDuration(g_game.getFeature(GameThingClock) and modules.client_options.getOption('showExpiryInContainers'))
-        itemWidget:setShowCharges(g_game.getFeature(GameThingCounter) and modules.client_options.getOption('showExpiryInContainers'))
+        fillSlot(itemWidget, container:getItem(slot), showDuration, showCharges)
         itemWidget:setMargin(0)
         itemWidget.position = container:getSlotPosition(slot)
 
-        if not container:isUnlocked() then
+        if locked then
             itemWidget:setBorderColor('red')
+            itemWidget.nexusLockedBorder = true
         end
     end
 
@@ -1160,21 +1261,31 @@ function onContainerClose(container)
     destroy(container)
 end
 
+-- Several items can be added or removed in one burst (looting, selling):
+-- the window is refreshed once, after the burst, from the container's
+-- current contents.
 function onContainerChangeSize(container, size)
-    if not container.window then
+    if not container.window or container.nexusRefreshPending then
         return
     end
-    
-    -- Store the current height if one was preserved from page navigation
-    local preservedHeight = container.window.preservedHeight
-    
-    refreshContainerItems(container)
-    
-    -- Restore the preserved height if it exists (from page switching)
-    if preservedHeight then
-        container.window:setHeight(preservedHeight)
-        container.window.preservedHeight = nil -- Clear the preserved height
-    end
+    container.nexusRefreshPending = true
+    addEvent(function()
+        container.nexusRefreshPending = nil
+        if not container.window or container.window:isDestroyed() or not container.itemsPanel then
+            return
+        end
+
+        -- Store the current height if one was preserved from page navigation
+        local preservedHeight = container.window.preservedHeight
+
+        refreshContainerItems(container)
+
+        -- Restore the preserved height if it exists (from page switching)
+        if preservedHeight then
+            container.window:setHeight(preservedHeight)
+            container.window.preservedHeight = nil -- Clear the preserved height
+        end
+    end)
 end
 
 function onContainerUpdateItem(container, slot, item, oldItem)
@@ -1182,11 +1293,11 @@ function onContainerUpdateItem(container, slot, item, oldItem)
         return
     end
     local itemWidget = container.itemsPanel:getChildById('item' .. slot)
-    itemWidget:setItem(item)
-    ItemsDatabase.setRarityItem(itemWidget, item)
-    ItemsDatabase.setTier(itemWidget, item)
-    itemWidget:setShowDuration(g_game.getFeature(GameThingClock) and modules.client_options.getOption('showExpiryInContainers'))
-    itemWidget:setShowCharges(g_game.getFeature(GameThingCounter) and modules.client_options.getOption('showExpiryInContainers'))
+    if not itemWidget then
+        return
+    end
+    local showDuration, showCharges = slotFlags()
+    fillSlot(itemWidget, item, showDuration, showCharges)
     
     -- Note: Removed automatic re-sorting to prevent interference with manual item movement
     -- Sorting should only happen when explicitly requested by the user
