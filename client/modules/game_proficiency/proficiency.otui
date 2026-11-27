@@ -495,6 +495,18 @@ MainWindow
     margin-left: 12
     margin-right: 12
 
+  Label
+    id: shapingInfo
+    anchors.bottom: parent.bottom
+    anchors.left: parent.left
+    margin-bottom: 15
+    margin-left: 14
+    width: 560
+    color: #c38ef7
+    text-auto-resize: false
+    !tooltip: tr('Weapon Proficiency Update (15.30): modify up to two perk slots.\nFirst slot: 250 dust, from proficiency level 3.\nSecond slot: 1,000 dust, weapon must be mastered.\nA modified slot rolls a random effect at its lowest value and gets a distinct frame.')
+    visible: false
+
   Button
     id: close
     anchors.bottom: parent.bottom

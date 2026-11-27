@@ -1082,19 +1082,27 @@ function ForgeController:getColor(currentType)
     return base
 end
 
--- Dust limit (Weapon Proficiency Update): each upgrade raises the limit by 20
--- instead of 1, up to 4000, and the cost of the n-th upgrade is unchanged
--- (25 + n dust). Servers still on the old system (limit +1, cap 225/325)
--- are recognised by a cap of 325 or less and a limit off the 20 grid.
+-- Dust limit: the Weapon Proficiency Update (protocol 15.30) raises the limit
+-- by 20 per upgrade instead of 1, up to 4000; the cost of the n-th upgrade
+-- stays 25 + n dust. Older protocols keep +1 per upgrade and the server's cap
+-- (225/325), cost = limit - 75. The protocol decides; for a server that
+-- reports an older version but already uses the new limits, a limit above
+-- 325 or a cap above 325 switches to the new rules as well.
 local DUST_START = 100
 local DUST_STEP = 20
 local DUST_MAX_CAP = 4000
 
+local function usesNewDustLimit(dustMax, serverCap)
+    local protocol = g_game.getProtocolVersion and g_game.getProtocolVersion() or g_game.getClientVersion()
+    if protocol >= 1530 or (GameForgeCompactConfig and g_game.getFeature(GameForgeCompactConfig)) then
+        return true
+    end
+    return dustMax > 325 or (serverCap and serverCap > 325) or false
+end
+
 local function dustLimitRules(dustMax, serverCap)
-    local oldSystem = serverCap and serverCap > 0 and serverCap <= 325 and dustMax <= 325 and
-        (dustMax - DUST_START) % DUST_STEP ~= 0
-    if oldSystem then
-        return 1, serverCap, dustMax - 75
+    if not usesNewDustLimit(dustMax, serverCap) then
+        return 1, (serverCap and serverCap > 0) and serverCap or 325, dustMax - 75
     end
     local cap = (serverCap and serverCap > 325) and serverCap or DUST_MAX_CAP
     local upgrades = math.max(0, math.floor((dustMax - DUST_START) / DUST_STEP))

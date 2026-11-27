@@ -436,7 +436,116 @@ function onGameEnd()
 end
 
 -- Called when server sends proficiency info (opcode 0xC4)
-function onWeaponProficiency(itemId, experience, perks, marketCategory)
+------------------------------------------------------------------------------
+-- Perk shaping (Weapon Proficiency Update, protocol 15.30+). Up to two slots
+-- of a weapon's tree can be modified: the first for 250 dust from
+-- proficiency level 3, the second for 1,000 dust once the weapon is mastered.
+-- The server sends the modified slots with every proficiency packet; older
+-- protocols have no such list and none of this is shown.
+------------------------------------------------------------------------------
+local SHAPING_COSTS = { 250, 1000 }
+local SHAPING_MAX_SLOTS = 2
+local SHAPING_FIRST_LEVEL = 3
+local SHAPED_FRAME_COLOR = '#c38ef7'
+
+function isPerkShapingAvailable()
+    return GameProficiencyPerkShaping ~= nil and g_game.getFeature(GameProficiencyPerkShaping)
+end
+
+-- {level, position} from the server are 0-indexed; stored 1-indexed and keyed
+-- "level:position" so a slot lookup is a single table read.
+local function convertShapedPerks(shapedPerks)
+    if type(shapedPerks) ~= "table" then
+        return nil
+    end
+    local byKey, count = {}, 0
+    for _, entry in ipairs(shapedPerks) do
+        local level, position = tonumber(entry.level), tonumber(entry.position)
+        if level and position and level <= 10 and position <= 10 then
+            byKey[(level + 1) .. ':' .. (position + 1)] = {
+                augment = tonumber(entry.augment) or 0,
+                rank = tonumber(entry.rank) or 0
+            }
+            count = count + 1
+        end
+    end
+    return { byKey = byKey, count = count }
+end
+
+function WeaponProficiency:getSelectedShaped()
+    local cacheId = self.selectedMarketItem and self.selectedMarketItem.originalId or self.selectedItemId
+    local cache = cacheId and self.cacheList[cacheId]
+    return cache and cache.shaped or nil
+end
+
+-- Distinct frame on a modified slot (created once per icon). The perk's own
+-- tooltip stays as it is; the details are listed under the tree.
+function WeaponProficiency:markShapedSlot(bonusIcon, shapedEntry)
+    local frame = bonusIcon.shapedFrame
+    if not shapedEntry then
+        if frame then
+            frame:setVisible(false)
+        end
+        return
+    end
+    if not frame then
+        frame = g_ui.createWidget('UIWidget', bonusIcon)
+        frame:setId('shapedFrame')
+        frame:fill('parent')
+        frame:setPhantom(true)
+        frame:setBorderWidth(2)
+        frame:setBorderColor(SHAPED_FRAME_COLOR)
+        bonusIcon.shapedFrame = frame
+    end
+    frame:setVisible(true)
+    frame:raise()
+end
+
+function WeaponProficiency:updateShapingInfo(currentLevel, masteryAchieved)
+    local label = self.window and self.window:recursiveGetChildById('shapingInfo')
+    if not label then
+        return
+    end
+    if not isPerkShapingAvailable() then
+        label:setVisible(false)
+        return
+    end
+    local shaped = self:getSelectedShaped()
+    local modified = shaped and shaped.count or 0
+    local text
+    local details = {}
+    if shaped and modified > 0 then
+        for key, entry in pairs(shaped.byKey) do
+            local level = key:match('^(%d+)')
+            details[#details + 1] = tr('level %s step %d', level, entry.rank + 1)
+        end
+        table.sort(details)
+    end
+    local modifiedText = #details > 0 and (' (' .. table.concat(details, ', ') .. ')') or ''
+    if modified >= SHAPING_MAX_SLOTS then
+        text = tr('Perk shaping: %d/%d slots modified%s', modified, SHAPING_MAX_SLOTS, modifiedText)
+    else
+        local cost = SHAPING_COSTS[modified + 1]
+        local requirement, met
+        if modified == 0 then
+            requirement = tr('proficiency level %d', SHAPING_FIRST_LEVEL)
+            met = (currentLevel or 0) >= SHAPING_FIRST_LEVEL
+        else
+            requirement = tr('mastered weapon')
+            met = masteryAchieved
+        end
+        text = tr('Perk shaping: %d/%d slots modified%s  -  next slot: %s dust, requires %s%s', modified,
+            SHAPING_MAX_SLOTS, modifiedText, comma_value(cost), requirement, met and '' or tr(' (not reached)'))
+    end
+    local player = g_game.getLocalPlayer()
+    if player and ResourceTypes and ResourceTypes.FORGE_DUST then
+        text = text .. tr('  -  your dust: %s', comma_value(player:getResourceBalance(ResourceTypes.FORGE_DUST) or 0))
+    end
+    label:setText(text)
+    label:setVisible(true)
+end
+
+function onWeaponProficiency(itemId, experience, perks, marketCategory, shapedPerks)
     -- Ensure perks is a table
     if type(perks) ~= "table" then
         perks = {}
@@ -484,6 +593,8 @@ function onWeaponProficiency(itemId, experience, perks, marketCategory)
     end
 
     local cachePerks = WeaponProficiency.cacheList[itemId].perks
+    WeaponProficiency.cacheList[itemId].shaped = convertShapedPerks(shapedPerks)
+        or (existingCache and existingCache.shaped) or nil
 
     -- Re-sort the item list when we receive new proficiency data
     if marketCategory then
@@ -1509,6 +1620,7 @@ function WeaponProficiency:displayProficiencyData(itemId, experience, perks)
 
     -- Update bonus detail panels
     self:updateBonusDetails(profEntry, perks)
+    self:updateShapingInfo(currentLevel, masteryAchieved)
 
     -- Update item frame
     self:updateItemAddons(experience, displayItem, masteryAchieved, thingType, marketData)
@@ -1566,6 +1678,7 @@ function WeaponProficiency:displayPerks(itemId, perks, displayItem)
 
     -- Update bonus detail panels
     self:updateBonusDetails(proficiencyContent, perks)
+    self:updateShapingInfo(currentLevel, masteryAchieved)
 
     -- Update item frame/addons based on level
     self:updateItemAddons(experience, displayItem, masteryAchieved, thingType, marketData)
@@ -1693,6 +1806,10 @@ function WeaponProficiency:updatePerkColumn(perkColumn, levelData, levelIndex, c
             end
         end
     end
+
+    -- Modified slots of this weapon (nil on protocols without perk shaping)
+    local shaped = isPerkShapingAvailable() and self:getSelectedShaped() or nil
+    local shapedSlots = shaped and shaped.count > 0 and shaped.byKey or nil
 
     -- Update each perk icon
     for perkIndex, perkData in ipairs(perksData) do
@@ -1837,6 +1954,11 @@ function WeaponProficiency:updatePerkColumn(perkColumn, levelData, levelIndex, c
             -- Highlight selected perk
             if highlightWidget then
                 highlightWidget:setVisible(isSelected and isLevelUnlocked)
+            end
+
+            -- Perk shaping (15.30+): mark modified slots
+            if shapedSlots or bonusIcon.shapedFrame then
+                self:markShapedSlot(bonusIcon, shapedSlots and shapedSlots[levelIndex .. ':' .. perkIndex])
             end
 
             -- Set tooltip
